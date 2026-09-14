@@ -92,10 +92,10 @@
     },
     {
       "id": "tool_version",
-      "fact": "tool_version = 0.0.5",
+      "fact": "tool_version = 0.0.6",
       "fixture_path": "tool_version",
       "mode": "value",
-      "expected": "0.0.5",
+      "expected": "0.0.6",
       "surface": "README.md",
       "section": "Install",
       "tier": "P"

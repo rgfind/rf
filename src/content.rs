@@ -54,11 +54,71 @@ struct Layer {
 
 fn layers() -> Vec<Layer> {
     vec![
-        Layer { name: "default",    cfg: Cfg { ignore_files: true,  hidden: true,  binary_as_text: false, case_insensitive: false, encoding: None }, code: None, hint: None, flags: "" },
-        Layer { name: "vcs_ignore", cfg: Cfg { ignore_files: false, hidden: true,  binary_as_text: false, case_insensitive: false, encoding: None }, code: Some("IGNORE_VCS"),     hint: Some("add -u (ignore .gitignore/.ignore rules)"), flags: "-u" },
-        Layer { name: "hidden",     cfg: Cfg { ignore_files: false, hidden: false, binary_as_text: false, case_insensitive: false, encoding: None }, code: Some("HIDDEN_SKIPPED"), hint: Some("add -uu (also search hidden/dotfiles)"), flags: "-uu" },
-        Layer { name: "binary",     cfg: Cfg { ignore_files: false, hidden: false, binary_as_text: true,  case_insensitive: false, encoding: None }, code: Some("BINARY_SKIPPED"), hint: Some("add -uu -a (treat binary files as text)"), flags: "-uu -a" },
-        Layer { name: "case",       cfg: Cfg { ignore_files: false, hidden: false, binary_as_text: true,  case_insensitive: true,  encoding: None }, code: Some("CASE_SENSITIVE"), hint: Some("add -i (case-insensitive)"), flags: "-uu -a -i" },
+        Layer {
+            name: "default",
+            cfg: Cfg {
+                ignore_files: true,
+                hidden: true,
+                binary_as_text: false,
+                case_insensitive: false,
+                encoding: None,
+            },
+            code: None,
+            hint: None,
+            flags: "",
+        },
+        Layer {
+            name: "vcs_ignore",
+            cfg: Cfg {
+                ignore_files: false,
+                hidden: true,
+                binary_as_text: false,
+                case_insensitive: false,
+                encoding: None,
+            },
+            code: Some("IGNORE_VCS"),
+            hint: Some("add -u (ignore .gitignore/.ignore rules)"),
+            flags: "-u",
+        },
+        Layer {
+            name: "hidden",
+            cfg: Cfg {
+                ignore_files: false,
+                hidden: false,
+                binary_as_text: false,
+                case_insensitive: false,
+                encoding: None,
+            },
+            code: Some("HIDDEN_SKIPPED"),
+            hint: Some("add -uu (also search hidden/dotfiles)"),
+            flags: "-uu",
+        },
+        Layer {
+            name: "binary",
+            cfg: Cfg {
+                ignore_files: false,
+                hidden: false,
+                binary_as_text: true,
+                case_insensitive: false,
+                encoding: None,
+            },
+            code: Some("BINARY_SKIPPED"),
+            hint: Some("add -uu -a (treat binary files as text)"),
+            flags: "-uu -a",
+        },
+        Layer {
+            name: "case",
+            cfg: Cfg {
+                ignore_files: false,
+                hidden: false,
+                binary_as_text: true,
+                case_insensitive: true,
+                encoding: None,
+            },
+            code: Some("CASE_SENSITIVE"),
+            hint: Some("add -i (case-insensitive)"),
+            flags: "-uu -a -i",
+        },
     ]
 }
 
@@ -110,11 +170,27 @@ impl Class {
     pub(crate) fn hiding_filter(self) -> Option<(&'static str, &'static str, &'static str)> {
         match self {
             Self::Default => None,
-            Self::VcsIgnore => Some(("IGNORE_VCS", "add -u (ignore .gitignore/.ignore rules)", "-u")),
-            Self::Hidden => Some(("HIDDEN_SKIPPED", "add -uu (also search hidden/dotfiles)", "-uu")),
-            Self::Binary => Some(("BINARY_SKIPPED", "add -uu -a (treat binary files as text)", "-uu -a")),
+            Self::VcsIgnore => Some((
+                "IGNORE_VCS",
+                "add -u (ignore .gitignore/.ignore rules)",
+                "-u",
+            )),
+            Self::Hidden => Some((
+                "HIDDEN_SKIPPED",
+                "add -uu (also search hidden/dotfiles)",
+                "-uu",
+            )),
+            Self::Binary => Some((
+                "BINARY_SKIPPED",
+                "add -uu -a (treat binary files as text)",
+                "-uu -a",
+            )),
             Self::Case => Some(("CASE_SENSITIVE", "add -i (case-insensitive)", "-uu -a -i")),
-            Self::EncodingUtf16 => Some(("ENCODING_MISS", "add --encoding utf-16 (non-UTF-8 file)", "-uu -a --encoding utf-16")),
+            Self::EncodingUtf16 => Some((
+                "ENCODING_MISS",
+                "add --encoding utf-16 (non-UTF-8 file)",
+                "-uu -a --encoding utf-16",
+            )),
         }
     }
 }
@@ -131,7 +207,13 @@ pub(crate) enum TargetError {
 
 fn probe_base_cfg(encoding: Option<&'static str>) -> Cfg {
     // matches the `binary` layer (-uu -a): ignore off, hidden off, binary as text.
-    Cfg { ignore_files: false, hidden: false, binary_as_text: true, case_insensitive: false, encoding }
+    Cfg {
+        ignore_files: false,
+        hidden: false,
+        binary_as_text: true,
+        case_insensitive: false,
+        encoding,
+    }
 }
 
 /// Files under `path` containing `pattern` under one filter configuration.
@@ -177,7 +259,10 @@ pub(crate) fn validate_single_target(
     if !canonical.starts_with(root) {
         return Err(TargetError::OutsideRoot);
     }
-    let relative = canonical.strip_prefix(root).unwrap_or(&canonical).to_path_buf();
+    let relative = canonical
+        .strip_prefix(root)
+        .unwrap_or(&canonical)
+        .to_path_buf();
     if has_git_component(&relative) {
         return Err(TargetError::InsideGit);
     }
@@ -219,7 +304,12 @@ pub(crate) fn classify_target(
     }
     for probe in probes() {
         let base = matches_for(pattern, &root, &probe_base_cfg(None), Some(&selected))?;
-        let probed = matches_for(pattern, &root, &probe_base_cfg(Some(probe.encoding)), Some(&selected))?;
+        let probed = matches_for(
+            pattern,
+            &root,
+            &probe_base_cfg(Some(probe.encoding)),
+            Some(&selected),
+        )?;
         if probed.contains(&relative) && !base.contains(&relative) {
             return Ok(Some(Class::EncodingUtf16));
         }
@@ -231,7 +321,14 @@ fn selection_error(message: impl Into<String>) -> (Value, i32) {
     let mut meta = Map::new();
     meta.insert("verb".into(), Value::from("content"));
     (
-        envelope(false, vec![], meta, vec![], vec![], vec![err("INVALID_SELECTION", message)]),
+        envelope(
+            false,
+            vec![],
+            meta,
+            vec![],
+            vec![],
+            vec![err("INVALID_SELECTION", message)],
+        ),
         1,
     )
 }
@@ -270,22 +367,32 @@ fn parse_selected_paths(mode: SelectionMode) -> Result<Vec<String>, String> {
         SelectionMode::Envelope => {
             let value: Value = serde_json::from_slice(&bytes)
                 .map_err(|_| "selected envelope input is not valid JSON")?;
-            let data = value.get("data").and_then(Value::as_array)
+            let data = value
+                .get("data")
+                .and_then(Value::as_array)
                 .ok_or("selected envelope must contain a data array")?;
             if data.is_empty() {
                 return Err("selected envelope contains no files".into());
             }
-            data.iter().map(|row| {
-                row.get("file").and_then(Value::as_str)
-                    .filter(|file| !file.is_empty())
-                    .map(str::to_string)
-                    .ok_or_else(|| "each selected envelope row must contain a non-empty file string".into())
-            }).collect()
+            data.iter()
+                .map(|row| {
+                    row.get("file")
+                        .and_then(Value::as_str)
+                        .filter(|file| !file.is_empty())
+                        .map(str::to_string)
+                        .ok_or_else(|| {
+                            "each selected envelope row must contain a non-empty file string".into()
+                        })
+                })
+                .collect()
         }
     }
 }
 
-fn validate_selected_paths(path: &str, inputs: Vec<String>) -> Result<BTreeMap<String, PathBuf>, String> {
+fn validate_selected_paths(
+    path: &str,
+    inputs: Vec<String>,
+) -> Result<BTreeMap<String, PathBuf>, String> {
     let root = std::fs::canonicalize(path)
         .map_err(|_| "query root does not exist or cannot be resolved")?;
     if !root.is_dir() {
@@ -297,7 +404,11 @@ fn validate_selected_paths(path: &str, inputs: Vec<String>) -> Result<BTreeMap<S
         if supplied.as_os_str().is_empty() {
             return Err("selected path is empty".into());
         }
-        let candidate = if supplied.is_absolute() { supplied.to_path_buf() } else { root.join(supplied) };
+        let candidate = if supplied.is_absolute() {
+            supplied.to_path_buf()
+        } else {
+            root.join(supplied)
+        };
         let (relative, canonical) = validate_single_target(&root, &candidate).map_err(|error| {
             let detail = match error {
                 TargetError::Missing => "is missing or unreadable",
@@ -329,7 +440,9 @@ pub fn run(
 ) -> (Value, i32) {
     crate::fault::maybe_fault("content");
     let selected = match selection_mode {
-        Some(mode) => match parse_selected_paths(mode).and_then(|inputs| validate_selected_paths(path, inputs)) {
+        Some(mode) => match parse_selected_paths(mode)
+            .and_then(|inputs| validate_selected_paths(path, inputs))
+        {
             Ok(paths) => Some(paths),
             Err(message) => return selection_error(message),
         },
@@ -349,7 +462,14 @@ pub fn run(
                 let mut meta = Map::new();
                 meta.insert("verb".into(), Value::from("content"));
                 return (
-                    envelope(false, vec![], meta, vec![], vec![], vec![err("BAD_PATTERN", e)]),
+                    envelope(
+                        false,
+                        vec![],
+                        meta,
+                        vec![],
+                        vec![],
+                        vec![err("BAD_PATTERN", e)],
+                    ),
                     1,
                 );
             }
@@ -369,7 +489,8 @@ pub fn run(
                     format!("{} match(es) hidden by default; {hint}", new.len()),
                     new.clone(),
                 ));
-                let mut args: Vec<String> = layer.flags.split_whitespace().map(String::from).collect();
+                let mut args: Vec<String> =
+                    layer.flags.split_whitespace().map(String::from).collect();
                 args.extend(["-e".into(), pattern.into(), "--".into(), path.into()]);
                 commands.push(crate::command::shell("rg", &args));
             }
@@ -384,7 +505,12 @@ pub fn run(
             Ok(f) => f,
             Err(_) => continue,
         };
-        let probed = match matches_for(pattern, path, &probe_base_cfg(Some(p.encoding)), selected.as_ref()) {
+        let probed = match matches_for(
+            pattern,
+            path,
+            &probe_base_cfg(Some(p.encoding)),
+            selected.as_ref(),
+        ) {
             Ok(f) => f,
             Err(_) => continue, // a broken decoder contributes nothing (totality)
         };
@@ -428,10 +554,15 @@ pub fn run(
     meta.insert("verb".into(), Value::from("content"));
     meta.insert("pattern".into(), Value::from(pattern));
     meta.insert("path".into(), Value::from(path));
-    meta.insert("selection".into(), match (selection_mode, selected.as_ref()) {
-        (Some(mode), Some(files)) => json!({"mode": mode.name(), "selected_files": files.len()}),
-        _ => json!({"mode": "root-walk"}),
-    });
+    meta.insert(
+        "selection".into(),
+        match (selection_mode, selected.as_ref()) {
+            (Some(mode), Some(files)) => {
+                json!({"mode": mode.name(), "selected_files": files.len()})
+            }
+            _ => json!({"mode": "root-walk"}),
+        },
+    );
     meta.insert("matched_files".into(), Value::from(total));
     meta.insert(
         "default_matched_files".into(),
@@ -446,32 +577,61 @@ pub fn run(
     match crate::pagination::page(data, &query, limit, cursor) {
         Ok(page) => {
             let has_more = page.next_cursor.is_some();
-            meta.insert("pagination".into(), json!({
-                "limit": limit,
-                "returned": page.data.len(),
-                "total": page.total,
-                "truncated": has_more,
-                "has_more": has_more,
-                "cursor": page.next_cursor,
-                "snapshot_hash": page.snapshot_hash,
-            }));
-            (envelope(true, page.data, meta, warnings, commands, vec![]), 0)
+            meta.insert(
+                "pagination".into(),
+                json!({
+                    "limit": limit,
+                    "returned": page.data.len(),
+                    "total": page.total,
+                    "truncated": has_more,
+                    "has_more": has_more,
+                    "cursor": page.next_cursor,
+                    "snapshot_hash": page.snapshot_hash,
+                }),
+            );
+            (
+                envelope(true, page.data, meta, warnings, commands, vec![]),
+                0,
+            )
         }
         Err(error) => {
             let mut failure_meta = Map::new();
             failure_meta.insert("verb".into(), Value::from("content"));
             let (code, message, exit, restart) = match error {
-                crate::pagination::Error::InvalidCursor => ("INVALID_INPUT", "cursor is malformed or does not match this query", 1, vec![]),
+                crate::pagination::Error::InvalidCursor => (
+                    "INVALID_INPUT",
+                    "cursor is malformed or does not match this query",
+                    1,
+                    vec![],
+                ),
                 crate::pagination::Error::Conflict => (
                     "CONFLICT",
                     "the result snapshot changed; restart the query",
                     5,
-                    vec![crate::command::shell("rf", &[
-                        "content".into(), "--limit".into(), limit.to_string(), pattern.into(), "--".into(), path.into(),
-                    ])],
+                    vec![crate::command::shell(
+                        "rf",
+                        &[
+                            "content".into(),
+                            "--limit".into(),
+                            limit.to_string(),
+                            pattern.into(),
+                            "--".into(),
+                            path.into(),
+                        ],
+                    )],
                 ),
             };
-            (envelope(false, vec![], failure_meta, vec![], restart, vec![err(code, message)]), exit)
+            (
+                envelope(
+                    false,
+                    vec![],
+                    failure_meta,
+                    vec![],
+                    restart,
+                    vec![err(code, message)],
+                ),
+                exit,
+            )
         }
     }
 }

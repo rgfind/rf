@@ -21,7 +21,13 @@ use std::process::Command;
 
 const PROFILE: &str = "release-self-check";
 const SEVEN: [&str; 7] = [
-    "ok", "tool_version", "data", "meta", "warnings", "commands", "errors",
+    "ok",
+    "tool_version",
+    "data",
+    "meta",
+    "warnings",
+    "commands",
+    "errors",
 ];
 
 /// One observed probe invocation of the rf binary.
@@ -64,7 +70,10 @@ fn run_probe_env(exe: &Path, args: &[&str], fault: Option<&str>) -> Probe {
             };
             Probe {
                 exit: o.status.code().unwrap_or(-1),
-                ok: v.as_ref().and_then(|x| x.get("ok")).and_then(Value::as_bool),
+                ok: v
+                    .as_ref()
+                    .and_then(|x| x.get("ok"))
+                    .and_then(Value::as_bool),
                 err0: v
                     .as_ref()
                     .and_then(|x| x.get("errors"))
@@ -137,8 +146,20 @@ fn vd(pass: bool) -> &'static str {
 fn stage_argv(stage: &str) -> Vec<&'static str> {
     match stage {
         // content and engine share the content path; engine faults deeper in it.
-        "content" | "engine" => vec!["content", "zzq_no_such_token", "/rf-conformance-empty", "--json"],
-        "find" => vec!["find", "zzq_no_such_token", "/rf-conformance-empty", "--name", "conf", "--json"],
+        "content" | "engine" => vec![
+            "content",
+            "zzq_no_such_token",
+            "/rf-conformance-empty",
+            "--json",
+        ],
+        "find" => vec![
+            "find",
+            "zzq_no_such_token",
+            "/rf-conformance-empty",
+            "--name",
+            "conf",
+            "--json",
+        ],
         "doctor" => vec!["doctor", ".", "--json"],
         _ => vec!["capabilities", "--json"],
     }
@@ -190,23 +211,38 @@ fn positional_names(v: &Value) -> BTreeSet<String> {
 
 /// True iff the hand-kept `verbs` surface and the parser-derived manifest agree
 /// on the verb set and, per verb, the long-flag names and positional names.
-fn reconcile(hand: &Map<String, Value>, derived: &Map<String, Value>, hand_globals: &Value, derived_globals: &Value) -> bool {
+fn reconcile(
+    hand: &Map<String, Value>,
+    derived: &Map<String, Value>,
+    hand_globals: &Value,
+    derived_globals: &Value,
+) -> bool {
     let hverbs: BTreeSet<&String> = hand.keys().collect();
     let dverbs: BTreeSet<&String> = derived.keys().collect();
     if hverbs != dverbs {
         return false;
     }
-    let globals = |flags: &Value| flag_arities(&Value::Object(
-        [("flags".to_string(), flags.clone())].into_iter().collect(),
-    ));
-    globals(hand_globals) == globals(derived_globals) && hand.iter().all(|(name, hv)| {
-        let dv = &derived[name];
-        let aliases = |v: &Value| v["aliases"].as_array().into_iter().flatten()
-            .filter_map(Value::as_str).map(String::from).collect::<BTreeSet<_>>();
-        flag_arities(hv) == flag_arities(dv)
-            && positional_names(hv) == positional_names(dv)
-            && aliases(hv) == aliases(dv)
-    })
+    let globals = |flags: &Value| {
+        flag_arities(&Value::Object(
+            [("flags".to_string(), flags.clone())].into_iter().collect(),
+        ))
+    };
+    globals(hand_globals) == globals(derived_globals)
+        && hand.iter().all(|(name, hv)| {
+            let dv = &derived[name];
+            let aliases = |v: &Value| {
+                v["aliases"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(String::from)
+                    .collect::<BTreeSet<_>>()
+            };
+            flag_arities(hv) == flag_arities(dv)
+                && positional_names(hv) == positional_names(dv)
+                && aliases(hv) == aliases(dv)
+        })
 }
 
 /// Accumulates case rows and the cross-case observations X-06 / S-03 / S-04 need.
@@ -294,10 +330,25 @@ pub fn run() -> (Value, i32) {
     let happy: Vec<(&str, Vec<&str>)> = vec![
         ("robot-docs", vec!["robot-docs", "guide", "--json"]),
         ("capabilities", vec!["capabilities", "--json"]),
-        ("content", vec!["content", "zzq_no_such_token", "/rf-conformance-empty", "--json"]),
+        (
+            "content",
+            vec![
+                "content",
+                "zzq_no_such_token",
+                "/rf-conformance-empty",
+                "--json",
+            ],
+        ),
         (
             "find",
-            vec!["find", "zzq_no_such_token", "/rf-conformance-empty", "--name", "conf", "--json"],
+            vec![
+                "find",
+                "zzq_no_such_token",
+                "/rf-conformance-empty",
+                "--name",
+                "conf",
+                "--json",
+            ],
         ),
         ("doctor", vec!["doctor", ".", "--json"]),
         ("why", vec!["why", "zzq_no_such_token", &exe_arg, "--json"]),
@@ -313,7 +364,13 @@ pub fn run() -> (Value, i32) {
             && p.ok == Some(false)
             && p.err0.as_deref() == Some("UNKNOWN_COMMAND")
             && p.seven;
-        s.case("B-01", &[("verb", "nosuchverb")], vd(pass), None, p.request_id.as_deref());
+        s.case(
+            "B-01",
+            &[("verb", "nosuchverb")],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
     }
 
     // B-03: unrecognized verb-local flag on every verb -> exit 1, UNKNOWN_FLAG.
@@ -375,7 +432,13 @@ pub fn run() -> (Value, i32) {
             && p.ok == Some(false)
             && p.err0.as_deref() == Some("BAD_PATTERN")
             && p.seven;
-        s.case("R-01", &[("verb", verb)], vd(pass), None, p.request_id.as_deref());
+        s.case(
+            "R-01",
+            &[("verb", verb)],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
     }
 
     // T-01/T-02: why validates target inputs before compiling a pattern.
@@ -390,7 +453,13 @@ pub fn run() -> (Value, i32) {
             && p.ok == Some(false)
             && p.err0.as_deref() == Some("INVALID_TARGET")
             && p.seven;
-        s.case(id, &[("verb", "why")], vd(pass), None, p.request_id.as_deref());
+        s.case(
+            id,
+            &[("verb", "why")],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
     }
 
     // R-02: --structural without --lang -> exit 1, USAGE (rf's documented guard).
@@ -400,11 +469,15 @@ pub fn run() -> (Value, i32) {
             &["find", "x", ".", "--name", "conf", "--structural", "f($$$)"],
         );
         s.observe(&p);
-        let pass = p.exit == 1
-            && p.ok == Some(false)
-            && p.err0.as_deref() == Some("USAGE")
-            && p.seven;
-        s.case("R-02", &[("verb", "find")], vd(pass), None, p.request_id.as_deref());
+        let pass =
+            p.exit == 1 && p.ok == Some(false) && p.err0.as_deref() == Some("USAGE") && p.seven;
+        s.case(
+            "R-02",
+            &[("verb", "find")],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
     }
 
     // ---- Group 2: mode matrix (rf has one machine shape: the envelope) ----
@@ -432,20 +505,50 @@ pub fn run() -> (Value, i32) {
     if crate::fault::SEAM_PRESENT {
         let p = run_probe_env(&exe, &stage_argv("content"), Some("content"));
         s.observe(&p);
-        s.case("S-01", &[("stage", "content")], vd(is_total_fault(&p)), None, p.request_id.as_deref());
+        s.case(
+            "S-01",
+            &[("stage", "content")],
+            vd(is_total_fault(&p)),
+            None,
+            p.request_id.as_deref(),
+        );
         let p = run_probe_env(&exe, &stage_argv("find"), Some("find"));
         s.observe(&p);
-        s.case("S-02", &[("stage", "find")], vd(is_total_fault(&p)), None, p.request_id.as_deref());
+        s.case(
+            "S-02",
+            &[("stage", "find")],
+            vd(is_total_fault(&p)),
+            None,
+            p.request_id.as_deref(),
+        );
     } else {
-        s.case("S-01", &[], "not_applicable", Some("release-build-fault-trigger-unavailable"), None);
-        s.case("S-02", &[], "not_applicable", Some("release-build-fault-trigger-unavailable"), None);
+        s.case(
+            "S-01",
+            &[],
+            "not_applicable",
+            Some("release-build-fault-trigger-unavailable"),
+            None,
+        );
+        s.case(
+            "S-02",
+            &[],
+            "not_applicable",
+            Some("release-build-fault-trigger-unavailable"),
+            None,
+        );
     }
 
     // ---- Group 4: successful special surfaces ----
 
     // H-01: bare invocation. rf requires a subcommand and declares no bare success
     // surface, so the contract's exit-0 usage case does not apply.
-    s.case("H-01", &[], "not_applicable", Some("rf-requires-a-subcommand"), None);
+    s.case(
+        "H-01",
+        &[],
+        "not_applicable",
+        Some("rf-requires-a-subcommand"),
+        None,
+    );
 
     // H-02: --help and --version -> human text, exit 0.
     for (surface, arg) in [("help", "--help"), ("version", "--version")] {
@@ -456,19 +559,37 @@ pub fn run() -> (Value, i32) {
             s.exit_and_doc_together = false;
         }
         s.exit_codes.insert(p.exit);
-        s.case("H-02", &[("surface", surface)], vd(pass), None, p.request_id.as_deref());
+        s.case(
+            "H-02",
+            &[("surface", surface)],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
     }
 
     // H-03: help under a machine selector. rf renders help as clap human text with
     // no envelope form, so a machine help surface does not apply.
-    s.case("H-03", &[], "not_applicable", Some("help-surface-not-machine-rendered"), None);
+    s.case(
+        "H-03",
+        &[],
+        "not_applicable",
+        Some("help-surface-not-machine-rendered"),
+        None,
+    );
 
     // B-13: a positional whose text is a flag, after `--`, is treated as data.
     {
         let p = run_probe(&exe, &["doctor", "--", "--json"]);
         s.observe(&p);
         let pass = p.exit == 0 && p.ok == Some(true) && p.seven;
-        s.case("B-13", &[("token", "--json")], vd(pass), None, p.request_id.as_deref());
+        s.case(
+            "B-13",
+            &[("token", "--json")],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
     }
 
     // ---- Group 3 aggregates (computed after every machine probe ran) ----
@@ -510,7 +631,13 @@ pub fn run() -> (Value, i32) {
         });
         s.case("X-02", &[("stages", "all")], vd(all_total), None, None);
     } else {
-        s.case("X-02", &[], "not_applicable", Some("release-build-fault-trigger-unavailable"), None);
+        s.case(
+            "X-02",
+            &[],
+            "not_applicable",
+            Some("release-build-fault-trigger-unavailable"),
+            None,
+        );
     }
 
     // X-03: release posture. In a release build the seam is compiled out and no
@@ -519,7 +646,13 @@ pub fn run() -> (Value, i32) {
     // not-applicable. A fault-injection build deliberately violates that posture,
     // so the release-posture claim does not apply to it.
     if crate::fault::SEAM_PRESENT {
-        s.case("X-03", &[], "not_applicable", Some("fault-injection-build-not-release-posture"), None);
+        s.case(
+            "X-03",
+            &[],
+            "not_applicable",
+            Some("fault-injection-build-not-release-posture"),
+            None,
+        );
     } else {
         let env_vars = caps
             .get("env_vars")
@@ -530,7 +663,13 @@ pub fn run() -> (Value, i32) {
             let u = v.to_ascii_uppercase();
             u.contains("FAULT") || u.contains("_TEST") || u.contains("INJECT")
         });
-        s.case("X-03", &[("posture", "compiled-out")], vd(!declares_trigger), None, None);
+        s.case(
+            "X-03",
+            &[("posture", "compiled-out")],
+            vd(!declares_trigger),
+            None,
+            None,
+        );
     }
 
     // X-06: every exit code and error code observed in this sweep is declared.
@@ -558,14 +697,43 @@ pub fn run() -> (Value, i32) {
         let accepted = domain["accepted"].as_str().unwrap_or("");
         let rejected = domain["rejected"].as_str().unwrap_or("");
         let error_code = domain["error_code"].as_str().unwrap_or("INVALID_INPUT");
-        let accepted_args = [command, "zzq_no_such_token", "/rf-conformance-empty", flag, accepted, "--json"];
-        let rejected_args = [command, "zzq_no_such_token", "/rf-conformance-empty", flag, rejected, "--json"];
+        let accepted_args = [
+            command,
+            "zzq_no_such_token",
+            "/rf-conformance-empty",
+            flag,
+            accepted,
+            "--json",
+        ];
+        let rejected_args = [
+            command,
+            "zzq_no_such_token",
+            "/rf-conformance-empty",
+            flag,
+            rejected,
+            "--json",
+        ];
         let good = run_probe(&exe, &accepted_args);
         let bad = run_probe(&exe, &rejected_args);
         s.observe(&good);
         s.observe(&bad);
-        s.case("X-07", &[("flag", flag), ("value", "accepted")], vd(good.exit == 0 && good.ok == Some(true) && good.seven), None, good.request_id.as_deref());
-        s.case("X-07", &[("flag", flag), ("value", "rejected")], vd(bad.exit == 1 && bad.ok == Some(false) && bad.err0.as_deref() == Some(error_code) && bad.seven), None, bad.request_id.as_deref());
+        s.case(
+            "X-07",
+            &[("flag", flag), ("value", "accepted")],
+            vd(good.exit == 0 && good.ok == Some(true) && good.seven),
+            None,
+            good.request_id.as_deref(),
+        );
+        s.case(
+            "X-07",
+            &[("flag", flag), ("value", "rejected")],
+            vd(bad.exit == 1
+                && bad.ok == Some(false)
+                && bad.err0.as_deref() == Some(error_code)
+                && bad.seven),
+            None,
+            bad.request_id.as_deref(),
+        );
     }
 
     // X-05: this verb's own result meets the floor. Adjudicated on the rows built
@@ -585,7 +753,10 @@ pub fn run() -> (Value, i32) {
                     })
                 })
                 .unwrap_or(false);
-            has("case_id") && has("verdict") && has("request_id") && r.get("target").is_some()
+            has("case_id")
+                && has("verdict")
+                && has("request_id")
+                && r.get("target").is_some()
                 && target_agrees
         });
         s.case("X-05", &[("verb", "conformance")], vd(pass), None, None);
@@ -641,7 +812,10 @@ pub fn run() -> (Value, i32) {
     } else {
         vec![err(
             "CONFORMANCE_FAIL",
-            format!("{fail} case(s) returned verdict:fail: {}", failed_ids.join(", ")),
+            format!(
+                "{fail} case(s) returned verdict:fail: {}",
+                failed_ids.join(", ")
+            ),
         )]
     };
     let code = if ok { 0 } else { 1 };
@@ -671,13 +845,27 @@ mod reconciliation_tests {
 
         let mut capabilities_only = hand.clone();
         capabilities_only.insert("capabilities-only".into(), Value::Object(Map::new()));
-        assert!(!reconcile(&capabilities_only, &derived, &globals, &derived_globals));
+        assert!(!reconcile(
+            &capabilities_only,
+            &derived,
+            &globals,
+            &derived_globals
+        ));
     }
 
     #[test]
     fn manifest_includes_global_aliases_and_is_the_name_source() {
         let names = crate::manifest::public_names();
-        for name in ["content", "find", "--json", "--no-color", "--help", "-h", "--version", "-V"] {
+        for name in [
+            "content",
+            "find",
+            "--json",
+            "--no-color",
+            "--help",
+            "-h",
+            "--version",
+            "-V",
+        ] {
             assert!(names.contains(name), "missing parser name {name}");
         }
     }

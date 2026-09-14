@@ -16,13 +16,32 @@ fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
-pub fn pipe_fd_to_rg(ext: &str, pattern: &str, root: &str, extra_fd: &[&str], extra_rg: &[&str]) -> String {
+pub fn pipe_fd_to_rg(
+    ext: &str,
+    pattern: &str,
+    root: &str,
+    extra_fd: &[&str],
+    extra_rg: &[&str],
+) -> String {
     let mut fd = extra_fd.iter().map(|s| s.to_string()).collect::<Vec<_>>();
     // `.` is fd's match-all pattern. It keeps `root` in the path position;
     // the `--` boundary also makes a root that starts with `-` unambiguous.
-    fd.extend(["-0".into(), "-e".into(), ext.into(), ".".into(), "--".into(), root.into()]);
+    fd.extend([
+        "-0".into(),
+        "-e".into(),
+        ext.into(),
+        ".".into(),
+        "--".into(),
+        root.into(),
+    ]);
     let mut rg = extra_rg.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-    rg.extend(["-0".into(), "-l".into(), "-e".into(), pattern.into(), "--".into()]);
+    rg.extend([
+        "-0".into(),
+        "-l".into(),
+        "-e".into(),
+        pattern.into(),
+        "--".into(),
+    ]);
     format!("{} | xargs -0 {}", shell("fd", &fd), shell("rg", &rg))
 }
 
@@ -35,8 +54,12 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_dir(label: &str) -> std::path::PathBuf {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let dir = std::env::temp_dir().join(format!("rf-command-{label}-{}-{nonce}", std::process::id()));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("rf-command-{label}-{}-{nonce}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -63,7 +86,10 @@ mod tests {
                 out.to_string_lossy().into_owned(),
             ],
         );
-        let status = Command::new("/bin/sh").args(["-c", &command]).status().unwrap();
+        let status = Command::new("/bin/sh")
+            .args(["-c", &command])
+            .status()
+            .unwrap();
         assert!(status.success());
         assert_eq!(fs::read_to_string(&out).unwrap(), value);
         fs::remove_dir_all(dir).unwrap();
@@ -76,7 +102,13 @@ mod tests {
         let root = dir.join(" root ' $meta\n");
         fs::create_dir_all(&bin).unwrap();
         fs::create_dir_all(&root).unwrap();
-        let names = ["space name.rs", "quote'file.rs", "line\nbreak.rs", "-dash.rs", "$meta;*?[x].rs"];
+        let names = [
+            "space name.rs",
+            "quote'file.rs",
+            "line\nbreak.rs",
+            "-dash.rs",
+            "$meta;*?[x].rs",
+        ];
         let mut expected = Vec::new();
         for name in names {
             let path = root.join(name);
@@ -95,7 +127,11 @@ mod tests {
         );
         let out = dir.join("received");
         let command = pipe_fd_to_rg("rs", "-needle '$meta", &root.to_string_lossy(), &[], &[]);
-        let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap_or_default());
+        let path = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
         let status = Command::new("/bin/sh")
             .args(["-c", &command])
             .env("PATH", path)

@@ -33,10 +33,19 @@ fn spellings(arg: &Arg) -> Vec<String> {
 fn flag(arg: &Arg) -> Value {
     let names = spellings(arg);
     let mut m = Map::new();
-    m.insert("name".into(), Value::from(names.first().cloned().unwrap_or_default()));
+    m.insert(
+        "name".into(),
+        Value::from(names.first().cloned().unwrap_or_default()),
+    );
     m.insert(
         "aliases".into(),
-        Value::from(names.into_iter().skip(1).map(Value::from).collect::<Vec<_>>()),
+        Value::from(
+            names
+                .into_iter()
+                .skip(1)
+                .map(Value::from)
+                .collect::<Vec<_>>(),
+        ),
     );
     m.insert("arity".into(), Value::from(arity(arg)));
     Value::from(m)
@@ -80,7 +89,9 @@ pub fn public_names() -> BTreeSet<String> {
     let manifest = build();
     let mut names = BTreeSet::new();
     for flag in manifest["global_flags"].as_array().into_iter().flatten() {
-        for name in std::iter::once(&flag["name"]).chain(flag["aliases"].as_array().into_iter().flatten()) {
+        for name in
+            std::iter::once(&flag["name"]).chain(flag["aliases"].as_array().into_iter().flatten())
+        {
             if let Some(name) = name.as_str() {
                 names.insert(name.to_string());
             }
@@ -94,7 +105,9 @@ pub fn public_names() -> BTreeSet<String> {
             }
         }
         for flag in command["flags"].as_array().into_iter().flatten() {
-            for name in std::iter::once(&flag["name"]).chain(flag["aliases"].as_array().into_iter().flatten()) {
+            for name in std::iter::once(&flag["name"])
+                .chain(flag["aliases"].as_array().into_iter().flatten())
+            {
                 if let Some(name) = name.as_str() {
                     names.insert(name.to_string());
                 }
@@ -108,9 +121,12 @@ pub fn public_names() -> BTreeSet<String> {
 /// deliberately yield no suggestion.
 pub fn correction(token: &str) -> Option<String> {
     fn distance_one(a: &str, b: &str) -> bool {
-        if !a.is_ascii() || !b.is_ascii() || a == b || a.len().abs_diff(b.len()) > 1 { return false; }
+        if !a.is_ascii() || !b.is_ascii() || a == b || a.len().abs_diff(b.len()) > 1 {
+            return false;
+        }
         let (mut i, mut j, mut edits) = (0, 0, 0);
-        let aa = a.as_bytes(); let bb = b.as_bytes();
+        let aa = a.as_bytes();
+        let bb = b.as_bytes();
         while i < aa.len() && j < bb.len() {
             if aa[i] == bb[j] {
                 i += 1;
@@ -132,7 +148,10 @@ pub fn correction(token: &str) -> Option<String> {
         }
         edits + (aa.len() - i) + (bb.len() - j) == 1
     }
-    let matches: Vec<_> = public_names().into_iter().filter(|name| distance_one(token, name)).collect();
+    let matches: Vec<_> = public_names()
+        .into_iter()
+        .filter(|name| distance_one(token, name))
+        .collect();
     (matches.len() == 1).then(|| matches[0].clone())
 }
 
@@ -161,9 +180,15 @@ pub fn build() -> Value {
     // are nevertheless global grammar, so derive their spellings from the
     // live subcommand registry and publish them once.
     for sub in cmd.get_subcommands() {
-        for arg in sub.get_arguments().filter(|arg| matches!(arg.get_id().as_str(), "help" | "version")) {
+        for arg in sub
+            .get_arguments()
+            .filter(|arg| matches!(arg.get_id().as_str(), "help" | "version"))
+        {
             let candidate = flag(arg);
-            if !global_flags.iter().any(|existing| existing["name"] == candidate["name"]) {
+            if !global_flags
+                .iter()
+                .any(|existing| existing["name"] == candidate["name"])
+            {
                 global_flags.push(candidate);
             }
         }

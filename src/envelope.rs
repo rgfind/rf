@@ -103,7 +103,10 @@ pub fn envelope(
     // measurement. Keeping the key here means every envelope has the same
     // meta floor, including errors made below the dispatcher.
     meta.insert("elapsed_ms".into(), Value::from(0));
-    meta.insert("data_hash".into(), Value::from(hash_data(&data)[..12].to_string()));
+    meta.insert(
+        "data_hash".into(),
+        Value::from(hash_data(&data)[..12].to_string()),
+    );
     for (k, v) in meta_extra {
         meta.insert(k, v);
     }
@@ -113,7 +116,10 @@ pub fn envelope(
     root.insert("tool_version".into(), Value::from(TOOL_VERSION));
     // An empty array means a successful query found nothing. A failed request
     // did not produce a result, so it is deliberately distinguishable as null.
-    root.insert("data".into(), if ok { Value::from(data) } else { Value::Null });
+    root.insert(
+        "data".into(),
+        if ok { Value::from(data) } else { Value::Null },
+    );
     root.insert("meta".into(), Value::from(meta));
     root.insert("warnings".into(), Value::from(warnings));
     root.insert(
@@ -131,7 +137,10 @@ pub fn err(code: &str, message: impl Into<String>) -> Value {
     m.insert("code".into(), Value::from(code));
     m.insert("message".into(), Value::from(message.into()));
     m.insert("path".into(), Value::Null);
-    m.insert("remediation".into(), Value::from("Run `rf --help` for command syntax."));
+    m.insert(
+        "remediation".into(),
+        Value::from("Run `rf --help` for command syntax."),
+    );
     m.insert("did_you_mean".into(), Value::Null);
     m.insert("exit_code".into(), Value::Null);
     Value::from(m)

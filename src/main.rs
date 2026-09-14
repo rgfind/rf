@@ -14,9 +14,9 @@ mod engine;
 mod envelope;
 mod fault;
 mod find;
+mod guide;
 mod manifest;
 mod pagination;
-mod guide;
 mod why;
 
 use clap::{Parser, Subcommand};
@@ -26,7 +26,13 @@ use std::io::IsTerminal;
 use std::time::Instant;
 
 #[derive(Parser)]
-#[command(name = "rf", version, about = "agent-first forensic search over ripgrep + fd", disable_help_subcommand = true, after_help = "Machine contract: rf capabilities --json\nAutomation: read the JSON envelope before you use a follow-up command.\nExit: 0 success; 1 input error; 3 environment error; 5 snapshot conflict; 6 internal error.\nWorkflow guides: rf robot-docs guide emits agent workflow recipes.")]
+#[command(
+    name = "rf",
+    version,
+    about = "agent-first forensic search over ripgrep + fd",
+    disable_help_subcommand = true,
+    after_help = "Machine contract: rf capabilities --json\nAutomation: read the JSON envelope before you use a follow-up command.\nExit: 0 success; 1 input error; 3 environment error; 5 snapshot conflict; 6 internal error.\nWorkflow guides: rf robot-docs guide emits agent workflow recipes."
+)]
 struct Cli {
     /// Emit the machine-readable envelope. Accepted before or after a verb.
     #[arg(long, global = true)]
@@ -56,10 +62,12 @@ fn extension(value: &str) -> Result<String, String> {
 enum Verb {
     /// Task workflows for agents.
     #[command(name = "robot-docs")]
-    RobotDocs { #[command(subcommand)] command: RobotDocs },
-    /// Emit the machine contract.
-    Capabilities {
+    RobotDocs {
+        #[command(subcommand)]
+        command: RobotDocs,
     },
+    /// Emit the machine contract.
+    Capabilities {},
     /// Content search with per-filter attribution.
     Content {
         pattern: String,
@@ -107,12 +115,16 @@ enum Verb {
         root: Option<String>,
     },
     /// Run the release self-check profile against this binary.
-    Conformance {
-    },
+    Conformance {},
 }
 
 #[derive(Subcommand)]
-enum RobotDocs { Guide { #[arg(long)] compact: bool } }
+enum RobotDocs {
+    Guide {
+        #[arg(long)]
+        compact: bool,
+    },
+}
 
 fn bootstrap_json() -> bool {
     // This scan is deliberately lexical and stops at `--`: a later `--json` or
@@ -138,9 +150,19 @@ fn bootstrap_json() -> bool {
 
 fn dispatch(v: &Verb) -> (Value, i32) {
     match v {
-        Verb::RobotDocs { command: RobotDocs::Guide { compact } } => guide::run(*compact),
+        Verb::RobotDocs {
+            command: RobotDocs::Guide { compact },
+        } => guide::run(*compact),
         Verb::Capabilities { .. } => capabilities::run(),
-        Verb::Content { pattern, path, paths_stdin, paths_envelope, limit, cursor, .. } => {
+        Verb::Content {
+            pattern,
+            path,
+            paths_stdin,
+            paths_envelope,
+            limit,
+            cursor,
+            ..
+        } => {
             let selection = if *paths_stdin {
                 Some(content::SelectionMode::NulStdin)
             } else if *paths_envelope {
@@ -150,11 +172,30 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             };
             content::run(pattern, path, *limit, cursor.as_deref(), selection)
         }
-        Verb::Find { pattern, path, name, structural, lang, limit, cursor, .. } => {
-            find::run(pattern, path, name, structural.as_deref(), lang.as_deref(), *limit, cursor.as_deref())
-        }
+        Verb::Find {
+            pattern,
+            path,
+            name,
+            structural,
+            lang,
+            limit,
+            cursor,
+            ..
+        } => find::run(
+            pattern,
+            path,
+            name,
+            structural.as_deref(),
+            lang.as_deref(),
+            *limit,
+            cursor.as_deref(),
+        ),
         Verb::Doctor { path, .. } => doctor::run(path),
-        Verb::Why { pattern, file, root } => why::run(pattern, file, root.as_deref()),
+        Verb::Why {
+            pattern,
+            file,
+            root,
+        } => why::run(pattern, file, root.as_deref()),
         Verb::Conformance { .. } => conformance::run(),
     }
 }
@@ -170,7 +211,9 @@ fn render_human(env: &Value) -> String {
                 "content '{}' in {}: {} file(s), {} by default, {} hidden by filters",
                 meta["pattern"].as_str().unwrap_or(""),
                 meta["path"].as_str().unwrap_or(""),
-                meta["matched_files"], meta["default_matched_files"], meta["hidden_by_filters"]
+                meta["matched_files"],
+                meta["default_matched_files"],
+                meta["hidden_by_filters"]
             ));
             for d in env["data"].as_array().unwrap_or(&vec![]) {
                 out.push(format!(
@@ -184,7 +227,10 @@ fn render_human(env: &Value) -> String {
             let d = &env["data"][0];
             out.push(format!("rf: {}", d["rf_version"].as_str().unwrap_or("")));
             out.push(format!("engine: {}", d["engine"].as_str().unwrap_or("")));
-            out.push(format!("ignore_mode: {}", d["ignore_mode"].as_str().unwrap_or("")));
+            out.push(format!(
+                "ignore_mode: {}",
+                d["ignore_mode"].as_str().unwrap_or("")
+            ));
         }
         "why" => {
             let d = &env["data"][0];
@@ -198,7 +244,9 @@ fn render_human(env: &Value) -> String {
                     .unwrap_or_default();
                 out.push(format!("why '{pattern}' {file}: MATCH{suffix}"));
             } else {
-                out.push(format!("why '{pattern}' {file}: NO MATCH (pattern absent under all filters)"));
+                out.push(format!(
+                    "why '{pattern}' {file}: NO MATCH (pattern absent under all filters)"
+                ));
             }
         }
         "conformance" => {
@@ -224,7 +272,11 @@ fn render_human(env: &Value) -> String {
         _ => return serde_json::to_string_pretty(env).unwrap_or_default(),
     }
     for w in env["warnings"].as_array().unwrap_or(&vec![]) {
-        out.push(format!("  ! {}: {}", w["code"].as_str().unwrap_or(""), w["msg"].as_str().unwrap_or("")));
+        out.push(format!(
+            "  ! {}: {}",
+            w["code"].as_str().unwrap_or(""),
+            w["msg"].as_str().unwrap_or("")
+        ));
     }
     for c in env["commands"].as_array().unwrap_or(&vec![]) {
         out.push(format!("  $ {}", c.as_str().unwrap_or("")));
@@ -260,7 +312,11 @@ fn emit(mut env: Value, code: i32, json: bool, started: Instant) -> ! {
     } else {
         println!("{}", render_human(&env));
         for e in env["errors"].as_array().unwrap_or(&vec![]) {
-            eprintln!("error: {}: {}", e["code"].as_str().unwrap_or(""), e["message"].as_str().unwrap_or(""));
+            eprintln!(
+                "error: {}: {}",
+                e["code"].as_str().unwrap_or(""),
+                e["message"].as_str().unwrap_or("")
+            );
         }
     }
     std::process::exit(code);
@@ -289,11 +345,21 @@ fn main() {
                 _ => "USAGE",
             };
             let rendered = e.to_string();
-            let token = rendered.split('`').nth(1).or_else(|| rendered.split('\'').nth(1));
-            let suggestion = if std::env::args().skip(1).any(|arg| arg == "--") { None } else { token.and_then(manifest::correction) };
+            let token = rendered
+                .split('`')
+                .nth(1)
+                .or_else(|| rendered.split('\'').nth(1));
+            let suggestion = if std::env::args().skip(1).any(|arg| arg == "--") {
+                None
+            } else {
+                token.and_then(manifest::correction)
+            };
             let mut problem = err(code, "invalid arguments; see --help");
             if let Some(suggestion) = suggestion {
-                problem.as_object_mut().unwrap().insert("did_you_mean".into(), Value::from(suggestion.clone()));
+                problem
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("did_you_mean".into(), Value::from(suggestion.clone()));
                 let command = crate::command::shell("rf", &[suggestion]);
                 let env = envelope(false, vec![], meta, vec![], vec![command], vec![problem]);
                 emit(env, 1, json, started);
@@ -310,7 +376,14 @@ fn main() {
         Err(_) => {
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::Null);
-            let env = envelope(false, vec![], meta, vec![], vec![], vec![err("INTERNAL", "internal error (panic caught)")]);
+            let env = envelope(
+                false,
+                vec![],
+                meta,
+                vec![],
+                vec![],
+                vec![err("INTERNAL", "internal error (panic caught)")],
+            );
             emit(env, 6, json || cli.json, started);
         }
     }

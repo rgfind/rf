@@ -53,10 +53,7 @@ pub fn run(path: &str) -> (Value, i32) {
     d.insert("ignore_mode".into(), Value::from(ignore_mode));
 
     let mut rec = Map::new();
-    rec.insert(
-        "command".into(),
-        Value::from("rf content '<pat>' <path>"),
-    );
+    rec.insert("command".into(), Value::from("rf content '<pat>' <path>"));
     rec.insert(
         "rationale".into(),
         Value::from("engine healthy; run a forensic content search"),
@@ -66,11 +63,16 @@ pub fn run(path: &str) -> (Value, i32) {
 
     let warnings = vec![warn(
         "IGNORE_MODE",
-        format!("ignore behavior here: {ignore_mode}. Results differ from a real repo if this flips."),
+        format!(
+            "ignore behavior here: {ignore_mode}. Results differ from a real repo if this flips."
+        ),
         vec![],
     )];
 
     let mut meta = Map::new();
     meta.insert("verb".into(), Value::from("doctor"));
-    (envelope(true, vec![Value::from(d)], meta, warnings, vec![], vec![]), 0)
+    (
+        envelope(true, vec![Value::from(d)], meta, warnings, vec![], vec![]),
+        0,
+    )
 }

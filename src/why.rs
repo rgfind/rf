@@ -11,7 +11,9 @@ fn slash(path: &Path) -> String {
 }
 
 fn display_root(root: &Path) -> String {
-    let cwd = std::env::current_dir().ok().and_then(|path| std::fs::canonicalize(path).ok());
+    let cwd = std::env::current_dir()
+        .ok()
+        .and_then(|path| std::fs::canonicalize(path).ok());
     let relative = cwd
         .as_deref()
         .and_then(|cwd| pathdiff::diff_paths(root, cwd));
@@ -25,10 +27,14 @@ fn display_root(root: &Path) -> String {
 fn target_failure(target: &str, root: Option<&str>, error: TargetError) -> (Value, i32) {
     let remediation = match error {
         TargetError::Missing => format!("no such file: {target}; pass one existing regular file"),
-        TargetError::Directory => format!("{target} is a directory; use 'rf content <pattern> <dir>' to search a tree"),
+        TargetError::Directory => {
+            format!("{target} is a directory; use 'rf content <pattern> <dir>' to search a tree")
+        }
         TargetError::NotRegular => format!("{target} is not a regular file"),
         TargetError::Unreadable => format!("{target} is not readable"),
-        TargetError::InsideGit => format!("{target} is inside .git; rf does not search repository internals"),
+        TargetError::InsideGit => {
+            format!("{target} is inside .git; rf does not search repository internals")
+        }
         TargetError::OutsideRoot => format!("{target} is outside --root {}", root.unwrap_or(".")),
     };
     let mut meta = Map::new();
@@ -40,7 +46,12 @@ fn target_failure(target: &str, root: Option<&str>, error: TargetError) -> (Valu
             meta,
             vec![],
             vec![],
-            vec![err_with("INVALID_TARGET", "target cannot be searched", target, remediation)],
+            vec![err_with(
+                "INVALID_TARGET",
+                "target cannot be searched",
+                target,
+                remediation,
+            )],
         ),
         1,
     )
@@ -70,7 +81,11 @@ fn bad_root(target: &str, root: &str) -> (Value, i32) {
 fn resolve_root(target: &str, root_arg: Option<&str>) -> Result<(PathBuf, PathBuf), (Value, i32)> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let target_path = Path::new(target);
-    let target_candidate = if target_path.is_absolute() { target_path.to_path_buf() } else { cwd.join(target_path) };
+    let target_candidate = if target_path.is_absolute() {
+        target_path.to_path_buf()
+    } else {
+        cwd.join(target_path)
+    };
 
     if let Some(root_arg) = root_arg {
         let root = match std::fs::canonicalize(root_arg) {
@@ -88,7 +103,10 @@ fn resolve_root(target: &str, root_arg: Option<&str>) -> Result<(PathBuf, PathBu
     let root = if context.in_repo {
         context.root
     } else {
-        canonical_target.parent().unwrap_or(Path::new(".")).to_path_buf()
+        canonical_target
+            .parent()
+            .unwrap_or(Path::new("."))
+            .to_path_buf()
     };
     Ok((root, canonical_target))
 }
@@ -110,7 +128,17 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
         Err(message) => {
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::from("why"));
-            return (envelope(false, vec![], meta, vec![], vec![], vec![err("BAD_PATTERN", message)]), 1);
+            return (
+                envelope(
+                    false,
+                    vec![],
+                    meta,
+                    vec![],
+                    vec![],
+                    vec![err("BAD_PATTERN", message)],
+                ),
+                1,
+            );
         }
     };
 
@@ -123,17 +151,31 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
     row.insert("hidden_from_default".into(), Value::from(hidden));
     row.insert(
         "surfaced_by".into(),
-        class.map(|value| Value::from(value.name())).unwrap_or(Value::Null),
+        class
+            .map(|value| Value::from(value.name()))
+            .unwrap_or(Value::Null),
     );
 
     let mut warnings = Vec::new();
     let mut commands = Vec::new();
     if let Some(class) = class {
         if let Some((code, hint, flags)) = class.hiding_filter() {
-            row.insert("hiding_filter".into(), serde_json::json!({"code": code, "layer": class.name(), "rg_flags": flags}));
-            warnings.push(warn(code, format!("match hidden from a default tree search; {hint}"), vec![file.clone()]));
+            row.insert(
+                "hiding_filter".into(),
+                serde_json::json!({"code": code, "layer": class.name(), "rg_flags": flags}),
+            );
+            warnings.push(warn(
+                code,
+                format!("match hidden from a default tree search; {hint}"),
+                vec![file.clone()],
+            ));
             let mut args: Vec<String> = flags.split_whitespace().map(String::from).collect();
-            args.extend(["-e".into(), pattern.into(), "--".into(), root_display.clone()]);
+            args.extend([
+                "-e".into(),
+                pattern.into(),
+                "--".into(),
+                root_display.clone(),
+            ]);
             commands.push(crate::command::shell("rg", &args));
         }
     }
@@ -147,6 +189,21 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
     meta.insert("git_repo".into(), Value::from(context.in_repo));
     meta.insert("ignore_mode".into(), Value::from(context.ignore_mode));
     meta.insert("matched".into(), Value::from(matched));
-    meta.insert("surfaced_by".into(), class.map(|value| Value::from(value.name())).unwrap_or(Value::Null));
-    (envelope(true, vec![Value::from(row)], meta, warnings, commands, vec![]), 0)
+    meta.insert(
+        "surfaced_by".into(),
+        class
+            .map(|value| Value::from(value.name()))
+            .unwrap_or(Value::Null),
+    );
+    (
+        envelope(
+            true,
+            vec![Value::from(row)],
+            meta,
+            warnings,
+            commands,
+            vec![],
+        ),
+        0,
+    )
 }

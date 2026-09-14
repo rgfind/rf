@@ -26,19 +26,38 @@ const HISTORY_BUDGET: Duration = Duration::from_secs(2);
 /// ignore, hidden shown, binary read as text). content_all uses this; the
 /// per-file attribution then explains why the plain default missed each file.
 fn cfg_all_text() -> SearchCfg {
-    SearchCfg { use_ignore: false, skip_hidden: false, binary_as_text: true, case_insensitive: false, encoding: None }
+    SearchCfg {
+        use_ignore: false,
+        skip_hidden: false,
+        binary_as_text: true,
+        case_insensitive: false,
+        encoding: None,
+    }
 }
 
 /// ripgrep's own default: honor ignore + hidden, quit on NUL.
 fn cfg_default() -> SearchCfg {
-    SearchCfg { use_ignore: true, skip_hidden: true, binary_as_text: false, case_insensitive: false, encoding: None }
+    SearchCfg {
+        use_ignore: true,
+        skip_hidden: true,
+        binary_as_text: false,
+        case_insensitive: false,
+        encoding: None,
+    }
 }
 
 enum History {
-    Available { matches: BTreeSet<String>, served: usize },
+    Available {
+        matches: BTreeSet<String>,
+        served: usize,
+    },
     GitAbsent,
     NotWorkTree,
-    Partial { matches: BTreeSet<String>, served: usize, failed: usize },
+    Partial {
+        matches: BTreeSet<String>,
+        served: usize,
+        failed: usize,
+    },
     Error,
 }
 
@@ -85,7 +104,10 @@ fn git_ever_matched_with(git: &Path, pattern: &str, root: &str, ext: &str) -> Hi
     if !probe.status.success() || String::from_utf8_lossy(&probe.stdout).trim() != "true" {
         return History::NotWorkTree;
     }
-    let revs_out = match Command::new(git).args(["-C", root, "rev-list", "--all"]).output() {
+    let revs_out = match Command::new(git)
+        .args(["-C", root, "rev-list", "--all"])
+        .output()
+    {
         Ok(out) if out.status.success() => out,
         _ => return History::Error,
     };
@@ -127,11 +149,18 @@ fn git_ever_matched_with(git: &Path, pattern: &str, root: &str, ext: &str) -> Hi
         }
     }
     if failed == 0 {
-        History::Available { matches: out, served }
+        History::Available {
+            matches: out,
+            served,
+        }
     } else if served == 0 && !revs.is_empty() {
         History::Error
     } else {
-        History::Partial { matches: out, served, failed }
+        History::Partial {
+            matches: out,
+            served,
+            failed,
+        }
     }
 }
 
@@ -151,7 +180,15 @@ fn history_meta(history: &History) -> Value {
 }
 
 fn history_probe_command(root: &str) -> String {
-    crate::command::shell("git", &["-C".into(), root.into(), "rev-parse".into(), "--is-inside-work-tree".into()])
+    crate::command::shell(
+        "git",
+        &[
+            "-C".into(),
+            root.into(),
+            "rev-parse".into(),
+            "--is-inside-work-tree".into(),
+        ],
+    )
 }
 
 /// Short hash of the most recent commit that changed `pattern`'s count in
@@ -159,14 +196,33 @@ fn history_probe_command(root: &str) -> String {
 fn git_scrub_commits(pattern: &str, root: &str, ext: &str) -> BTreeMap<String, String> {
     let glob = format!("*.{ext}");
     let out = Command::new("git")
-        .args(["-C", root, "log", "--all", "--format=%h", "--name-only", "-S", pattern, "--", &glob])
+        .args([
+            "-C",
+            root,
+            "log",
+            "--all",
+            "--format=%h",
+            "--name-only",
+            "-S",
+            pattern,
+            "--",
+            &glob,
+        ])
         .output();
     let mut result = BTreeMap::new();
-    let Ok(out) = out else { return result; };
+    let Ok(out) = out else {
+        return result;
+    };
     let mut commit = String::new();
-    for line in String::from_utf8_lossy(&out.stdout).lines().filter(|line| !line.is_empty()) {
-        if line.len() == 7 && line.bytes().all(|b| b.is_ascii_hexdigit()) { commit = line.into(); }
-        else if !commit.is_empty() { result.entry(line.into()).or_insert_with(|| commit.clone()); }
+    for line in String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter(|line| !line.is_empty())
+    {
+        if line.len() == 7 && line.bytes().all(|b| b.is_ascii_hexdigit()) {
+            commit = line.into();
+        } else if !commit.is_empty() {
+            result.entry(line.into()).or_insert_with(|| commit.clone());
+        }
     }
     result
 }
@@ -176,7 +232,15 @@ fn git_scrub_commits(pattern: &str, root: &str, ext: &str) -> BTreeMap<String, S
 /// stage contributes nothing and totality holds.
 fn ast_files(structural: &str, lang: &str, root: &str) -> (BTreeSet<String>, bool) {
     let out = Command::new("ast-grep")
-        .args(["run", "--pattern", structural, "--lang", lang, "--json", "."])
+        .args([
+            "run",
+            "--pattern",
+            structural,
+            "--lang",
+            lang,
+            "--json",
+            ".",
+        ])
         .current_dir(root)
         .output();
     let o = match out {
@@ -210,7 +274,9 @@ fn file_contains_literal(root: &str, rel_path: &str, needle: &str) -> bool {
         format!("{}/{}", root.trim_end_matches('/'), rel_path)
     };
     match std::fs::read(&full) {
-        Ok(bytes) => bytes.windows(needle.len().max(1)).any(|w| w == needle.as_bytes()),
+        Ok(bytes) => bytes
+            .windows(needle.len().max(1))
+            .any(|w| w == needle.as_bytes()),
         Err(_) => false,
     }
 }
@@ -223,8 +289,12 @@ mod history_tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn fake_git(label: &str, script: &str) -> std::path::PathBuf {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let dir = std::env::temp_dir().join(format!("rf-history-{label}-{}-{nonce}", std::process::id()));
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("rf-history-{label}-{}-{nonce}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("git");
         fs::write(&path, script).unwrap();
@@ -236,7 +306,12 @@ mod history_tests {
 
     #[test]
     fn history_outcomes_are_distinct_and_coverage_is_counted() {
-        let absent = git_ever_matched_with(std::path::Path::new("/rf-no-such-git"), "needle", ".", "config");
+        let absent = git_ever_matched_with(
+            std::path::Path::new("/rf-no-such-git"),
+            "needle",
+            ".",
+            "config",
+        );
         assert!(matches!(absent, History::GitAbsent));
 
         let not_work_tree = fake_git("not-work-tree", "#!/bin/sh\nexit 128\n");
@@ -249,7 +324,11 @@ mod history_tests {
         );
         let state = git_ever_matched_with(&partial, "needle", ".", "config");
         match state {
-            History::Partial { matches, served, failed } => {
+            History::Partial {
+                matches,
+                served,
+                failed,
+            } => {
                 assert_eq!(matches.into_iter().collect::<Vec<_>>(), vec!["old.config"]);
                 assert_eq!((served, failed), (1, 1));
             }
@@ -265,21 +344,40 @@ mod history_tests {
     }
 }
 
-pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang: Option<&str>, limit: usize, cursor: Option<&str>) -> (Value, i32) {
+pub fn run(
+    pattern: &str,
+    path: &str,
+    name: &str,
+    structural: Option<&str>,
+    lang: Option<&str>,
+    limit: usize,
+    cursor: Option<&str>,
+) -> (Value, i32) {
     // Guard the port keeps stable across the contract: --structural needs --lang.
     if structural.is_some() && lang.is_none() {
         let mut meta = Map::new();
         meta.insert("verb".into(), Value::from("find"));
         return (
-            envelope(false, vec![], meta, vec![], vec![],
-                     vec![err("USAGE", "--structural requires --lang (ast-grep needs a language)")]),
+            envelope(
+                false,
+                vec![],
+                meta,
+                vec![],
+                vec![],
+                vec![err(
+                    "USAGE",
+                    "--structural requires --lang (ast-grep needs a language)",
+                )],
+            ),
             1,
         );
     }
     crate::fault::maybe_fault("find");
     let ext = name;
     let root = path;
-    let relset = |s: BTreeSet<String>| -> BTreeSet<String> { s.into_iter().map(|f| rel(root, &f)).collect() };
+    let relset = |s: BTreeSet<String>| -> BTreeSet<String> {
+        s.into_iter().map(|f| rel(root, &f)).collect()
+    };
 
     // --- source 1: fd name-filter stages (in-process walker) ---
     let fd_default = relset(name_matches(root, ext, true, true));
@@ -295,7 +393,17 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
         Err(e) => {
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::from("find"));
-            return (envelope(false, vec![], meta, vec![], vec![], vec![err("BAD_PATTERN", e)]), 1);
+            return (
+                envelope(
+                    false,
+                    vec![],
+                    meta,
+                    vec![],
+                    vec![],
+                    vec![err("BAD_PATTERN", e)],
+                ),
+                1,
+            );
         }
     };
     let rg_default = match content_matches(root, pattern, &cfg_default()) {
@@ -303,7 +411,17 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
         Err(e) => {
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::from("find"));
-            return (envelope(false, vec![], meta, vec![], vec![], vec![err("BAD_PATTERN", e)]), 1);
+            return (
+                envelope(
+                    false,
+                    vec![],
+                    meta,
+                    vec![],
+                    vec![],
+                    vec![err("BAD_PATTERN", e)],
+                ),
+                1,
+            );
         }
     };
     let pipe_found: BTreeSet<_> = fd_default.intersection(&rg_default).cloned().collect();
@@ -321,7 +439,10 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
                 meta,
                 vec![],
                 vec![history_probe_command(root)],
-                vec![err("HISTORY_ERROR", "Git history could not be scanned; no partial result was returned")],
+                vec![err(
+                    "HISTORY_ERROR",
+                    "Git history could not be scanned; no partial result was returned",
+                )],
             ),
             3,
         );
@@ -330,11 +451,19 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
     let mut history_commands: Vec<String> = Vec::new();
     match &history {
         History::GitAbsent => {
-            history_warnings.push(warn("GIT_ABSENT", "Git is unavailable; history coverage was not provided", vec![]));
+            history_warnings.push(warn(
+                "GIT_ABSENT",
+                "Git is unavailable; history coverage was not provided",
+                vec![],
+            ));
             history_commands.push(crate::command::shell("git", &["--version".into()]));
         }
         History::NotWorkTree => {
-            history_warnings.push(warn("GIT_NOT_WORK_TREE", "path is not a Git work tree; history coverage was not provided", vec![]));
+            history_warnings.push(warn(
+                "GIT_NOT_WORK_TREE",
+                "path is not a Git work tree; history coverage was not provided",
+                vec![],
+            ));
             history_commands.push(history_probe_command(root));
         }
         History::Partial { served, failed, .. } => {
@@ -351,7 +480,9 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
     // --- per-file stage attribution over the content the pipe surfaced ---
     let mut data: Vec<Value> = Vec::new();
     let mut stage_counts: BTreeMap<String, i64> = BTreeMap::new();
-    let bump = |m: &mut BTreeMap<String, i64>, s: &str| { *m.entry(s.to_string()).or_insert(0) += 1; };
+    let bump = |m: &mut BTreeMap<String, i64>, s: &str| {
+        *m.entry(s.to_string()).or_insert(0) += 1;
+    };
     let row = |file: &str, stage: &str, fix: Option<String>| -> Value {
         let mut r = Map::new();
         r.insert("file".into(), Value::from(file.to_string()));
@@ -365,18 +496,32 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
             if rg_default.contains(f) {
                 ("found", None)
             } else {
-                ("rg_binary", Some("add rg -a (fd passed it; rg suppressed a binary file)".into()))
+                (
+                    "rg_binary",
+                    Some("add rg -a (fd passed it; rg suppressed a binary file)".into()),
+                )
             }
         } else if fd_all.contains(f) {
             if dropped_hidden.contains(f) {
-                ("fd_hidden", Some("add fd -H (hidden dotfile matches the name filter)".into()))
+                (
+                    "fd_hidden",
+                    Some("add fd -H (hidden dotfile matches the name filter)".into()),
+                )
             } else if dropped_ignore.contains(f) {
-                ("fd_ignore", Some("add fd -I (gitignored file matches the name filter)".into()))
+                (
+                    "fd_ignore",
+                    Some("add fd -I (gitignored file matches the name filter)".into()),
+                )
             } else {
                 ("fd_filter", Some("peel fd filters (fd -u)".into()))
             }
         } else {
-            ("fd_name", Some(format!("widen name filter (the content match is outside *.{ext})")))
+            (
+                "fd_name",
+                Some(format!(
+                    "widen name filter (the content match is outside *.{ext})"
+                )),
+            )
         };
         data.push(row(f, stage, fix));
         bump(&mut stage_counts, stage);
@@ -387,7 +532,11 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
     let git_deleted: Vec<String> = ever.difference(&content_all).cloned().collect(); // BTreeSet -> sorted
     let scrub_commits = git_scrub_commits(pattern, root, ext);
     for f in &git_deleted {
-        data.push(row(f, "git_deleted", Some("recover the file from Git history".into())));
+        data.push(row(
+            f,
+            "git_deleted",
+            Some("recover the file from Git history".into()),
+        ));
         bump(&mut stage_counts, "git_deleted");
     }
 
@@ -428,16 +577,23 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
         hist.push_str(&format!(" (+{} in git history only)", git_deleted.len()));
     }
     if !ast_only.is_empty() {
-        hist.push_str(&format!(" (+{} structural-only via ast-grep)", ast_only.len()));
+        hist.push_str(&format!(
+            " (+{} structural-only via ast-grep)",
+            ast_only.len()
+        ));
     }
     let headline = if fd_default.is_empty() {
         format!("FD_EMPTY: name filter matched no files; nothing reached rg{hist}")
     } else if pipe_found.is_empty() && !content_all.is_empty() {
-        format!("PIPE_EMPTY: fd found files but pipe surfaced no matches; see stage attribution{hist}")
+        format!(
+            "PIPE_EMPTY: fd found files but pipe surfaced no matches; see stage attribution{hist}"
+        )
     } else if !tree_missed.is_empty() || !git_deleted.is_empty() || !ast_only.is_empty() {
         format!(
             "PARTIAL: pipe surfaced {}/{} in the tree; {} hidden by stage filters{hist}",
-            pipe_found.len(), content_all.len(), tree_missed.len()
+            pipe_found.len(),
+            content_all.len(),
+            tree_missed.len()
         )
     } else {
         "COMPLETE: pipe surfaced all matches".to_string()
@@ -457,7 +613,10 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
         let file = d["file"].as_str().unwrap_or("").to_string();
         let mut msg = d["fix"].as_str().unwrap_or("").to_string();
         if stage == "git_deleted" {
-            let sc = scrub_commits.get(&file).cloned().unwrap_or_else(|| "unknown".into());
+            let sc = scrub_commits
+                .get(&file)
+                .cloned()
+                .unwrap_or_else(|| "unknown".into());
             msg.push_str(&format!(" (scrubbed in {sc})"));
         }
         warnings.push(warn(&stage.to_uppercase(), msg, vec![file]));
@@ -467,21 +626,63 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
     let mut commands: Vec<String> = history_commands;
     let has = |s: &str| missed.iter().any(|d| d["stage"] == s);
     if has("fd_hidden") || has("fd_ignore") || has("fd_filter") {
-        commands.push(crate::command::pipe_fd_to_rg(ext, pattern, root, &["-u"], &["-a"]));
+        commands.push(crate::command::pipe_fd_to_rg(
+            ext,
+            pattern,
+            root,
+            &["-u"],
+            &["-a"],
+        ));
     }
     if has("fd_name") {
-        commands.push(crate::command::shell("rg", &["-uu".into(), "-e".into(), pattern.into(), "--".into(), root.into()]));
+        commands.push(crate::command::shell(
+            "rg",
+            &[
+                "-uu".into(),
+                "-e".into(),
+                pattern.into(),
+                "--".into(),
+                root.into(),
+            ],
+        ));
     }
     if has("rg_binary") {
-        commands.push(crate::command::pipe_fd_to_rg(ext, pattern, root, &[], &["-a"]));
+        commands.push(crate::command::pipe_fd_to_rg(
+            ext,
+            pattern,
+            root,
+            &[],
+            &["-a"],
+        ));
     }
     if !git_deleted.is_empty() {
-        commands.push(crate::command::shell("git", &["log".into(), "-S".into(), pattern.into(), "--oneline".into(), "--all".into(), "--".into()]));
+        commands.push(crate::command::shell(
+            "git",
+            &[
+                "log".into(),
+                "-S".into(),
+                pattern.into(),
+                "--oneline".into(),
+                "--all".into(),
+                "--".into(),
+            ],
+        ));
     }
     if !ast_only.is_empty() {
         let sp = structural.unwrap_or("");
         let lg = lang.unwrap_or("");
-        commands.push(crate::command::shell("ast-grep", &["run".into(), "-p".into(), sp.into(), "-l".into(), lg.into(), "--".into(), root.into()]));
+        commands.push(crate::command::shell(
+            "ast-grep",
+            &[
+                "run".into(),
+                "-p".into(),
+                sp.into(),
+                "-l".into(),
+                lg.into(),
+                "--".into(),
+                root.into(),
+            ],
+        ));
     }
 
     // --- meta ---
@@ -497,7 +698,10 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
     meta.insert("history_matches".into(), Value::from(git_deleted.len()));
     meta.insert("history".into(), history_meta(&history));
     meta.insert("structural_matches".into(), Value::from(ast_only.len()));
-    let counts: Map<String, Value> = stage_counts.into_iter().map(|(k, v)| (k, Value::from(v))).collect();
+    let counts: Map<String, Value> = stage_counts
+        .into_iter()
+        .map(|(k, v)| (k, Value::from(v)))
+        .collect();
     meta.insert("hidden_by_stage".into(), Value::from(counts));
 
     let query = json!({
@@ -507,32 +711,69 @@ pub fn run(pattern: &str, path: &str, name: &str, structural: Option<&str>, lang
     match crate::pagination::page(data, &query, limit, cursor) {
         Ok(page) => {
             let has_more = page.next_cursor.is_some();
-            meta.insert("pagination".into(), json!({
-                "limit": limit,
-                "returned": page.data.len(),
-                "total": page.total,
-                "truncated": has_more,
-                "has_more": has_more,
-                "cursor": page.next_cursor,
-                "snapshot_hash": page.snapshot_hash,
-            }));
-            (envelope(true, page.data, meta, warnings, commands, vec![]), 0)
+            meta.insert(
+                "pagination".into(),
+                json!({
+                    "limit": limit,
+                    "returned": page.data.len(),
+                    "total": page.total,
+                    "truncated": has_more,
+                    "has_more": has_more,
+                    "cursor": page.next_cursor,
+                    "snapshot_hash": page.snapshot_hash,
+                }),
+            );
+            (
+                envelope(true, page.data, meta, warnings, commands, vec![]),
+                0,
+            )
         }
         Err(error) => {
             let mut failure_meta = Map::new();
             failure_meta.insert("verb".into(), Value::from("find"));
             let (code, message, exit, restart) = match error {
-                crate::pagination::Error::InvalidCursor => ("INVALID_INPUT", "cursor is malformed or does not match this query", 1, vec![]),
+                crate::pagination::Error::InvalidCursor => (
+                    "INVALID_INPUT",
+                    "cursor is malformed or does not match this query",
+                    1,
+                    vec![],
+                ),
                 crate::pagination::Error::Conflict => {
                     let mut args = vec!["find".into(), "--name".into(), name.into()];
                     if let (Some(structural), Some(lang)) = (structural, lang) {
-                        args.extend(["--structural".into(), structural.into(), "--lang".into(), lang.into()]);
+                        args.extend([
+                            "--structural".into(),
+                            structural.into(),
+                            "--lang".into(),
+                            lang.into(),
+                        ]);
                     }
-                    args.extend(["--limit".into(), limit.to_string(), pattern.into(), "--".into(), path.into()]);
-                    ("CONFLICT", "the result snapshot changed; restart the query", 5, vec![crate::command::shell("rf", &args)])
+                    args.extend([
+                        "--limit".into(),
+                        limit.to_string(),
+                        pattern.into(),
+                        "--".into(),
+                        path.into(),
+                    ]);
+                    (
+                        "CONFLICT",
+                        "the result snapshot changed; restart the query",
+                        5,
+                        vec![crate::command::shell("rf", &args)],
+                    )
                 }
             };
-            (envelope(false, vec![], failure_meta, vec![], restart, vec![err(code, message)]), exit)
+            (
+                envelope(
+                    false,
+                    vec![],
+                    failure_meta,
+                    vec![],
+                    restart,
+                    vec![err(code, message)],
+                ),
+                exit,
+            )
         }
     }
 }

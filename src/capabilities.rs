@@ -151,5 +151,8 @@ pub fn build() -> Value {
 pub fn run() -> (Value, i32) {
     let mut meta = Map::new();
     meta.insert("verb".into(), Value::from("capabilities"));
-    (envelope(true, vec![build()], meta, vec![], vec![], vec![]), 0)
+    (
+        envelope(true, vec![build()], meta, vec![], vec![], vec![]),
+        0,
+    )
 }

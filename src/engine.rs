@@ -61,7 +61,11 @@ fn walk(root: &str, use_ignore: bool, skip_hidden: bool) -> ignore::Walk {
 
 /// Files under `root` containing `pattern` under one filter configuration.
 /// Paths keep the walked form (root prefix, `./` stripped); callers relativize.
-pub fn content_matches(root: &str, pattern: &str, cfg: &SearchCfg) -> Result<BTreeSet<String>, String> {
+pub fn content_matches(
+    root: &str,
+    pattern: &str,
+    cfg: &SearchCfg,
+) -> Result<BTreeSet<String>, String> {
     crate::fault::maybe_fault("engine");
     let matcher = RegexMatcherBuilder::new()
         .case_insensitive(cfg.case_insensitive)
@@ -176,7 +180,12 @@ pub fn content_matches_selected(
 
 /// Files under `root` whose extension is `ext` (no dot) — the fd stage. The
 /// walker's `use_ignore`/`skip_hidden` reproduce fd's default and its -I/-H/-u.
-pub fn name_matches(root: &str, ext: &str, use_ignore: bool, skip_hidden: bool) -> BTreeSet<String> {
+pub fn name_matches(
+    root: &str,
+    ext: &str,
+    use_ignore: bool,
+    skip_hidden: bool,
+) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for dent in walk(root, use_ignore, skip_hidden) {
         let dent = match dent {
