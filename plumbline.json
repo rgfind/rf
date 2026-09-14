@@ -188,7 +188,7 @@
     },
     {
       "id": "warning_code_set",
-      "fact": "sixteen warning codes",
+      "fact": "eighteen warning codes",
       "fixture_path": "data.0.warning_codes",
       "mode": "set",
       "expected": [
@@ -203,8 +203,10 @@
         "GIT_DELETED",
         "GIT_HISTORY_PARTIAL",
         "GIT_NOT_WORK_TREE",
+        "GIT_SCRUB_WORD_UNAVAILABLE",
         "HIDDEN_SKIPPED",
         "IGNORE_MODE",
+        "IGNORE_SOURCE_UNRESOLVED",
         "IGNORE_VCS",
         "RG_BINARY",
         "STRUCTURAL_UNAVAILABLE"
