@@ -290,7 +290,8 @@ pub fn run() -> (Value, i32) {
     let mut s = Sweep::new();
 
     // Minimal valid argv per verb (a happy path that needs no external corpus).
-    let happy: [(&str, Vec<&str>); 5] = [
+    let exe_arg = exe.to_string_lossy().into_owned();
+    let happy: Vec<(&str, Vec<&str>)> = vec![
         ("robot-docs", vec!["robot-docs", "guide", "--json"]),
         ("capabilities", vec!["capabilities", "--json"]),
         ("content", vec!["content", "zzq_no_such_token", "/rf-conformance-empty", "--json"]),
@@ -299,6 +300,7 @@ pub fn run() -> (Value, i32) {
             vec!["find", "zzq_no_such_token", "/rf-conformance-empty", "--name", "conf", "--json"],
         ),
         ("doctor", vec!["doctor", ".", "--json"]),
+        ("why", vec!["why", "zzq_no_such_token", &exe_arg, "--json"]),
     ];
 
     // ---- Group 1: base cases (adjudicated against rf's declared contract) ----
@@ -361,9 +363,10 @@ pub fn run() -> (Value, i32) {
 
     // R-01: a syntactically invalid regex -> exit 1, BAD_PATTERN. rf-specific
     // domain fault; folds over the search verbs.
-    let badpat: [(&str, Vec<&str>); 2] = [
+    let badpat: Vec<(&str, Vec<&str>)> = vec![
         ("content", vec!["content", "[", "."]),
         ("find", vec!["find", "[", ".", "--name", "conf"]),
+        ("why", vec!["why", "[", &exe_arg]),
     ];
     for (verb, args) in &badpat {
         let p = run_probe(&exe, args);
@@ -373,6 +376,21 @@ pub fn run() -> (Value, i32) {
             && p.err0.as_deref() == Some("BAD_PATTERN")
             && p.seven;
         s.case("R-01", &[("verb", verb)], vd(pass), None, p.request_id.as_deref());
+    }
+
+    // T-01/T-02: why validates target inputs before compiling a pattern.
+    for (id, args) in [
+        ("T-01", vec!["why", "x", "."]),
+        ("T-02", vec!["why", "x", "/rf-conformance-missing-target"]),
+        ("T-03", vec!["why", "[", "/rf-conformance-missing-target"]),
+    ] {
+        let p = run_probe(&exe, &args);
+        s.observe(&p);
+        let pass = p.exit == 1
+            && p.ok == Some(false)
+            && p.err0.as_deref() == Some("INVALID_TARGET")
+            && p.seven;
+        s.case(id, &[("verb", "why")], vd(pass), None, p.request_id.as_deref());
     }
 
     // R-02: --structural without --lang -> exit 1, USAGE (rf's documented guard).

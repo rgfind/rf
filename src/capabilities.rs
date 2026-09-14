@@ -54,6 +54,22 @@ pub fn build() -> Value {
                 "args": [{"name": "path", "arity": 1, "type": "path", "default": "."}],
                 "flags": []
             },
+            "why": {
+                "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
+                "aliases": [],
+                "args": [
+                    {"name": "pattern", "arity": 1, "type": "string"},
+                    {"name": "file", "arity": 1, "type": "path"}
+                ],
+                "flags": [
+                    {"name": "--root", "arity": 1, "type": "path", "required": false, "input": "directory that supplies target validation and ignore context"}
+                ],
+                "output_schema": {
+                    "data[]": {"file": "root-relative target path", "pattern": "string", "matched": "bool", "hidden_from_default": "bool", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null", "hiding_filter": "{code,layer,rg_flags}|absent"},
+                    "meta": {"file": "root-relative target path", "root": "path relative to process working directory", "git_repo": "bool", "ignore_mode": "string", "matched": "bool", "surfaced_by": "string|null"},
+                    "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches"
+                }
+            },
             "conformance": {
                 "summary": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)",
                 "aliases": [],
@@ -87,6 +103,7 @@ pub fn build() -> Value {
             "UNKNOWN_COMMAND": "an unrecognized command path",
             "INVALID_INPUT": "a supplied value failed parser validation",
             "INVALID_SELECTION": "selected-input bytes or paths failed validation",
+            "INVALID_TARGET": "why target or root failed validation",
             "MISSING_ARGUMENT": "a required positional or flag value is absent",
             "BAD_PATTERN": "the search regex failed to compile",
             "CONFLICT": "a cursor snapshot no longer matches the current result set",

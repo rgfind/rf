@@ -313,6 +313,63 @@ fn content_selected_input_validates_and_classifies_only_selected_files() {
 }
 
 #[test]
+fn why_reports_one_target_verdict_and_validates_inputs() {
+    let corpus = Corpus::new();
+    let cwd = Some(corpus.path.as_path());
+    for (file, class) in [
+        ("src/app.py", "default"),
+        ("secrets.env", "vcs_ignore"),
+        (".hidden.txt", "hidden"),
+        ("blob.dat", "binary"),
+        ("lower.txt", "case"),
+        ("config_utf16.txt", "encoding_utf16"),
+    ] {
+        let pattern = TOKEN;
+        let (code, env, _) = rf(&["why", &pattern, file, "--json"], cwd, &[]);
+        assert_eq!(code, 0, "{file}");
+        assert_eq!(env["data"].as_array().map(Vec::len), Some(1));
+        assert_eq!(env["data"][0]["file"], file);
+        assert_eq!(env["data"][0]["surfaced_by"], class);
+        assert_eq!(env["meta"]["file"], file);
+        assert_eq!(env["meta"]["root"], ".");
+        if class == "default" {
+            assert!(env["commands"].as_array().unwrap().is_empty());
+        } else {
+            let command = env["commands"][0].as_str().unwrap();
+            let output = Command::new("/bin/sh")
+                .args(["-c", command])
+                .current_dir(corpus.path.as_path())
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{command}");
+            assert!(String::from_utf8_lossy(&output.stdout).contains(file));
+        }
+    }
+
+    let absolute = corpus.path.join("secrets.env");
+    let (code, abs, _) = rf(&["why", TOKEN, absolute.to_str().unwrap(), "--json"], cwd, &[]);
+    assert_eq!(code, 0);
+    assert_eq!(abs["data"][0]["file"], "secrets.env");
+    let (code, absent, _) = rf(&["why", "ABSENT", "src/app.py", "--json"], cwd, &[]);
+    assert_eq!(code, 0);
+    assert_eq!(absent["data"][0]["matched"], false);
+    assert!(absent["data"][0]["surfaced_by"].is_null());
+    for args in [
+        vec!["why", "x", ".", "--json"],
+        vec!["why", "x", "missing", "--json"],
+        vec!["why", "x", ".git/HEAD", "--json"],
+        vec!["why", "[", "missing", "--json"],
+    ] {
+        let (code, env, _) = rf(&args, cwd, &[]);
+        assert_eq!(code, 1, "{args:?}");
+        assert_eq!(env["errors"][0]["code"], "INVALID_TARGET");
+    }
+    let (code, bad_pattern, _) = rf(&["why", "[", "src/app.py", "--json"], cwd, &[]);
+    assert_eq!(code, 1);
+    assert_eq!(bad_pattern["errors"][0]["code"], "BAD_PATTERN");
+}
+
+#[test]
 fn conformance() {
     let corpus = Corpus::new();
     let cd = Some(corpus.path.as_path());

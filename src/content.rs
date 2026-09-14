@@ -19,7 +19,7 @@ use crate::envelope::{envelope, err, warn};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectionMode {
@@ -83,6 +83,52 @@ fn probes() -> Vec<Probe> {
     }]
 }
 
+/// The one public-facing reason a file was surfaced by the content ladder.
+/// UTF-16 is deliberately a separate probe rather than a cumulative rung.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Class {
+    Default,
+    VcsIgnore,
+    Hidden,
+    Binary,
+    Case,
+    EncodingUtf16,
+}
+
+impl Class {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Default => "default",
+            Self::VcsIgnore => "vcs_ignore",
+            Self::Hidden => "hidden",
+            Self::Binary => "binary",
+            Self::Case => "case",
+            Self::EncodingUtf16 => "encoding_utf16",
+        }
+    }
+
+    pub(crate) fn hiding_filter(self) -> Option<(&'static str, &'static str, &'static str)> {
+        match self {
+            Self::Default => None,
+            Self::VcsIgnore => Some(("IGNORE_VCS", "add -u (ignore .gitignore/.ignore rules)", "-u")),
+            Self::Hidden => Some(("HIDDEN_SKIPPED", "add -uu (also search hidden/dotfiles)", "-uu")),
+            Self::Binary => Some(("BINARY_SKIPPED", "add -uu -a (treat binary files as text)", "-uu -a")),
+            Self::Case => Some(("CASE_SENSITIVE", "add -i (case-insensitive)", "-uu -a -i")),
+            Self::EncodingUtf16 => Some(("ENCODING_MISS", "add --encoding utf-16 (non-UTF-8 file)", "-uu -a --encoding utf-16")),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TargetError {
+    Missing,
+    Directory,
+    NotRegular,
+    Unreadable,
+    InsideGit,
+    OutsideRoot,
+}
+
 fn probe_base_cfg(encoding: Option<&'static str>) -> Cfg {
     // matches the `binary` layer (-uu -a): ignore off, hidden off, binary as text.
     Cfg { ignore_files: false, hidden: false, binary_as_text: true, case_insensitive: false, encoding }
@@ -115,6 +161,70 @@ fn matches_for(
 
 fn has_git_component(path: &Path) -> bool {
     path.components().any(|c| c.as_os_str() == ".git")
+}
+
+/// Validate one canonical-or-resolvable target against a canonical root. The
+/// returned display path is always relative to `root`; callers keep their own
+/// input spelling for diagnostics.
+pub(crate) fn validate_single_target(
+    root: &Path,
+    input: &Path,
+) -> Result<(PathBuf, PathBuf), TargetError> {
+    let canonical = match std::fs::canonicalize(input) {
+        Ok(path) => path,
+        Err(_) => return Err(TargetError::Missing),
+    };
+    if !canonical.starts_with(root) {
+        return Err(TargetError::OutsideRoot);
+    }
+    let relative = canonical.strip_prefix(root).unwrap_or(&canonical).to_path_buf();
+    if has_git_component(&relative) {
+        return Err(TargetError::InsideGit);
+    }
+    let metadata = std::fs::metadata(&canonical).map_err(|_| TargetError::Missing)?;
+    if metadata.is_dir() {
+        return Err(TargetError::Directory);
+    }
+    if !metadata.is_file() {
+        return Err(TargetError::NotRegular);
+    }
+    std::fs::File::open(&canonical).map_err(|_| TargetError::Unreadable)?;
+    Ok((relative, canonical))
+}
+
+/// Classify one validated target with the same cumulative ladder and UTF-16
+/// probe used by content search. `None` means that no configuration matched.
+pub(crate) fn classify_target(
+    pattern: &str,
+    root: &Path,
+    canonical: &Path,
+) -> Result<Option<Class>, String> {
+    let relative = canonical
+        .strip_prefix(root)
+        .map_err(|_| "target is outside the query root".to_string())?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let selected = BTreeMap::from([(relative.clone(), canonical.to_path_buf())]);
+    let root = root.to_string_lossy();
+    for (index, layer) in layers().iter().enumerate() {
+        if matches_for(pattern, &root, &layer.cfg, Some(&selected))?.contains(&relative) {
+            return Ok(Some(match index {
+                0 => Class::Default,
+                1 => Class::VcsIgnore,
+                2 => Class::Hidden,
+                3 => Class::Binary,
+                _ => Class::Case,
+            }));
+        }
+    }
+    for probe in probes() {
+        let base = matches_for(pattern, &root, &probe_base_cfg(None), Some(&selected))?;
+        let probed = matches_for(pattern, &root, &probe_base_cfg(Some(probe.encoding)), Some(&selected))?;
+        if probed.contains(&relative) && !base.contains(&relative) {
+            return Ok(Some(Class::EncodingUtf16));
+        }
+    }
+    Ok(None)
 }
 
 fn selection_error(message: impl Into<String>) -> (Value, i32) {
@@ -188,23 +298,16 @@ fn validate_selected_paths(path: &str, inputs: Vec<String>) -> Result<BTreeMap<S
             return Err("selected path is empty".into());
         }
         let candidate = if supplied.is_absolute() { supplied.to_path_buf() } else { root.join(supplied) };
-        let canonical = std::fs::canonicalize(&candidate)
-            .map_err(|_| format!("selected path is missing or unreadable: {input}"))?;
-        if !canonical.starts_with(&root) {
-            return Err(format!("selected path is outside the query root: {input}"));
-        }
-        if has_git_component(canonical.strip_prefix(&root).unwrap_or(&canonical)) {
-            return Err(format!("selected path is inside .git: {input}"));
-        }
-        if !canonical.is_file() {
-            return Err(format!("selected path is not a regular file: {input}"));
-        }
-        std::fs::File::open(&canonical)
-            .map_err(|_| format!("selected path is unreadable: {input}"))?;
-        let relative = canonical.strip_prefix(&root).unwrap_or(&canonical);
-        if relative.components().any(|part| matches!(part, Component::ParentDir)) {
-            return Err(format!("selected path is outside the query root: {input}"));
-        }
+        let (relative, canonical) = validate_single_target(&root, &candidate).map_err(|error| {
+            let detail = match error {
+                TargetError::Missing => "is missing or unreadable",
+                TargetError::Directory | TargetError::NotRegular => "is not a regular file",
+                TargetError::Unreadable => "is unreadable",
+                TargetError::InsideGit => "is inside .git",
+                TargetError::OutsideRoot => "is outside the query root",
+            };
+            format!("selected path {detail}: {input}")
+        })?;
         let display = if path == "." {
             relative.to_string_lossy().to_string()
         } else {

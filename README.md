@@ -96,6 +96,26 @@ The `warnings` array (elided above) carries one entry per miss, each with a
 warning code and the paste-ready `rg` command that surfaces it. The recovery is
 not the product — it is the evidence that the contract holds.
 
+## Per-file verdict: `why`
+
+Use `rf why <pattern> <file>` when you already know the one file that a normal
+tree search appears to have missed. It reads that file, returns one verdict row,
+and names the filter that hid it. Its correction command repeats the tree search
+from the root, so it can include sibling matches; `data[].file` is the target.
+
+`doctor` answers a different question. `rf doctor <path>` reports the ambient
+ignore regime and does not read a search target. `rf why` reads one named file
+with one pattern and returns that file's verdict.
+
+<!-- BEGIN GENERATED:why-example -->
+```
+$ rf why timeout cache/build.py --human
+why 'timeout' cache/build.py: MATCH - hidden by vcs_ignore
+  ! IGNORE_VCS: match hidden from a default tree search; add -u (ignore .gitignore/.ignore rules)
+  $ 'rg' '-u' '-e' 'timeout' '--' '.'
+```
+<!-- END GENERATED:why-example -->
+
 ## The pipeline case: `find`
 
 `rf find` is where the control surface pays off. It runs staged discovery across
@@ -119,6 +139,8 @@ The other verbs share the same envelope:
 - **`rf doctor <path>`** — reports the linked engine and whether `.gitignore` is
   active for the path. (`.gitignore` applies only inside a git work tree, so the
   same search can answer differently in a scratch dir and a real repo.)
+- **`rf why <pattern> <file> [--root <dir>]`** — returns one file's match
+  verdict and the normal tree-search filter that hid it, if any.
 - **`rf capabilities`** — the machine contract as JSON.
 - **`rf conformance`** — runs the release self-check on this binary.
 - **`rf robot-docs guide`** — ready-to-run agent workflow recipes (goal, command,

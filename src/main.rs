@@ -17,6 +17,7 @@ mod find;
 mod manifest;
 mod pagination;
 mod guide;
+mod why;
 
 use clap::{Parser, Subcommand};
 use envelope::{envelope, err};
@@ -97,6 +98,14 @@ enum Verb {
         #[arg(default_value = ".")]
         path: String,
     },
+    /// Explain whether one file matches and which normal search filter hid it.
+    Why {
+        pattern: String,
+        file: String,
+        /// Root directory for target validation and ignore context.
+        #[arg(long)]
+        root: Option<String>,
+    },
     /// Run the release self-check profile against this binary.
     Conformance {
     },
@@ -145,6 +154,7 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             find::run(pattern, path, name, structural.as_deref(), lang.as_deref(), *limit, cursor.as_deref())
         }
         Verb::Doctor { path, .. } => doctor::run(path),
+        Verb::Why { pattern, file, root } => why::run(pattern, file, root.as_deref()),
         Verb::Conformance { .. } => conformance::run(),
     }
 }
@@ -175,6 +185,21 @@ fn render_human(env: &Value) -> String {
             out.push(format!("rf: {}", d["rf_version"].as_str().unwrap_or("")));
             out.push(format!("engine: {}", d["engine"].as_str().unwrap_or("")));
             out.push(format!("ignore_mode: {}", d["ignore_mode"].as_str().unwrap_or("")));
+        }
+        "why" => {
+            let d = &env["data"][0];
+            let pattern = d["pattern"].as_str().unwrap_or("");
+            let file = d["file"].as_str().unwrap_or("");
+            if d["matched"].as_bool().unwrap_or(false) {
+                let suffix = d["surfaced_by"]
+                    .as_str()
+                    .filter(|class| *class != "default")
+                    .map(|class| format!(" - hidden by {class}"))
+                    .unwrap_or_default();
+                out.push(format!("why '{pattern}' {file}: MATCH{suffix}"));
+            } else {
+                out.push(format!("why '{pattern}' {file}: NO MATCH (pattern absent under all filters)"));
+            }
         }
         "conformance" => {
             let d = &env["data"][0];

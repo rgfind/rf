@@ -53,6 +53,29 @@
           ".gitignore": "cache/\n"
         }
       }
+    },
+    {
+      "id": "why-example",
+      "surface": "README.md",
+      "render": [
+        "rf",
+        "why",
+        "timeout",
+        "cache/build.py",
+        "--human"
+      ],
+      "env": {
+        "SOURCE_DATE_EPOCH": "0",
+        "NO_COLOR": "1"
+      },
+      "prompt": "$ rf why timeout cache/build.py --human",
+      "tree": {
+        "git_init": true,
+        "files": {
+          "cache/build.py": "timeout = 999    # gitignored\n",
+          ".gitignore": "cache/\n"
+        }
+      }
     }
   ],
   "package_allowlist": "cargo-include",
@@ -97,7 +120,7 @@
     },
     {
       "id": "verb_set",
-      "fact": "seven released verbs",
+      "fact": "eight released verbs",
       "fixture_path": "data.0.verbs",
       "mode": "keys",
       "expected": [
@@ -107,7 +130,8 @@
         "doctor",
         "find",
         "robot-docs",
-        "robot-docs guide"
+        "robot-docs guide",
+        "why"
       ],
       "surface": "README.md",
       "section": "The pipeline case / control surface",
@@ -141,7 +165,7 @@
     },
     {
       "id": "error_code_set",
-      "fact": "eleven stable error codes",
+      "fact": "twelve stable error codes",
       "fixture_path": "data.0.error_codes",
       "mode": "keys",
       "expected": [
@@ -152,6 +176,7 @@
         "INTERNAL",
         "INVALID_INPUT",
         "INVALID_SELECTION",
+        "INVALID_TARGET",
         "MISSING_ARGUMENT",
         "UNKNOWN_COMMAND",
         "UNKNOWN_FLAG",

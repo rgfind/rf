@@ -1,175 +1,205 @@
 {
-  "profile": "release-self-check",
-  "counts": {
-    "fail": 0,
-    "not_applicable": 5,
-    "pass": 28
-  },
   "cases": [
     {
       "case_id": "B-01::verb=nosuchverb",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-03::flag=--bogus::verb=capabilities",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-03::flag=--bogus::verb=content",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-03::flag=--bogus::verb=doctor",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-03::flag=--bogus::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-03::flag=--bogus::verb=robot-docs",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::flag=--bogus::verb=why",
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-07::flag=--lang::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-07::flag=--name::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-07::flag=--structural::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "B-13::token=--json",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "H-01",
-      "verdict": "not_applicable",
-      "reason": "rf-requires-a-subcommand"
+      "reason": "rf-requires-a-subcommand",
+      "verdict": "not_applicable"
     },
     {
       "case_id": "H-02::surface=help",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "H-02::surface=version",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "H-03",
-      "verdict": "not_applicable",
-      "reason": "help-surface-not-machine-rendered"
+      "reason": "help-surface-not-machine-rendered",
+      "verdict": "not_applicable"
     },
     {
       "case_id": "M-01::shape=envelope::verb=capabilities",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "M-01::shape=envelope::verb=content",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "M-01::shape=envelope::verb=doctor",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "M-01::shape=envelope::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "M-01::shape=envelope::verb=robot-docs",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=why",
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "R-01::verb=content",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "R-01::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "R-01::verb=why",
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "R-02::verb=find",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "S-01",
-      "verdict": "not_applicable",
-      "reason": "release-build-fault-trigger-unavailable"
+      "reason": "release-build-fault-trigger-unavailable",
+      "verdict": "not_applicable"
     },
     {
       "case_id": "S-02",
-      "verdict": "not_applicable",
-      "reason": "release-build-fault-trigger-unavailable"
+      "reason": "release-build-fault-trigger-unavailable",
+      "verdict": "not_applicable"
     },
     {
       "case_id": "S-03",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "S-04",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "T-01::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "T-02::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "T-03::verb=why",
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "X-01",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "X-02",
-      "verdict": "not_applicable",
-      "reason": "release-build-fault-trigger-unavailable"
+      "reason": "release-build-fault-trigger-unavailable",
+      "verdict": "not_applicable"
     },
     {
       "case_id": "X-03::posture=compiled-out",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "X-05::verb=conformance",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "X-06",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "X-07::flag=--name::value=accepted",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "X-07::flag=--name::value=rejected",
-      "verdict": "pass",
-      "reason": null
+      "reason": null,
+      "verdict": "pass"
     }
-  ]
+  ],
+  "counts": {
+    "fail": 0,
+    "not_applicable": 5,
+    "pass": 34
+  },
+  "profile": "release-self-check"
 }

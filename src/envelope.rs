@@ -137,6 +137,22 @@ pub fn err(code: &str, message: impl Into<String>) -> Value {
     Value::from(m)
 }
 
+/// Build an error with a caller-specific path and remediation. This preserves
+/// the common envelope shape while allowing a command to report a precise
+/// validation failure instead of generic command syntax.
+pub fn err_with(
+    code: &str,
+    message: impl Into<String>,
+    path: impl Into<String>,
+    remediation: impl Into<String>,
+) -> Value {
+    let mut value = err(code, message);
+    let object = value.as_object_mut().expect("error is an object");
+    object.insert("path".into(), Value::from(path.into()));
+    object.insert("remediation".into(), Value::from(remediation.into()));
+    value
+}
+
 /// A single warning entry {code, msg, files}.
 pub fn warn(code: &str, msg: impl Into<String>, files: Vec<String>) -> Value {
     let mut m = Map::new();

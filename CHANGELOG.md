@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.6 — why per-file forensic verdict
+
+- Added `rf why <pattern> <file> [--root <dir>]` for one-file match verdicts and
+  normal search-filter attribution.
+- Added `INVALID_TARGET` for missing, unreadable, non-file, out-of-root, and
+  repository-internal why targets.
+
 ## 0.0.5 — contract version 2
 
 This release changes the machine contract.
