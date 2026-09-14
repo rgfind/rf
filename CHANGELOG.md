@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.7 — ignore provenance and query modes
+
+- Added `ignore_source` to `rf why` results for a file hidden by an active
+  ignore rule. It gives the source file, source class, rule pattern, and an
+  unambiguous line number when available.
+- Added `--fixed-strings`, `--word`, `--ignore-case`, and `--case-sensitive`
+  to `content`, `find`, and `why`. Successful results now state the active
+  query mode in `meta.query`.
+- `find --word` reports `GIT_SCRUB_WORD_UNAVAILABLE` when Git pickaxe evidence
+  cannot preserve whole-word semantics.
+
 ## 0.0.6 — why per-file forensic verdict
 
 - Added `rf why <pattern> <file> [--root <dir>]` for one-file match verdicts and

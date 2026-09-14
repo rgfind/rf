@@ -424,6 +424,200 @@ fn why_reports_one_target_verdict_and_validates_inputs() {
 }
 
 #[test]
+fn query_modes_keep_results_commands_and_cursors_honest() {
+    let corpus = Corpus::new();
+    let cwd = Some(corpus.path.as_path());
+    std::fs::write(
+        corpus.path.join("literal.txt"),
+        b"A.B\npreMAGIC_TOKEN_XYZpost\n",
+    )
+    .unwrap();
+    std::fs::write(corpus.path.join("regex-only.txt"), b"AxB\n").unwrap();
+
+    let (_, regex, _) = rf(&["why", "A.B", "regex-only.txt", "--json"], cwd, &[]);
+    let (_, fixed, _) = rf(
+        &["why", "A.B", "regex-only.txt", "--fixed-strings", "--json"],
+        cwd,
+        &[],
+    );
+    assert_eq!(regex["data"][0]["matched"], true);
+    assert_eq!(fixed["data"][0]["matched"], false);
+    assert_eq!(fixed["meta"]["query"]["syntax"], "fixed");
+
+    let (_, word, _) = rf(&["why", TOKEN, "literal.txt", "--word", "--json"], cwd, &[]);
+    assert_eq!(word["data"][0]["matched"], false);
+
+    let (_, insensitive, _) = rf(
+        &[
+            "why",
+            &TOKEN.to_lowercase(),
+            "lower.txt",
+            "--ignore-case",
+            "--json",
+        ],
+        cwd,
+        &[],
+    );
+    assert_eq!(insensitive["data"][0]["surfaced_by"], "default");
+    assert_eq!(insensitive["meta"]["query"]["case"], "insensitive");
+
+    let (_, utf16, _) = rf(
+        &[
+            "why",
+            &TOKEN.to_lowercase(),
+            "config_utf16.txt",
+            "--ignore-case",
+            "--json",
+        ],
+        cwd,
+        &[],
+    );
+    assert_eq!(utf16["data"][0]["surfaced_by"], "encoding_utf16");
+
+    let (_, explicit, _) = rf(
+        &[
+            "content",
+            TOKEN,
+            ".",
+            "--case-sensitive",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        cwd,
+        &[],
+    );
+    let (_, plain, _) = rf(&["content", TOKEN, ".", "--limit", "1", "--json"], cwd, &[]);
+    assert_eq!(
+        explicit["meta"]["pagination"]["cursor"],
+        plain["meta"]["pagination"]["cursor"]
+    );
+    assert!(explicit["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|command| command.as_str().unwrap_or("").contains("'-s'")
+            || !command.as_str().unwrap_or("").contains("'rg'")));
+
+    let cursor = plain["meta"]["pagination"]["cursor"].as_str().unwrap();
+    let (code, mismatch, _) = rf(
+        &[
+            "content",
+            TOKEN,
+            ".",
+            "--ignore-case",
+            "--cursor",
+            cursor,
+            "--json",
+        ],
+        cwd,
+        &[],
+    );
+    assert_eq!(code, 1);
+    assert_eq!(mismatch["errors"][0]["code"], "INVALID_INPUT");
+    let (code, conflict, _) = rf(
+        &[
+            "content",
+            TOKEN,
+            ".",
+            "--ignore-case",
+            "--case-sensitive",
+            "--json",
+        ],
+        cwd,
+        &[],
+    );
+    assert_eq!(code, 1);
+    assert_eq!(conflict["errors"][0]["code"], "USAGE");
+}
+
+#[test]
+fn why_reports_ignore_source_and_parent_chain_evidence() {
+    let corpus = Corpus::new();
+    let cwd = Some(corpus.path.as_path());
+    let (_, root_rule, _) = rf(&["why", TOKEN, "secrets.env", "--json"], cwd, &[]);
+    assert_eq!(root_rule["data"][0]["ignore_source"]["class"], "gitignore");
+    assert_eq!(
+        root_rule["data"][0]["ignore_source"]["source_file"],
+        ".gitignore"
+    );
+    assert_eq!(root_rule["data"][0]["ignore_source"]["line"], 1);
+
+    std::fs::write(corpus.path.join(".ignore"), b"*.env\n").unwrap();
+    let (_, dot_rule, _) = rf(&["why", TOKEN, "secrets.env", "--json"], cwd, &[]);
+    assert_eq!(dot_rule["data"][0]["ignore_source"]["class"], "dot_ignore");
+
+    std::fs::remove_file(corpus.path.join(".ignore")).unwrap();
+    std::fs::create_dir(corpus.path.join("nested")).unwrap();
+    std::fs::write(corpus.path.join("nested/child.env"), TOKEN).unwrap();
+    let nested = corpus.path.join("nested");
+    let (_, ancestor, _) = rf(
+        &[
+            "why",
+            TOKEN,
+            "nested/child.env",
+            "--root",
+            nested.to_str().unwrap(),
+            "--json",
+        ],
+        cwd,
+        &[],
+    );
+    assert_eq!(ancestor["data"][0]["ignore_source"]["class"], "gitignore");
+    assert!(ancestor["data"][0]["ignore_source"]["source_file"]
+        .as_str()
+        .unwrap()
+        .starts_with('/'));
+
+    std::fs::create_dir_all(corpus.path.join("anchored/build")).unwrap();
+    std::fs::write(corpus.path.join("anchored/build/item.txt"), TOKEN).unwrap();
+    std::fs::write(corpus.path.join("anchored/.gitignore"), b"/build/\n").unwrap();
+    let (_, anchored, _) = rf(
+        &["why", TOKEN, "anchored/build/item.txt", "--json"],
+        cwd,
+        &[],
+    );
+    assert_eq!(
+        anchored["data"][0]["ignore_source"]["source_file"],
+        "anchored/.gitignore"
+    );
+    assert_eq!(anchored["data"][0]["ignore_source"]["pattern"], "/build/");
+
+    std::fs::write(corpus.path.join(".git/info/exclude"), b"*.excluded\n").unwrap();
+    std::fs::write(corpus.path.join("secret.excluded"), TOKEN).unwrap();
+    let (_, exclude, _) = rf(&["why", TOKEN, "secret.excluded", "--json"], cwd, &[]);
+    assert_eq!(exclude["data"][0]["ignore_source"]["class"], "git_exclude");
+
+    std::fs::write(corpus.path.join("duplicate.dup"), TOKEN).unwrap();
+    std::fs::write(corpus.path.join(".gitignore"), b"*.env\n*.dup\n*.dup\n").unwrap();
+    let (_, duplicate, _) = rf(&["why", TOKEN, "duplicate.dup", "--json"], cwd, &[]);
+    assert_eq!(duplicate["data"][0]["ignore_source"]["class"], "gitignore");
+    assert!(duplicate["data"][0]["ignore_source"].get("line").is_none());
+}
+
+#[test]
+fn find_word_mode_omits_non_whole_word_scrub_evidence() {
+    let corpus = FindCorpus::new();
+    let cwd = Some(corpus.path.as_path());
+    let (code, env, _) = rf(
+        &["find", TOKEN, ".", "--name", "config", "--word", "--json"],
+        cwd,
+        &[],
+    );
+    assert_eq!(code, 0);
+    assert!(env["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|warning| warning["code"] == "GIT_SCRUB_WORD_UNAVAILABLE"));
+    assert!(env["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|command| !command.as_str().unwrap_or("").contains("'-S'")));
+}
+
+#[test]
 fn conformance() {
     let corpus = Corpus::new();
     let cd = Some(corpus.path.as_path());

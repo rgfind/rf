@@ -27,10 +27,14 @@ pub fn build() -> Value {
                     {"name": "--paths-stdin", "arity": 0, "type": "bool", "conflicts_with": "--paths-envelope", "input": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path"},
                     {"name": "--paths-envelope", "arity": 0, "type": "bool", "conflicts_with": "--paths-stdin", "input": "stdin rf JSON envelope; each data[] row must contain file:string"},
                     {"name": "--limit", "arity": 1, "type": "int", "default": 100, "range": "1..=1000"},
-                    {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"}
+                    {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"},
+                    {"name": "--fixed-strings", "arity": 0, "type": "bool"},
+                    {"name": "--word", "arity": 0, "type": "bool"},
+                    {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
+                    {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
                 ],
                 "selected_input": {"validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths", "error_code": "INVALID_SELECTION", "classification": "selected files are classified by content layers; they are never marked recovered"},
-                "output_schema": {"data[]": {"file": "string", "selection": "selected when a selected-input mode is used", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]"}, "meta.selection": {"mode": "enum[root-walk,stdin-nul,rf-envelope]", "selected_files": "int when selected input is used"}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}}
+                "output_schema": {"data[]": {"file": "string", "selection": "selected when a selected-input mode is used", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "meta.selection": {"mode": "enum[root-walk,stdin-nul,rf-envelope]", "selected_files": "int when selected input is used"}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}}
             },
             "find": {
                 "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
@@ -44,9 +48,13 @@ pub fn build() -> Value {
                     {"name": "--structural", "arity": 1, "type": "string", "domain": "ast-grep pattern; a construct with no fixed literal form"},
                     {"name": "--lang", "arity": 1, "type": "string", "domain": "ast-grep language id; required with --structural"},
                     {"name": "--limit", "arity": 1, "type": "int", "default": 100, "range": "1..=1000"},
-                    {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"}
+                    {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"},
+                    {"name": "--fixed-strings", "arity": 0, "type": "bool"},
+                    {"name": "--word", "arity": 0, "type": "bool"},
+                    {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
+                    {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
                 ],
-                "output_schema": {"data[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null"}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}}
+                "output_schema": {"data[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}}
             },
             "doctor": {
                 "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
@@ -62,11 +70,15 @@ pub fn build() -> Value {
                     {"name": "file", "arity": 1, "type": "path"}
                 ],
                 "flags": [
-                    {"name": "--root", "arity": 1, "type": "path", "required": false, "input": "directory that supplies target validation and ignore context"}
+                    {"name": "--root", "arity": 1, "type": "path", "required": false, "input": "directory that supplies target validation and ignore context"},
+                    {"name": "--fixed-strings", "arity": 0, "type": "bool"},
+                    {"name": "--word", "arity": 0, "type": "bool"},
+                    {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
+                    {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
                 ],
                 "output_schema": {
-                    "data[]": {"file": "root-relative target path", "pattern": "string", "matched": "bool", "hidden_from_default": "bool", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null", "hiding_filter": "{code,layer,rg_flags}|absent"},
-                    "meta": {"file": "root-relative target path", "root": "path relative to process working directory", "git_repo": "bool", "ignore_mode": "string", "matched": "bool", "surfaced_by": "string|null"},
+                    "data[]": {"file": "root-relative target path", "pattern": "string", "matched": "bool", "hidden_from_default": "bool", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null", "hiding_filter": "{code,layer,rg_flags}|absent", "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore"},
+                    "meta": {"file": "root-relative target path", "root": "path relative to process working directory", "query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "git_repo": "bool", "ignore_mode": "string", "matched": "bool", "surfaced_by": "string|null"},
                     "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches"
                 }
             },
@@ -115,7 +127,8 @@ pub fn build() -> Value {
             "IGNORE_VCS", "HIDDEN_SKIPPED", "BINARY_SKIPPED", "CASE_SENSITIVE",
             "ENCODING_MISS", "FD_NAME", "FD_HIDDEN", "FD_IGNORE", "RG_BINARY",
             "GIT_DELETED", "GIT_ABSENT", "GIT_NOT_WORK_TREE", "GIT_HISTORY_PARTIAL",
-            "AST_STRUCTURAL", "STRUCTURAL_UNAVAILABLE", "IGNORE_MODE"
+            "AST_STRUCTURAL", "STRUCTURAL_UNAVAILABLE", "IGNORE_MODE", "IGNORE_SOURCE_UNRESOLVED",
+            "GIT_SCRUB_WORD_UNAVAILABLE"
         ],
         "diagnosis_order": [
             "bootstrap_mode", "global_flag", "command_path", "command_flag",

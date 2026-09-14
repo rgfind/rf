@@ -3,6 +3,7 @@
 use crate::content::{classify_target, validate_single_target, Class, TargetError};
 use crate::doctor::git_context;
 use crate::envelope::{envelope, err, err_with, warn};
+use crate::query::QueryMode;
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 
@@ -111,7 +112,13 @@ fn resolve_root(target: &str, root_arg: Option<&str>) -> Result<(PathBuf, PathBu
     Ok((root, canonical_target))
 }
 
-pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) {
+pub fn run(
+    pattern: &str,
+    target: &str,
+    root_arg: Option<&str>,
+    query: QueryMode,
+    explicit_case_sensitive: bool,
+) -> (Value, i32) {
     crate::fault::maybe_fault("why");
     let (root, target_candidate) = match resolve_root(target, root_arg) {
         Ok(value) => value,
@@ -123,7 +130,7 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
     };
     let file = slash(&relative);
     let root_display = display_root(&root);
-    let class = match classify_target(pattern, &root, &canonical) {
+    let class = match classify_target(pattern, &root, &canonical, query) {
         Ok(class) => class,
         Err(message) => {
             let mut meta = Map::new();
@@ -159,6 +166,18 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
     let mut warnings = Vec::new();
     let mut commands = Vec::new();
     if let Some(class) = class {
+        if class == Class::VcsIgnore {
+            match crate::provenance::resolve(&root, &canonical) {
+                Ok(source) => {
+                    row.insert("ignore_source".into(), source);
+                }
+                Err(reason) => warnings.push(warn(
+                    "IGNORE_SOURCE_UNRESOLVED",
+                    format!("ignore provenance could not be reconstructed: {reason}"),
+                    vec![file.clone()],
+                )),
+            }
+        }
         if let Some((code, hint, flags)) = class.hiding_filter() {
             row.insert(
                 "hiding_filter".into(),
@@ -169,7 +188,8 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
                 format!("match hidden from a default tree search; {hint}"),
                 vec![file.clone()],
             ));
-            let mut args: Vec<String> = flags.split_whitespace().map(String::from).collect();
+            let mut args = query.rg_args(explicit_case_sensitive);
+            args.extend(flags.split_whitespace().map(String::from));
             args.extend([
                 "-e".into(),
                 pattern.into(),
@@ -186,6 +206,7 @@ pub fn run(pattern: &str, target: &str, root_arg: Option<&str>) -> (Value, i32) 
     meta.insert("pattern".into(), Value::from(pattern));
     meta.insert("file".into(), Value::from(file));
     meta.insert("root".into(), Value::from(root_display));
+    meta.insert("query".into(), query.metadata());
     meta.insert("git_repo".into(), Value::from(context.in_repo));
     meta.insert("ignore_mode".into(), Value::from(context.ignore_mode));
     meta.insert("matched".into(), Value::from(matched));

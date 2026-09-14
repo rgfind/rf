@@ -17,6 +17,8 @@ mod find;
 mod guide;
 mod manifest;
 mod pagination;
+mod provenance;
+mod query;
 mod why;
 
 use clap::{Parser, Subcommand};
@@ -83,6 +85,14 @@ enum Verb {
         limit: usize,
         #[arg(long)]
         cursor: Option<String>,
+        #[arg(long)]
+        fixed_strings: bool,
+        #[arg(long)]
+        word: bool,
+        #[arg(long, conflicts_with = "case_sensitive")]
+        ignore_case: bool,
+        #[arg(long, conflicts_with = "ignore_case")]
+        case_sensitive: bool,
     },
     /// Staged cross-source discovery (port in progress).
     Find {
@@ -100,6 +110,14 @@ enum Verb {
         limit: usize,
         #[arg(long)]
         cursor: Option<String>,
+        #[arg(long)]
+        fixed_strings: bool,
+        #[arg(long)]
+        word: bool,
+        #[arg(long, conflicts_with = "case_sensitive")]
+        ignore_case: bool,
+        #[arg(long, conflicts_with = "ignore_case")]
+        case_sensitive: bool,
     },
     /// Diagnose the environment and active ignore mode.
     Doctor {
@@ -113,6 +131,14 @@ enum Verb {
         /// Root directory for target validation and ignore context.
         #[arg(long)]
         root: Option<String>,
+        #[arg(long)]
+        fixed_strings: bool,
+        #[arg(long)]
+        word: bool,
+        #[arg(long, conflicts_with = "case_sensitive")]
+        ignore_case: bool,
+        #[arg(long, conflicts_with = "ignore_case")]
+        case_sensitive: bool,
     },
     /// Run the release self-check profile against this binary.
     Conformance {},
@@ -161,6 +187,10 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             paths_envelope,
             limit,
             cursor,
+            fixed_strings,
+            word,
+            ignore_case,
+            case_sensitive,
             ..
         } => {
             let selection = if *paths_stdin {
@@ -170,7 +200,15 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             } else {
                 None
             };
-            content::run(pattern, path, *limit, cursor.as_deref(), selection)
+            content::run(
+                pattern,
+                path,
+                *limit,
+                cursor.as_deref(),
+                selection,
+                query::QueryMode::new(*fixed_strings, *word, *ignore_case),
+                *case_sensitive,
+            )
         }
         Verb::Find {
             pattern,
@@ -180,6 +218,10 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             lang,
             limit,
             cursor,
+            fixed_strings,
+            word,
+            ignore_case,
+            case_sensitive,
             ..
         } => find::run(
             pattern,
@@ -189,13 +231,25 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             lang.as_deref(),
             *limit,
             cursor.as_deref(),
+            query::QueryMode::new(*fixed_strings, *word, *ignore_case),
+            *case_sensitive,
         ),
         Verb::Doctor { path, .. } => doctor::run(path),
         Verb::Why {
             pattern,
             file,
             root,
-        } => why::run(pattern, file, root.as_deref()),
+            fixed_strings,
+            word,
+            ignore_case,
+            case_sensitive,
+        } => why::run(
+            pattern,
+            file,
+            root.as_deref(),
+            query::QueryMode::new(*fixed_strings, *word, *ignore_case),
+            *case_sensitive,
+        ),
         Verb::Conformance { .. } => conformance::run(),
     }
 }
@@ -208,9 +262,10 @@ fn render_human(env: &Value) -> String {
     match verb {
         "content" => {
             out.push(format!(
-                "content '{}' in {}: {} file(s), {} by default, {} hidden by filters",
+                "content '{}' in {} [{}]: {} file(s), {} by default, {} hidden by filters",
                 meta["pattern"].as_str().unwrap_or(""),
                 meta["path"].as_str().unwrap_or(""),
+                meta["query"]["syntax"].as_str().unwrap_or("regex"),
                 meta["matched_files"],
                 meta["default_matched_files"],
                 meta["hidden_by_filters"]
@@ -219,6 +274,23 @@ fn render_human(env: &Value) -> String {
                 out.push(format!(
                     "  {:<12} {}",
                     d["surfaced_by"].as_str().unwrap_or(""),
+                    d["file"].as_str().unwrap_or("")
+                ));
+            }
+        }
+        "find" => {
+            out.push(format!(
+                "find '{}' in {} [{}]: {} tree match(es), {} history-only",
+                meta["pattern"].as_str().unwrap_or(""),
+                meta["path"].as_str().unwrap_or(""),
+                meta["query"]["syntax"].as_str().unwrap_or("regex"),
+                meta["content_total"],
+                meta["history_matches"]
+            ));
+            for d in env["data"].as_array().unwrap_or(&vec![]) {
+                out.push(format!(
+                    "  {:<14} {}",
+                    d["stage"].as_str().unwrap_or(""),
                     d["file"].as_str().unwrap_or("")
                 ));
             }
@@ -242,7 +314,28 @@ fn render_human(env: &Value) -> String {
                     .filter(|class| *class != "default")
                     .map(|class| format!(" - hidden by {class}"))
                     .unwrap_or_default();
-                out.push(format!("why '{pattern}' {file}: MATCH{suffix}"));
+                let query = &meta["query"];
+                out.push(format!(
+                    "why '{pattern}' {file} [{} {} {}]: MATCH{suffix}",
+                    query["syntax"].as_str().unwrap_or("regex"),
+                    if query["word"].as_bool().unwrap_or(false) {
+                        "word"
+                    } else {
+                        "any"
+                    },
+                    query["case"].as_str().unwrap_or("sensitive")
+                ));
+                if let Some(source) = d.get("ignore_source") {
+                    out.push(format!(
+                        "  ignore rule: {}:{} ({})",
+                        source["source_file"].as_str().unwrap_or(""),
+                        source["line"]
+                            .as_u64()
+                            .map(|line| line.to_string())
+                            .unwrap_or_else(|| "unknown line".into()),
+                        source["pattern"].as_str().unwrap_or("")
+                    ));
+                }
             } else {
                 out.push(format!(
                     "why '{pattern}' {file}: NO MATCH (pattern absent under all filters)"

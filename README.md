@@ -27,6 +27,11 @@ again. It needs the result to say what it searched, what it hid, and whether it 
 safe to build on — in a stable, typed shape. That is what `rf` provides and a
 shell pipe cannot.
 
+Search modes are explicit when a caller needs them: `--fixed-strings` treats a
+pattern as text, `--word` matches whole words, and `--ignore-case` or
+`--case-sensitive` sets case behavior. Successful `content`, `find`, and `why`
+results include this choice in `meta.query`.
+
 ## The control surface
 
 Every `rf` command returns **one** envelope of a known shape. Run
@@ -67,7 +72,7 @@ that hid each:
 <!-- BEGIN GENERATED:readme-example -->
 ```
 $ rf content timeout .
-content 'timeout' in .: 3 file(s), 1 by default, 2 hidden by filters
+content 'timeout' in . [regex]: 3 file(s), 1 by default, 2 hidden by filters
   default      config.py
   hidden       .env.local
   vcs_ignore   cache/build.py
@@ -110,7 +115,8 @@ with one pattern and returns that file's verdict.
 <!-- BEGIN GENERATED:why-example -->
 ```
 $ rf why timeout cache/build.py --human
-why 'timeout' cache/build.py: MATCH - hidden by vcs_ignore
+why 'timeout' cache/build.py [regex any sensitive]: MATCH - hidden by vcs_ignore
+  ignore rule: .gitignore:1 (cache/)
   ! IGNORE_VCS: match hidden from a default tree search; add -u (ignore .gitignore/.ignore rules)
   $ 'rg' '-u' '-e' 'timeout' '--' '.'
 ```

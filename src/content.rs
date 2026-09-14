@@ -16,6 +16,7 @@
 
 use crate::engine::{content_matches, content_matches_selected, SearchCfg};
 use crate::envelope::{envelope, err, warn};
+use crate::query::QueryMode;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
@@ -40,7 +41,7 @@ struct Cfg {
     ignore_files: bool, // honor .gitignore/.ignore
     hidden: bool,       // skip hidden/dotfiles
     binary_as_text: bool,
-    case_insensitive: bool,
+    query: QueryMode,
     encoding: Option<&'static str>, // forced decoder label, or None for auto
 }
 
@@ -52,15 +53,15 @@ struct Layer {
     flags: &'static str, // paste-ready ripgrep flags for the correction command
 }
 
-fn layers() -> Vec<Layer> {
-    vec![
+fn layers(query: QueryMode) -> Vec<Layer> {
+    let mut layers = vec![
         Layer {
             name: "default",
             cfg: Cfg {
                 ignore_files: true,
                 hidden: true,
                 binary_as_text: false,
-                case_insensitive: false,
+                query,
                 encoding: None,
             },
             code: None,
@@ -73,7 +74,7 @@ fn layers() -> Vec<Layer> {
                 ignore_files: false,
                 hidden: true,
                 binary_as_text: false,
-                case_insensitive: false,
+                query,
                 encoding: None,
             },
             code: Some("IGNORE_VCS"),
@@ -86,7 +87,7 @@ fn layers() -> Vec<Layer> {
                 ignore_files: false,
                 hidden: false,
                 binary_as_text: false,
-                case_insensitive: false,
+                query,
                 encoding: None,
             },
             code: Some("HIDDEN_SKIPPED"),
@@ -99,27 +100,33 @@ fn layers() -> Vec<Layer> {
                 ignore_files: false,
                 hidden: false,
                 binary_as_text: true,
-                case_insensitive: false,
+                query,
                 encoding: None,
             },
             code: Some("BINARY_SKIPPED"),
             hint: Some("add -uu -a (treat binary files as text)"),
             flags: "-uu -a",
         },
-        Layer {
+    ];
+    if !query.case_insensitive {
+        layers.push(Layer {
             name: "case",
             cfg: Cfg {
                 ignore_files: false,
                 hidden: false,
                 binary_as_text: true,
-                case_insensitive: true,
+                query: QueryMode {
+                    case_insensitive: true,
+                    ..query
+                },
                 encoding: None,
             },
             code: Some("CASE_SENSITIVE"),
             hint: Some("add -i (case-insensitive)"),
             flags: "-uu -a -i",
-        },
-    ]
+        });
+    }
+    layers
 }
 
 /// Parallel (non-cumulative) probes. `base` is the config the probe is diffed
@@ -205,13 +212,13 @@ pub(crate) enum TargetError {
     OutsideRoot,
 }
 
-fn probe_base_cfg(encoding: Option<&'static str>) -> Cfg {
+fn probe_base_cfg(encoding: Option<&'static str>, query: QueryMode) -> Cfg {
     // matches the `binary` layer (-uu -a): ignore off, hidden off, binary as text.
     Cfg {
         ignore_files: false,
         hidden: false,
         binary_as_text: true,
-        case_insensitive: false,
+        query,
         encoding,
     }
 }
@@ -223,7 +230,7 @@ fn search_cfg(cfg: &Cfg) -> SearchCfg {
         use_ignore: cfg.ignore_files,
         skip_hidden: cfg.hidden,
         binary_as_text: cfg.binary_as_text,
-        case_insensitive: cfg.case_insensitive,
+        query: cfg.query,
         encoding: cfg.encoding,
     }
 }
@@ -283,6 +290,7 @@ pub(crate) fn classify_target(
     pattern: &str,
     root: &Path,
     canonical: &Path,
+    query: QueryMode,
 ) -> Result<Option<Class>, String> {
     let relative = canonical
         .strip_prefix(root)
@@ -291,23 +299,29 @@ pub(crate) fn classify_target(
         .replace('\\', "/");
     let selected = BTreeMap::from([(relative.clone(), canonical.to_path_buf())]);
     let root = root.to_string_lossy();
-    for (index, layer) in layers().iter().enumerate() {
+    for layer in layers(query) {
         if matches_for(pattern, &root, &layer.cfg, Some(&selected))?.contains(&relative) {
-            return Ok(Some(match index {
-                0 => Class::Default,
-                1 => Class::VcsIgnore,
-                2 => Class::Hidden,
-                3 => Class::Binary,
-                _ => Class::Case,
+            return Ok(Some(match layer.name {
+                "default" => Class::Default,
+                "vcs_ignore" => Class::VcsIgnore,
+                "hidden" => Class::Hidden,
+                "binary" => Class::Binary,
+                "case" => Class::Case,
+                _ => unreachable!("unknown content layer"),
             }));
         }
     }
     for probe in probes() {
-        let base = matches_for(pattern, &root, &probe_base_cfg(None), Some(&selected))?;
+        let base = matches_for(
+            pattern,
+            &root,
+            &probe_base_cfg(None, query),
+            Some(&selected),
+        )?;
         let probed = matches_for(
             pattern,
             &root,
-            &probe_base_cfg(Some(probe.encoding)),
+            &probe_base_cfg(Some(probe.encoding), query),
             Some(&selected),
         )?;
         if probed.contains(&relative) && !base.contains(&relative) {
@@ -437,6 +451,8 @@ pub fn run(
     limit: usize,
     cursor: Option<&str>,
     selection_mode: Option<SelectionMode>,
+    query: QueryMode,
+    explicit_case_sensitive: bool,
 ) -> (Value, i32) {
     crate::fault::maybe_fault("content");
     let selected = match selection_mode {
@@ -448,7 +464,7 @@ pub fn run(
         },
         None => None,
     };
-    let ls = layers();
+    let ls = layers(query);
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut surfaced_by: Vec<(String, String)> = Vec::new(); // (file, layer)
     let mut default_files: BTreeSet<String> = BTreeSet::new();
@@ -489,8 +505,8 @@ pub fn run(
                     format!("{} match(es) hidden by default; {hint}", new.len()),
                     new.clone(),
                 ));
-                let mut args: Vec<String> =
-                    layer.flags.split_whitespace().map(String::from).collect();
+                let mut args = query.rg_args(explicit_case_sensitive);
+                args.extend(layer.flags.split_whitespace().map(String::from));
                 args.extend(["-e".into(), pattern.into(), "--".into(), path.into()]);
                 commands.push(crate::command::shell("rg", &args));
             }
@@ -501,14 +517,19 @@ pub fn run(
     // config, no encoding), so we add only files the decoder alone surfaces and
     // never lose the UTF-8 matches the cumulative layers already found.
     for p in probes() {
-        let base = match matches_for(pattern, path, &probe_base_cfg(None), selected.as_ref()) {
+        let base = match matches_for(
+            pattern,
+            path,
+            &probe_base_cfg(None, query),
+            selected.as_ref(),
+        ) {
             Ok(f) => f,
             Err(_) => continue,
         };
         let probed = match matches_for(
             pattern,
             path,
-            &probe_base_cfg(Some(p.encoding)),
+            &probe_base_cfg(Some(p.encoding), query),
             selected.as_ref(),
         ) {
             Ok(f) => f,
@@ -529,7 +550,8 @@ pub fn run(
                 format!("{} match(es) hidden by default; {}", new.len(), p.hint),
                 new.clone(),
             ));
-            let mut args: Vec<String> = p.flags.split_whitespace().map(String::from).collect();
+            let mut args = query.rg_args(explicit_case_sensitive);
+            args.extend(p.flags.split_whitespace().map(String::from));
             args.extend(["-e".into(), pattern.into(), "--".into(), path.into()]);
             commands.push(crate::command::shell("rg", &args));
         }
@@ -554,6 +576,7 @@ pub fn run(
     meta.insert("verb".into(), Value::from("content"));
     meta.insert("pattern".into(), Value::from(pattern));
     meta.insert("path".into(), Value::from(path));
+    meta.insert("query".into(), query.metadata());
     meta.insert(
         "selection".into(),
         match (selection_mode, selected.as_ref()) {
@@ -573,8 +596,14 @@ pub fn run(
         Value::from(total - default_files.len()),
     );
 
-    let query = json!({"verb": "content", "pattern": pattern, "path": path, "selection": selection_mode.map(SelectionMode::name)});
-    match crate::pagination::page(data, &query, limit, cursor) {
+    let mut page_query = json!({"verb": "content", "pattern": pattern, "path": path, "selection": selection_mode.map(SelectionMode::name)});
+    if let Some(mode) = query.pagination_value() {
+        page_query
+            .as_object_mut()
+            .unwrap()
+            .insert("query".into(), mode);
+    }
+    match crate::pagination::page(data, &page_query, limit, cursor) {
         Ok(page) => {
             let has_more = page.next_cursor.is_some();
             meta.insert(
@@ -608,17 +637,26 @@ pub fn run(
                     "CONFLICT",
                     "the result snapshot changed; restart the query",
                     5,
-                    vec![crate::command::shell(
-                        "rf",
-                        &[
-                            "content".into(),
+                    {
+                        let mut args = vec!["content".into()];
+                        args.extend(query.rg_args(explicit_case_sensitive).into_iter().map(
+                            |arg| match arg.as_str() {
+                                "-F" => "--fixed-strings".into(),
+                                "-w" => "--word".into(),
+                                "-i" => "--ignore-case".into(),
+                                "-s" => "--case-sensitive".into(),
+                                _ => arg,
+                            },
+                        ));
+                        args.extend([
                             "--limit".into(),
                             limit.to_string(),
                             pattern.into(),
                             "--".into(),
                             path.into(),
-                        ],
-                    )],
+                        ]);
+                        vec![crate::command::shell("rf", &args)]
+                    },
                 ),
             };
             (

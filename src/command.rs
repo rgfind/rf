@@ -16,6 +16,7 @@ fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+#[cfg(test)]
 pub fn pipe_fd_to_rg(
     ext: &str,
     pattern: &str,
@@ -35,6 +36,33 @@ pub fn pipe_fd_to_rg(
         root.into(),
     ]);
     let mut rg = extra_rg.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    rg.extend([
+        "-0".into(),
+        "-l".into(),
+        "-e".into(),
+        pattern.into(),
+        "--".into(),
+    ]);
+    format!("{} | xargs -0 {}", shell("fd", &fd), shell("rg", &rg))
+}
+
+pub fn pipe_fd_to_rg_with_mode(
+    ext: &str,
+    pattern: &str,
+    root: &str,
+    extra_fd: &[&str],
+    extra_rg: &[String],
+) -> String {
+    let mut fd = extra_fd.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    fd.extend([
+        "-0".into(),
+        "-e".into(),
+        ext.into(),
+        ".".into(),
+        "--".into(),
+        root.into(),
+    ]);
+    let mut rg = extra_rg.to_vec();
     rg.extend([
         "-0".into(),
         "-l".into(),

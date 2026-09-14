@@ -118,8 +118,23 @@
         "flags": [
           {
             "aliases": [],
+            "arity": 0,
+            "name": "--case-sensitive"
+          },
+          {
+            "aliases": [],
             "arity": 1,
             "name": "--cursor"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--fixed-strings"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--ignore-case"
           },
           {
             "aliases": [],
@@ -135,6 +150,11 @@
             "aliases": [],
             "arity": 0,
             "name": "--paths-stdin"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--word"
           }
         ],
         "path": [
@@ -160,8 +180,23 @@
         "flags": [
           {
             "aliases": [],
+            "arity": 0,
+            "name": "--case-sensitive"
+          },
+          {
+            "aliases": [],
             "arity": 1,
             "name": "--cursor"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--fixed-strings"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--ignore-case"
           },
           {
             "aliases": [],
@@ -182,6 +217,11 @@
             "aliases": [],
             "arity": 1,
             "name": "--structural"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--word"
           }
         ],
         "path": [
@@ -220,8 +260,28 @@
         "flags": [
           {
             "aliases": [],
+            "arity": 0,
+            "name": "--case-sensitive"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--fixed-strings"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--ignore-case"
+          },
+          {
+            "aliases": [],
             "arity": 1,
             "name": "--root"
+          },
+          {
+            "aliases": [],
+            "arity": 0,
+            "name": "--word"
           }
         ],
         "path": [
@@ -352,6 +412,28 @@
           "domain": "opaque cursor from meta.pagination.cursor",
           "name": "--cursor",
           "type": "string"
+        },
+        {
+          "arity": 0,
+          "name": "--fixed-strings",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "name": "--word",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "conflicts_with": "--case-sensitive",
+          "name": "--ignore-case",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "conflicts_with": "--ignore-case",
+          "name": "--case-sensitive",
+          "type": "bool"
         }
       ],
       "output_schema": {
@@ -368,6 +450,11 @@
           "snapshot_hash": "sha256",
           "total": "int",
           "truncated": "bool"
+        },
+        "meta.query": {
+          "case": "enum[sensitive,insensitive]",
+          "syntax": "enum[regex,fixed]",
+          "word": "bool"
         },
         "meta.selection": {
           "mode": "enum[root-walk,stdin-nul,rf-envelope]",
@@ -441,6 +528,28 @@
           "domain": "opaque cursor from meta.pagination.cursor",
           "name": "--cursor",
           "type": "string"
+        },
+        {
+          "arity": 0,
+          "name": "--fixed-strings",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "name": "--word",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "conflicts_with": "--case-sensitive",
+          "name": "--ignore-case",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "conflicts_with": "--ignore-case",
+          "name": "--case-sensitive",
+          "type": "bool"
         }
       ],
       "output_schema": {
@@ -464,6 +573,12 @@
           "snapshot_hash": "sha256",
           "total": "int",
           "truncated": "bool"
+        },
+        "meta.query": {
+          "case": "enum[sensitive,insensitive]",
+          "stages": "tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep",
+          "syntax": "enum[regex,fixed]",
+          "word": "bool"
         }
       },
       "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural"
@@ -536,6 +651,28 @@
           "name": "--root",
           "required": false,
           "type": "path"
+        },
+        {
+          "arity": 0,
+          "name": "--fixed-strings",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "name": "--word",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "conflicts_with": "--case-sensitive",
+          "name": "--ignore-case",
+          "type": "bool"
+        },
+        {
+          "arity": 0,
+          "conflicts_with": "--ignore-case",
+          "name": "--case-sensitive",
+          "type": "bool"
         }
       ],
       "output_schema": {
@@ -544,6 +681,7 @@
           "file": "root-relative target path",
           "hidden_from_default": "bool",
           "hiding_filter": "{code,layer,rg_flags}|absent",
+          "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore",
           "matched": "bool",
           "pattern": "string",
           "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null"
@@ -553,6 +691,11 @@
           "git_repo": "bool",
           "ignore_mode": "string",
           "matched": "bool",
+          "query": {
+            "case": "enum[sensitive,insensitive]",
+            "syntax": "enum[regex,fixed]",
+            "word": "bool"
+          },
           "root": "path relative to process working directory",
           "surfaced_by": "string|null"
         }
@@ -583,6 +726,8 @@
     "GIT_HISTORY_PARTIAL",
     "AST_STRUCTURAL",
     "STRUCTURAL_UNAVAILABLE",
-    "IGNORE_MODE"
+    "IGNORE_MODE",
+    "IGNORE_SOURCE_UNRESOLVED",
+    "GIT_SCRUB_WORD_UNAVAILABLE"
   ]
 }

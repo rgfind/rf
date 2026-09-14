@@ -3,6 +3,7 @@
 //! at — file classification and match provenance are read here natively, once,
 //! instead of being reconstructed from a shell pipe in each verb.
 
+use crate::query::QueryMode;
 use grep_regex::RegexMatcherBuilder;
 use grep_searcher::sinks::Bytes;
 use grep_searcher::{BinaryDetection, Encoding, SearcherBuilder};
@@ -11,12 +12,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 /// One filter configuration. `use_ignore`/`skip_hidden` drive the walker;
-/// `binary_as_text`/`case_insensitive`/`encoding` drive the searcher.
+/// `binary_as_text`/`query`/`encoding` drive the searcher.
 pub struct SearchCfg {
     pub use_ignore: bool,
     pub skip_hidden: bool,
     pub binary_as_text: bool,
-    pub case_insensitive: bool,
+    pub query: QueryMode,
     pub encoding: Option<&'static str>,
 }
 
@@ -68,7 +69,9 @@ pub fn content_matches(
 ) -> Result<BTreeSet<String>, String> {
     crate::fault::maybe_fault("engine");
     let matcher = RegexMatcherBuilder::new()
-        .case_insensitive(cfg.case_insensitive)
+        .fixed_strings(cfg.query.fixed_strings)
+        .word(cfg.query.word)
+        .case_insensitive(cfg.query.case_insensitive)
         .build(pattern)
         .map_err(|e| e.to_string())?;
 
@@ -125,7 +128,9 @@ pub fn content_matches_selected(
 ) -> Result<BTreeSet<String>, String> {
     crate::fault::maybe_fault("engine");
     let matcher = RegexMatcherBuilder::new()
-        .case_insensitive(cfg.case_insensitive)
+        .fixed_strings(cfg.query.fixed_strings)
+        .word(cfg.query.word)
+        .case_insensitive(cfg.query.case_insensitive)
         .build(pattern)
         .map_err(|e| e.to_string())?;
 
