@@ -26,6 +26,7 @@
         "INTERNAL": "internal fault caught by the totality wrapper",
         "INVALID_INPUT": "a supplied value failed parser validation",
         "INVALID_SELECTION": "selected-input bytes or paths failed validation",
+        "INVALID_TARGET": "why target or root failed validation",
         "MISSING_ARGUMENT": "a required positional or flag value is absent",
         "UNKNOWN_COMMAND": "an unrecognized command path",
         "UNKNOWN_FLAG": "an unrecognized global or verb-local flag",
@@ -216,6 +217,23 @@
               "guide"
             ],
             "positionals": []
+          },
+          "why": {
+            "aliases": [],
+            "flags": [
+              {
+                "aliases": [],
+                "arity": 1,
+                "name": "--root"
+              }
+            ],
+            "path": [
+              "why"
+            ],
+            "positionals": [
+              "file",
+              "pattern"
+            ]
           }
         },
         "global_flags": [
@@ -257,7 +275,7 @@
         ],
         "workflow_guides_status": "released in contract version 2"
       },
-      "tool_version": "0.0.5",
+      "tool_version": "0.0.6",
       "value_domains": [
         {
           "accepted": "config",
@@ -499,6 +517,50 @@
             }
           },
           "summary": "emit agent workflow recipes"
+        },
+        "why": {
+          "aliases": [],
+          "args": [
+            {
+              "arity": 1,
+              "name": "pattern",
+              "type": "string"
+            },
+            {
+              "arity": 1,
+              "name": "file",
+              "type": "path"
+            }
+          ],
+          "flags": [
+            {
+              "arity": 1,
+              "input": "directory that supplies target validation and ignore context",
+              "name": "--root",
+              "required": false,
+              "type": "path"
+            }
+          ],
+          "output_schema": {
+            "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches",
+            "data[]": {
+              "file": "root-relative target path",
+              "hidden_from_default": "bool",
+              "hiding_filter": "{code,layer,rg_flags}|absent",
+              "matched": "bool",
+              "pattern": "string",
+              "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null"
+            },
+            "meta": {
+              "file": "root-relative target path",
+              "git_repo": "bool",
+              "ignore_mode": "string",
+              "matched": "bool",
+              "root": "path relative to process working directory",
+              "surfaced_by": "string|null"
+            }
+          },
+          "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it"
         }
       },
       "verification_fixtures": {
@@ -531,13 +593,13 @@
   "errors": [],
   "meta": {
     "contract_version": "2",
-    "data_hash": "11e6bc3362fb",
+    "data_hash": "18886703b5b4",
     "elapsed_ms": 0,
-    "request_id": "d38694e2f2c9f4c6",
+    "request_id": "e0826ee74df28903",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },
   "ok": true,
-  "tool_version": "0.0.5",
+  "tool_version": "0.0.6",
   "warnings": []
 }
