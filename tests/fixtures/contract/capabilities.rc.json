@@ -2,6 +2,15 @@
   "commands": [],
   "data": [
     {
+      "contract_policy": {
+        "policy_version": 2,
+        "release_classification": "additive-pending-release-verification",
+        "release_record": "release-records/0.0.8.md",
+        "supported_contract_versions": [
+          "2"
+        ],
+        "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-2"
+      },
       "contract_version": "2",
       "diagnosis_order": [
         "bootstrap_mode",
@@ -99,10 +108,19 @@
         }
       ],
       "limits": {
+        "evidence": {
+          "max_occurrences_per_row": 16,
+          "response_data_bytes": 32768,
+          "text_bytes": 512
+        },
         "external_tool_probe": {
           "captured_output_bytes": 8192,
           "probe_error_bytes": 512,
           "timeout_ms": 2000
+        },
+        "pagination": {
+          "default_limit": 100,
+          "max_limit": 1000
         },
         "structural_search": {
           "captured_output_bytes": 65536,
@@ -375,6 +393,16 @@
           "robot-docs guide"
         ],
         "workflow_guides_status": "released in contract version 2"
+      },
+      "schema_versions": {
+        "capabilities": 2,
+        "conformance": 2,
+        "content": 2,
+        "doctor": 2,
+        "envelope": 2,
+        "find": 2,
+        "robot-docs": 2,
+        "why": 2
       },
       "tool_version": "0.0.7",
       "value_domains": [
@@ -885,15 +913,156 @@
         "IGNORE_SOURCE_UNRESOLVED",
         "EXTERNAL_TOOL_MISSING",
         "GIT_SCRUB_WORD_UNAVAILABLE"
-      ]
+      ],
+      "warning_details": {
+        "AST_STRUCTURAL": {
+          "detail_shape": "paths[]",
+          "precondition": "structural-only match",
+          "sites": [
+            "find"
+          ]
+        },
+        "BINARY_SKIPPED": {
+          "detail_shape": "paths[]",
+          "precondition": "binary detection hides a match",
+          "sites": [
+            "content",
+            "why"
+          ]
+        },
+        "CASE_SENSITIVE": {
+          "detail_shape": "paths[]",
+          "precondition": "case-insensitive search recovers a match",
+          "sites": [
+            "content",
+            "why"
+          ]
+        },
+        "ENCODING_MISS": {
+          "detail_shape": "paths[]",
+          "precondition": "UTF-16 decoding recovers a match",
+          "sites": [
+            "content",
+            "why"
+          ]
+        },
+        "EXTERNAL_TOOL_MISSING": {
+          "detail_shape": "none",
+          "precondition": "an optional external tool cannot run",
+          "sites": [
+            "doctor",
+            "find"
+          ]
+        },
+        "FD_HIDDEN": {
+          "detail_shape": "paths[]",
+          "precondition": "hidden path excludes a content match",
+          "sites": [
+            "find"
+          ]
+        },
+        "FD_IGNORE": {
+          "detail_shape": "paths[]",
+          "precondition": "ignore rule excludes a content match",
+          "sites": [
+            "find"
+          ]
+        },
+        "FD_NAME": {
+          "detail_shape": "paths[]",
+          "precondition": "name filter excludes a content match",
+          "sites": [
+            "find"
+          ]
+        },
+        "GIT_ABSENT": {
+          "detail_shape": "paths[]",
+          "precondition": "Git is unavailable",
+          "sites": [
+            "find"
+          ]
+        },
+        "GIT_DELETED": {
+          "detail_shape": "paths[]",
+          "precondition": "history-only match",
+          "sites": [
+            "find"
+          ]
+        },
+        "GIT_HISTORY_PARTIAL": {
+          "detail_shape": "none",
+          "precondition": "history scan budget expires",
+          "sites": [
+            "find"
+          ]
+        },
+        "GIT_NOT_WORK_TREE": {
+          "detail_shape": "paths[]",
+          "precondition": "root is not a Git work tree",
+          "sites": [
+            "find"
+          ]
+        },
+        "GIT_SCRUB_WORD_UNAVAILABLE": {
+          "detail_shape": "paths[]",
+          "precondition": "whole-word mode omits Git pickaxe evidence",
+          "sites": [
+            "find"
+          ]
+        },
+        "HIDDEN_SKIPPED": {
+          "detail_shape": "paths[]",
+          "precondition": "a hidden path hides a match",
+          "sites": [
+            "content",
+            "why"
+          ]
+        },
+        "IGNORE_MODE": {
+          "detail_shape": "none",
+          "precondition": "ignore mode diagnostic",
+          "sites": [
+            "doctor"
+          ]
+        },
+        "IGNORE_SOURCE_UNRESOLVED": {
+          "detail_shape": "paths[]",
+          "precondition": "ignore source cannot be reconstructed",
+          "sites": [
+            "why"
+          ]
+        },
+        "IGNORE_VCS": {
+          "detail_shape": "paths[]",
+          "precondition": "a VCS-ignore rule hides a match",
+          "sites": [
+            "content",
+            "why"
+          ]
+        },
+        "RG_BINARY": {
+          "detail_shape": "paths[]",
+          "precondition": "binary detection excludes a content match",
+          "sites": [
+            "find"
+          ]
+        },
+        "STRUCTURAL_UNAVAILABLE": {
+          "detail_shape": "none",
+          "precondition": "ast-grep is unavailable",
+          "sites": [
+            "find"
+          ]
+        }
+      }
     }
   ],
   "errors": [],
   "meta": {
     "contract_version": "2",
-    "data_hash": "ec9e76582bdc",
+    "data_hash": "4c26a50feae2",
     "elapsed_ms": 0,
-    "request_id": "9037b0e989094bdb",
+    "request_id": "b21faa3773cc441f",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

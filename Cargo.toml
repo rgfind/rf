@@ -20,6 +20,7 @@ include = [
     "/src/**/*.rs",
     "/README.md",
     "/CHANGELOG.md",
+    "/CONTRACT.md",
     "/LICENSE",
     "/Cargo.toml",
     "/Cargo.lock",

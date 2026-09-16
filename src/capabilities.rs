@@ -10,6 +10,17 @@ pub fn build() -> Value {
     let mut v = json!({
         "contract_version": CONTRACT_VERSION,
         "tool_version": TOOL_VERSION,
+        "contract_policy": {
+            "policy_version": 2,
+            "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-2",
+            "supported_contract_versions": [CONTRACT_VERSION],
+            "release_record": "release-records/0.0.8.md",
+            "release_classification": "additive-pending-release-verification"
+        },
+        "schema_versions": {
+            "envelope": 2, "capabilities": 2, "content": 2, "find": 2,
+            "why": 2, "doctor": 2, "robot-docs": 2, "conformance": 2
+        },
         "release_scope": {"workflow_guides": ["robot-docs guide"], "workflow_guides_status": "released in contract version 2"},
         "engine": "in-process (ignore + grep crates); no subprocess",
         "verbs": {
@@ -159,8 +170,31 @@ pub fn build() -> Value {
             "ast-grep": [{"verb":"find","mode":"structural","behavior":"degrades with typed use-time provenance"}]
         }));
         object.insert("limits".into(), json!({
+            "pagination": {"default_limit": 100, "max_limit": 1000},
+            "evidence": {"max_occurrences_per_row": 16, "text_bytes": 512, "response_data_bytes": 32768},
             "external_tool_probe": {"timeout_ms": 2000, "captured_output_bytes": 8192, "probe_error_bytes": 512},
             "structural_search": {"timeout_ms": 5000, "captured_output_bytes": 65536}
+        }));
+        object.insert("warning_details".into(), json!({
+            "IGNORE_VCS": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"a VCS-ignore rule hides a match"},
+            "HIDDEN_SKIPPED": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"a hidden path hides a match"},
+            "BINARY_SKIPPED": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"binary detection hides a match"},
+            "CASE_SENSITIVE": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"case-insensitive search recovers a match"},
+            "ENCODING_MISS": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"UTF-16 decoding recovers a match"},
+            "FD_NAME": {"sites":["find"],"detail_shape":"paths[]","precondition":"name filter excludes a content match"},
+            "FD_HIDDEN": {"sites":["find"],"detail_shape":"paths[]","precondition":"hidden path excludes a content match"},
+            "FD_IGNORE": {"sites":["find"],"detail_shape":"paths[]","precondition":"ignore rule excludes a content match"},
+            "RG_BINARY": {"sites":["find"],"detail_shape":"paths[]","precondition":"binary detection excludes a content match"},
+            "GIT_DELETED": {"sites":["find"],"detail_shape":"paths[]","precondition":"history-only match"},
+            "GIT_ABSENT": {"sites":["find"],"detail_shape":"paths[]","precondition":"Git is unavailable"},
+            "GIT_NOT_WORK_TREE": {"sites":["find"],"detail_shape":"paths[]","precondition":"root is not a Git work tree"},
+            "GIT_HISTORY_PARTIAL": {"sites":["find"],"detail_shape":"none","precondition":"history scan budget expires"},
+            "AST_STRUCTURAL": {"sites":["find"],"detail_shape":"paths[]","precondition":"structural-only match"},
+            "STRUCTURAL_UNAVAILABLE": {"sites":["find"],"detail_shape":"none","precondition":"ast-grep is unavailable"},
+            "IGNORE_MODE": {"sites":["doctor"],"detail_shape":"none","precondition":"ignore mode diagnostic"},
+            "IGNORE_SOURCE_UNRESOLVED": {"sites":["why"],"detail_shape":"paths[]","precondition":"ignore source cannot be reconstructed"},
+            "EXTERNAL_TOOL_MISSING": {"sites":["doctor","find"],"detail_shape":"none","precondition":"an optional external tool cannot run"},
+            "GIT_SCRUB_WORD_UNAVAILABLE": {"sites":["find"],"detail_shape":"paths[]","precondition":"whole-word mode omits Git pickaxe evidence"}
         }));
     }
     // The release contract lists only the two stable vars above; a fault-injection
