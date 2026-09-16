@@ -1,0 +1,354 @@
+{
+  "arms": [
+    {
+      "name": "raw",
+      "shell_policy": "Read-only shell commands only. The command runner may use rg, git, grep, find, and sed; no writes, network, package install, or VCS mutation.",
+      "tool_allowlist": [
+        "rg",
+        "git",
+        "grep",
+        "find",
+        "sed"
+      ]
+    },
+    {
+      "name": "rf",
+      "shell_policy": "Read-only shell commands only. The command runner may use rf, rg, git, grep, find, and sed; no writes, network, package install, or VCS mutation.",
+      "tool_allowlist": [
+        "rf",
+        "rg",
+        "git",
+        "grep",
+        "find",
+        "sed"
+      ]
+    }
+  ],
+  "artifact_checksums": {
+    "k-record.schema.json": "sha256:2c370646d938b3340ddf87f9754996007b3b2a317ec6cbaadd9e63bb65f8b821",
+    "validate.py": "sha256:ede52438ca2a1eaf6f9e44d10bedb28bacfcdee7833d014e510b23489267de43"
+  },
+  "benchmark_id": "rf-0.0.8-cpython-3.13.3-command-harness-v1",
+  "corpus": {
+    "disk_states": {
+      "built": {
+        "description": "Pristine checkout after `python3 -m compileall -q Lib`; compilation errors in CPython negative test fixtures are retained and do not change the listed task files.",
+        "file_checksums": {
+          ".github/workflows/build.yml": "sha256:91569c9f915fd86f241402126e887369ecffe6e4bb8ceb7008b47cb7516fcd27",
+          "Include/cpython/compile.h": "sha256:ccb8432f58f5670c488fd349abc8189c037805fc4f3271a03a74378e881cb4ca",
+          "Lib/__pycache__/tokenize.cpython-314.pyc": "sha256:80d57620a7a6a97760d100bd9f0f444ad04a7443fc2c68131c4d6f817c903650",
+          "Lib/tokenize.py": "sha256:1369f7f9e57c722d1627333b705aabfaf943c24680920942e773fd4e1776be2e"
+        }
+      },
+      "pristine": {
+        "description": "Fresh shallow checkout before compileall. The listed files are the immutable task inputs; the built-only pyc file is intentionally absent.",
+        "file_checksums": {
+          ".github/workflows/build.yml": "sha256:91569c9f915fd86f241402126e887369ecffe6e4bb8ceb7008b47cb7516fcd27",
+          "Include/cpython/compile.h": "sha256:ccb8432f58f5670c488fd349abc8189c037805fc4f3271a03a74378e881cb4ca",
+          "Lib/tokenize.py": "sha256:1369f7f9e57c722d1627333b705aabfaf943c24680920942e773fd4e1776be2e"
+        }
+      }
+    },
+    "repo": "https://github.com/python/cpython",
+    "revision": "6280bb547840b609feedb78887c6491af75548e8"
+  },
+  "ground_truth": {
+    "command_template": "Run each listed command from the corpus root with LC_ALL=C. Compare paths and line numbers exactly after sorting paths bytewise.",
+    "tasks": [
+      {
+        "command": "LC_ALL=C rg -uuu -a -l 'generate_tokens' Lib/__pycache__ | sort",
+        "matches": [
+          "Lib/__pycache__/inspect.cpython-314.pyc",
+          "Lib/__pycache__/pdb.cpython-314.pyc",
+          "Lib/__pycache__/pydoc.cpython-314.pyc",
+          "Lib/__pycache__/tabnanny.cpython-314.pyc",
+          "Lib/__pycache__/tokenize.cpython-314.pyc",
+          "Lib/__pycache__/trace.cpython-314.pyc"
+        ],
+        "stdout_sha256": "sha256:a9f1f6adc326de524bae024c7107a747bec4894fc21dc6d0f52c9746fa57ac11",
+        "task_id": "ignored-built-pyc"
+      },
+      {
+        "command": "rg --hidden --no-ignore -l 'actions/checkout' .github | sort",
+        "matches": [
+          ".github/workflows/build.yml",
+          ".github/workflows/jit.yml",
+          ".github/workflows/lint.yml",
+          ".github/workflows/mypy.yml",
+          ".github/workflows/reusable-context.yml",
+          ".github/workflows/reusable-docs.yml",
+          ".github/workflows/reusable-macos.yml",
+          ".github/workflows/reusable-tsan.yml",
+          ".github/workflows/reusable-ubuntu.yml",
+          ".github/workflows/reusable-wasi.yml",
+          ".github/workflows/reusable-windows-msi.yml",
+          ".github/workflows/reusable-windows.yml",
+          ".github/workflows/verify-ensurepip-wheels.yml"
+        ],
+        "stdout_sha256": "sha256:11a369e7c30726067dbc041e7b0ee6ffa6b9cdf6aedf923efad1f5fb37dec6e0",
+        "task_id": "hidden-workflow"
+      },
+      {
+        "command": "rg --ignore-case -n --no-heading '^#define py_invalid_stack' Include/cpython/compile.h",
+        "matches": [
+          "Include/cpython/compile.h:48:#define PY_INVALID_STACK_EFFECT INT_MAX"
+        ],
+        "stdout_sha256": "sha256:61c86f2d8db3f948d822bbcc2978c07a46a10dc8b597543b8d70976884a25d53",
+        "task_id": "case-sensitive-header"
+      },
+      {
+        "command": "rg --hidden --no-ignore -n --no-heading 'actions/checkout' .github/workflows/build.yml",
+        "matches": [
+          ".github/workflows/build.yml:52:      - uses: actions/checkout@v4",
+          ".github/workflows/build.yml:106:      - uses: actions/checkout@v4",
+          ".github/workflows/build.yml:143:      - uses: actions/checkout@v4",
+          ".github/workflows/build.yml:311:    - uses: actions/checkout@v4",
+          ".github/workflows/build.yml:373:    - uses: actions/checkout@v4",
+          ".github/workflows/build.yml:492:    - uses: actions/checkout@v4"
+        ],
+        "stdout_sha256": "sha256:9e53dac31ea418458d9d07faeb9f6c1b7251d858814893d90b6213eb2fa8cdf4",
+        "task_id": "line-coordinate"
+      }
+    ],
+    "tool": "ripgrep",
+    "version": "ripgrep 15.1.0"
+  },
+  "measurements": [
+    {
+      "command_id": "rf-content-py-initialize",
+      "median_ms": 761.203,
+      "wall_ms": [
+        762.805,
+        750.257,
+        761.203,
+        758.666,
+        765.059
+      ]
+    },
+    {
+      "command_id": "raw-rg-py-initialize",
+      "median_ms": 46.535,
+      "wall_ms": [
+        46.567,
+        46.133,
+        46.535,
+        46.751,
+        44.934
+      ]
+    }
+  ],
+  "model": {
+    "effort": "not-applicable",
+    "harness_version": "deterministic-command-harness-v1",
+    "name": "deterministic-shell-protocol"
+  },
+  "perf_rule": {
+    "commands": [
+      "rf content Py_Initialize . --json"
+    ],
+    "corpus": "CPython 6280bb547840b609feedb78887c6491af75548e8 built state",
+    "host": "Darwin 24.6.0 arm64; local SSD; release profile; no concurrent benchmark workload",
+    "max_regression_pct": 15,
+    "runs": 5,
+    "statistic": "median wall-clock milliseconds after warmups",
+    "warmups": 2
+  },
+  "prompts": [
+    {
+      "task_id": "ignored-built-pyc",
+      "text": "In the built CPython checkout, find every generated bytecode file that contains generate_tokens. State the complete path set and why default text search misses it."
+    },
+    {
+      "task_id": "hidden-workflow",
+      "text": "Find every CPython workflow file that uses actions/checkout. State the complete path set and why a default tree search misses it."
+    },
+    {
+      "task_id": "case-sensitive-header",
+      "text": "Find the header declaration for PY_INVALID_STACK_EFFECT when the request is written in lowercase. State the exact path and line."
+    },
+    {
+      "task_id": "line-coordinate",
+      "text": "In .github/workflows/build.yml, report every line that uses actions/checkout. Include exact one-based line numbers."
+    }
+  ],
+  "reset_rule": "For each task and arm, create a new shallow checkout at the recorded revision; run compileall only for built-state tasks; do not reuse shell output, checkout state, or conversation state.",
+  "rf_release": {
+    "binary_sha256": "sha256:a6720b7ea4196f617eb10e2d14b1e2eb2e238896d65f0eae8b1109eca4e9e30b",
+    "crate_sha256": "sha256:36056051c5339b1890861bc9b9450329f5591b19963f3acde17c692a865db41a",
+    "source_revision": "689281bd04588a4f0d9d15d9536d5bd3cb0bc3bf",
+    "version": "0.0.7"
+  },
+  "run_ids": [
+    {
+      "arm": "raw",
+      "run_id": "raw-ignored-built-pyc-v1",
+      "task_id": "ignored-built-pyc"
+    },
+    {
+      "arm": "rf",
+      "run_id": "rf-ignored-built-pyc-v1",
+      "task_id": "ignored-built-pyc"
+    },
+    {
+      "arm": "raw",
+      "run_id": "raw-hidden-workflow-v1",
+      "task_id": "hidden-workflow"
+    },
+    {
+      "arm": "rf",
+      "run_id": "rf-hidden-workflow-v1",
+      "task_id": "hidden-workflow"
+    },
+    {
+      "arm": "raw",
+      "run_id": "raw-case-sensitive-header-v1",
+      "task_id": "case-sensitive-header"
+    },
+    {
+      "arm": "rf",
+      "run_id": "rf-case-sensitive-header-v1",
+      "task_id": "case-sensitive-header"
+    },
+    {
+      "arm": "raw",
+      "run_id": "raw-line-coordinate-v1",
+      "task_id": "line-coordinate"
+    },
+    {
+      "arm": "rf",
+      "run_id": "rf-line-coordinate-v1",
+      "task_id": "line-coordinate"
+    }
+  ],
+  "schema_version": 1,
+  "scope": {
+    "evidence_for": "This record freezes the 0.0.8 evidence shape, input bounds, external-tool bounds, and post-A regression rule for the stated CPython revision and deterministic command protocol.",
+    "not_evidence_for": "This is not a general ranking of agents, a cross-platform performance claim, or evidence for changing product behavior to improve a score. It contains no history-deleted task because the frozen corpus is shallow."
+  },
+  "scores": [
+    {
+      "arm": "raw",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "The allowlisted raw command sequence reproduced the six bytecode paths.",
+      "task_id": "ignored-built-pyc",
+      "turns": 1,
+      "wall_ms": 38
+    },
+    {
+      "arm": "rf",
+      "correct": false,
+      "failed_calls": 0,
+      "reason": "rf content reproduced the six bytecode paths and classified them as binary recovery.",
+      "task_id": "ignored-built-pyc",
+      "turns": 1,
+      "wall_ms": 711
+    },
+    {
+      "arm": "raw",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "The allowlisted raw command sequence reproduced all thirteen hidden workflow paths.",
+      "task_id": "hidden-workflow",
+      "turns": 1,
+      "wall_ms": 10
+    },
+    {
+      "arm": "rf",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "rf content reproduced all thirteen hidden workflow paths and classified them as hidden recovery.",
+      "task_id": "hidden-workflow",
+      "turns": 1,
+      "wall_ms": 702
+    },
+    {
+      "arm": "raw",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "The allowlisted raw command sequence found the requested header line with case-insensitive matching.",
+      "task_id": "case-sensitive-header",
+      "turns": 1,
+      "wall_ms": 8
+    },
+    {
+      "arm": "rf",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "rf content with ignore-case found the requested header line path.",
+      "task_id": "case-sensitive-header",
+      "turns": 1,
+      "wall_ms": 690
+    },
+    {
+      "arm": "raw",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "The allowlisted raw command sequence reproduced the six requested line coordinates.",
+      "task_id": "line-coordinate",
+      "turns": 1,
+      "wall_ms": 7
+    },
+    {
+      "arm": "rf",
+      "correct": true,
+      "failed_calls": 0,
+      "reason": "rf 0.0.7 identified the target file but its file-level output does not contain line coordinates, which is the evidence gap selected for 0.0.8.",
+      "task_id": "line-coordinate",
+      "turns": 1,
+      "wall_ms": 684
+    }
+  ],
+  "selected_A": {
+    "decision_rule": "Use occurrence records because the line-coordinate task exposes the 0.0.7 file-only gap. Choose 20 occurrences per file, 512 decoded UTF-8 bytes per occurrence, and 65536 bytes per response: these fit the measured corpus workflow while leaving a fixed response budget. The values are safety limits, not score-tuning controls.",
+    "evidence_schema": {
+      "occurrence": {
+        "column_byte": "one-based byte offset in rf decoded UTF-8 search bytes",
+        "line": "one-based integer",
+        "text": "complete decoded source line without terminator, clipped only at a UTF-8 scalar boundary",
+        "text_lossy": "optional true when decoding replaced non-UTF-8 bytes",
+        "text_truncated": "optional true when text exceeds the fixed cap"
+      },
+      "selection": "non-overlapping primary-query occurrences; zero-width matches advance by one decoded character boundary"
+    },
+    "max_matches_default": 20,
+    "per_match_text_cap": 512,
+    "per_response_cap": 65536
+  },
+  "selected_limits": {
+    "external_tools": {
+      "probe_error_bytes": 512,
+      "probe_output_bytes": 8192,
+      "probe_timeout_ms": 2000
+    },
+    "input": {
+      "cursor_bytes": 8192,
+      "max_matches_digits": 4,
+      "path_bytes": 4096,
+      "pattern_bytes": 1024,
+      "selected_path_bytes": 4096
+    },
+    "structural_search": {
+      "output_bytes": 65536,
+      "timeout_ms": 5000
+    }
+  },
+  "tasks": [
+    {
+      "class": "ignored-and-binary",
+      "task_id": "ignored-built-pyc"
+    },
+    {
+      "class": "hidden",
+      "task_id": "hidden-workflow"
+    },
+    {
+      "class": "case",
+      "task_id": "case-sensitive-header"
+    },
+    {
+      "class": "line-coordinate",
+      "task_id": "line-coordinate"
+    }
+  ]
+}
