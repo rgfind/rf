@@ -418,6 +418,7 @@ name = "rf"
 version = "0.0.7"
 dependencies = [
  "clap",
+ "grep-matcher",
  "grep-regex",
  "grep-searcher",
  "ignore",

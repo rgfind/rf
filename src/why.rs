@@ -2,6 +2,7 @@
 
 use crate::content::{classify_target, validate_single_target, Class, TargetError};
 use crate::doctor::git_context;
+use crate::engine::SearchCfg;
 use crate::envelope::{envelope, err, err_with, warn};
 use crate::query::QueryMode;
 use serde_json::{Map, Value};
@@ -56,6 +57,47 @@ fn target_failure(target: &str, root: Option<&str>, error: TargetError) -> (Valu
         ),
         1,
     )
+}
+
+fn evidence_cfg(class: Option<Class>, query: QueryMode) -> SearchCfg {
+    let class = class.unwrap_or(Class::Default);
+    let (use_ignore, skip_hidden, binary_as_text, encoding) = match class {
+        Class::Default => (true, true, false, None),
+        Class::VcsIgnore => (false, true, false, None),
+        Class::Hidden => (false, false, false, None),
+        Class::Binary => (false, false, true, None),
+        Class::Case => (false, false, true, None),
+        Class::EncodingUtf16 => (false, false, true, Some("utf-16")),
+    };
+    let query = if class == Class::Case {
+        QueryMode {
+            case_insensitive: true,
+            ..query
+        }
+    } else {
+        query
+    };
+    SearchCfg {
+        use_ignore,
+        skip_hidden,
+        binary_as_text,
+        query,
+        encoding,
+    }
+}
+
+fn occurrence_value(value: crate::engine::Occurrence) -> Value {
+    let mut occurrence = Map::new();
+    occurrence.insert("line".into(), Value::from(value.line));
+    occurrence.insert("column_byte".into(), Value::from(value.column_byte));
+    occurrence.insert("text".into(), Value::from(value.text));
+    if value.text_lossy {
+        occurrence.insert("text_lossy".into(), Value::from(true));
+    }
+    if value.text_truncated {
+        occurrence.insert("text_truncated".into(), Value::from(true));
+    }
+    Value::from(occurrence)
 }
 
 fn bad_root(target: &str, root: &str) -> (Value, i32) {
@@ -118,8 +160,25 @@ pub fn run(
     root_arg: Option<&str>,
     query: QueryMode,
     explicit_case_sensitive: bool,
+    evidence: bool,
+    max_matches: Option<usize>,
 ) -> (Value, i32) {
     crate::fault::maybe_fault("why");
+    if max_matches.is_some() && !evidence {
+        let mut meta = Map::new();
+        meta.insert("verb".into(), Value::from("why"));
+        return (
+            envelope(
+                false,
+                vec![],
+                meta,
+                vec![],
+                vec![],
+                vec![err("INVALID_INPUT", "--max-matches requires --matches")],
+            ),
+            1,
+        );
+    }
     let (root, target_candidate) = match resolve_root(target, root_arg) {
         Ok(value) => value,
         Err(error) => return error,
@@ -162,6 +221,21 @@ pub fn run(
             .map(|value| Value::from(value.name()))
             .unwrap_or(Value::Null),
     );
+    if evidence {
+        let matches = crate::engine::occurrences(
+            &canonical.to_string_lossy(),
+            pattern,
+            &evidence_cfg(class, query),
+            max_matches
+                .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
+                .min(crate::engine::MAX_EVIDENCE_MATCHES),
+        )
+        .unwrap_or_default()
+        .into_iter()
+        .map(occurrence_value)
+        .collect();
+        row.insert("matches".into(), Value::Array(matches));
+    }
 
     let mut warnings = Vec::new();
     let mut commands = Vec::new();
@@ -216,6 +290,17 @@ pub fn run(
             .map(|value| Value::from(value.name()))
             .unwrap_or(Value::Null),
     );
+    if evidence {
+        meta.insert(
+            "evidence".into(),
+            serde_json::json!({
+                "requested": true,
+            "match_cap": max_matches.unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES).min(crate::engine::MAX_EVIDENCE_MATCHES),
+                "text_bytes_cap": crate::engine::MAX_EVIDENCE_TEXT_BYTES,
+                "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
+            }),
+        );
+    }
     (
         envelope(
             true,

@@ -363,7 +363,24 @@ pub fn run(
     cursor: Option<&str>,
     query: QueryMode,
     explicit_case_sensitive: bool,
+    evidence: bool,
+    max_matches: Option<usize>,
 ) -> (Value, i32) {
+    if max_matches.is_some() && !evidence {
+        let mut meta = Map::new();
+        meta.insert("verb".into(), Value::from("find"));
+        return (
+            envelope(
+                false,
+                vec![],
+                meta,
+                vec![],
+                vec![],
+                vec![err("INVALID_INPUT", "--max-matches requires --matches")],
+            ),
+            1,
+        );
+    }
     // Guard the port keeps stable across the contract: --structural needs --lang.
     if structural.is_some() && lang.is_none() {
         let mut meta = Map::new();
@@ -510,6 +527,9 @@ pub fn run(
 
     // --- per-file stage attribution over the content the pipe surfaced ---
     let mut data: Vec<Value> = Vec::new();
+    let match_cap = max_matches
+        .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
+        .min(crate::engine::MAX_EVIDENCE_MATCHES);
     let mut stage_counts: BTreeMap<String, i64> = BTreeMap::new();
     let bump = |m: &mut BTreeMap<String, i64>, s: &str| {
         *m.entry(s.to_string()).or_insert(0) += 1;
@@ -519,6 +539,44 @@ pub fn run(
         r.insert("file".into(), Value::from(file.to_string()));
         r.insert("stage".into(), Value::from(stage.to_string()));
         r.insert("fix".into(), fix.map(Value::from).unwrap_or(Value::Null));
+        if evidence {
+            if stage == "git_deleted" || stage == "ast_structural" {
+                r.insert("matches".into(), Value::Null);
+                r.insert(
+                    "matches_unavailable_reason".into(),
+                    Value::from(if stage == "git_deleted" {
+                        "history-only"
+                    } else {
+                        "structural-only"
+                    }),
+                );
+            } else {
+                let full = if root == "." || root.is_empty() {
+                    file.to_string()
+                } else {
+                    format!("{}/{}", root.trim_end_matches('/'), file)
+                };
+                let occurrences =
+                    crate::engine::occurrences(&full, pattern, &cfg_all_text(query), match_cap)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|value| {
+                            let mut occurrence = Map::new();
+                            occurrence.insert("line".into(), Value::from(value.line));
+                            occurrence.insert("column_byte".into(), Value::from(value.column_byte));
+                            occurrence.insert("text".into(), Value::from(value.text));
+                            if value.text_lossy {
+                                occurrence.insert("text_lossy".into(), Value::from(true));
+                            }
+                            if value.text_truncated {
+                                occurrence.insert("text_truncated".into(), Value::from(true));
+                            }
+                            Value::from(occurrence)
+                        })
+                        .collect();
+                r.insert("matches".into(), Value::Array(occurrences));
+            }
+        }
         Value::from(r)
     };
 
@@ -793,18 +851,44 @@ pub fn run(
         .map(|(k, v)| (k, Value::from(v)))
         .collect();
     meta.insert("hidden_by_stage".into(), Value::from(counts));
+    if evidence {
+        meta.insert(
+            "evidence".into(),
+            json!({
+                "requested": true,
+                "match_cap": match_cap,
+                "text_bytes_cap": crate::engine::MAX_EVIDENCE_TEXT_BYTES,
+                "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
+            }),
+        );
+    }
 
     let mut page_query = json!({
         "verb": "find", "pattern": pattern, "path": path, "name": name,
         "structural": structural, "lang": lang,
     });
+    if evidence {
+        page_query
+            .as_object_mut()
+            .unwrap()
+            .insert("matches".into(), Value::from(true));
+        page_query
+            .as_object_mut()
+            .unwrap()
+            .insert("max_matches".into(), Value::from(match_cap));
+    }
     if let Some(mode) = query.pagination_value() {
         page_query
             .as_object_mut()
             .unwrap()
             .insert("query".into(), mode);
     }
-    match crate::pagination::page(data, &page_query, limit, cursor) {
+    let page = if evidence {
+        crate::pagination::page_evidence(data, &page_query, limit, cursor)
+    } else {
+        crate::pagination::page(data, &page_query, limit, cursor)
+    };
+    match page {
         Ok(page) => {
             let has_more = page.next_cursor.is_some();
             meta.insert(

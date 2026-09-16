@@ -49,6 +49,7 @@ fault-injection = []
 # reconstructed from a shell pipe's stdout.
 ignore = "0.4"            # fd/ripgrep's walker + .gitignore/.ignore semantics
 grep-regex = "0.1"        # ripgrep's regex matcher
+grep-matcher = "0.1"      # matcher trait for bounded per-occurrence evidence
 grep-searcher = "0.1"     # ripgrep's searcher (binary detection, encodings)
 
 clap = { version = "4", features = ["derive"] }

@@ -4,12 +4,16 @@
 //! instead of being reconstructed from a shell pipe in each verb.
 
 use crate::query::QueryMode;
+use grep_matcher::Matcher;
 use grep_regex::RegexMatcherBuilder;
 use grep_searcher::sinks::Bytes;
 use grep_searcher::{BinaryDetection, Encoding, SearcherBuilder};
 use ignore::{DirEntry, WalkBuilder};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
+
+pub const MAX_EVIDENCE_TEXT_BYTES: usize = 512;
+pub const MAX_EVIDENCE_MATCHES: usize = 16;
 
 /// One filter configuration. `use_ignore`/`skip_hidden` drive the walker;
 /// `binary_as_text`/`query`/`encoding` drive the searcher.
@@ -19,6 +23,15 @@ pub struct SearchCfg {
     pub binary_as_text: bool,
     pub query: QueryMode,
     pub encoding: Option<&'static str>,
+}
+
+/// One bounded occurrence in the same decoded byte stream that rf searched.
+pub struct Occurrence {
+    pub line: u64,
+    pub column_byte: usize,
+    pub text: String,
+    pub text_lossy: bool,
+    pub text_truncated: bool,
 }
 
 /// Strip a leading `./`. Used for the display form when the root is ".".
@@ -181,6 +194,73 @@ pub fn content_matches_selected(
         }
     }
     Ok(out)
+}
+
+fn cap_text(text: String) -> (String, bool) {
+    if text.len() <= MAX_EVIDENCE_TEXT_BYTES {
+        return (text, false);
+    }
+    let end = text
+        .char_indices()
+        .take_while(|(offset, character)| *offset + character.len_utf8() <= MAX_EVIDENCE_TEXT_BYTES)
+        .map(|(offset, character)| offset + character.len_utf8())
+        .last()
+        .unwrap_or(0);
+    (text[..end].to_string(), true)
+}
+
+/// Collect up to `cap` non-overlapping primary-pattern occurrences from one
+/// already-selected file. The default file-level path never calls this helper,
+/// so it retains the existing first-match early exit and does not allocate line
+/// text unless evidence was requested.
+pub fn occurrences(
+    file: &str,
+    pattern: &str,
+    cfg: &SearchCfg,
+    cap: usize,
+) -> Result<Vec<Occurrence>, String> {
+    let matcher = RegexMatcherBuilder::new()
+        .fixed_strings(cfg.query.fixed_strings)
+        .word(cfg.query.word)
+        .case_insensitive(cfg.query.case_insensitive)
+        .build(pattern)
+        .map_err(|e| e.to_string())?;
+    let mut builder = SearcherBuilder::new();
+    builder.binary_detection(if cfg.binary_as_text {
+        BinaryDetection::none()
+    } else {
+        BinaryDetection::quit(b'\x00')
+    });
+    if let Some(label) = cfg.encoding {
+        builder.encoding(Some(Encoding::new(label).map_err(|e| e.to_string())?));
+    }
+    let mut searcher = builder.build();
+    let mut found = Vec::new();
+    searcher
+        .search_path(
+            &matcher,
+            file,
+            Bytes(|line_number, bytes| {
+                let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+                let bytes = bytes.strip_suffix(b"\r").unwrap_or(bytes);
+                let lossy = std::str::from_utf8(bytes).is_err();
+                let decoded = String::from_utf8_lossy(bytes).into_owned();
+                let (text, text_truncated) = cap_text(decoded);
+                let _ = matcher.find_iter(bytes, |matched| {
+                    found.push(Occurrence {
+                        line: line_number,
+                        column_byte: matched.start() + 1,
+                        text: text.clone(),
+                        text_lossy: lossy,
+                        text_truncated,
+                    });
+                    found.len() < cap
+                });
+                Ok(found.len() < cap)
+            }),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(found)
 }
 
 /// Files under `root` whose extension is `ext` (no dot) — the fd stage. The

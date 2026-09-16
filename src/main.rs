@@ -61,6 +61,17 @@ fn extension(value: &str) -> Result<String, String> {
     }
 }
 
+fn max_matches(value: &str) -> Result<usize, String> {
+    let parsed = value
+        .parse::<usize>()
+        .map_err(|_| "--max-matches must be an integer in 1..=1000".to_string())?;
+    if (1..=1000).contains(&parsed) {
+        Ok(parsed)
+    } else {
+        Err("--max-matches must be in 1..=1000".into())
+    }
+}
+
 #[derive(Subcommand)]
 enum Verb {
     /// Task workflows for agents.
@@ -94,6 +105,12 @@ enum Verb {
         ignore_case: bool,
         #[arg(long, conflicts_with = "ignore_case")]
         case_sensitive: bool,
+        /// Include bounded primary-pattern occurrences in each result row.
+        #[arg(long)]
+        matches: bool,
+        /// Maximum occurrences per result file; requires --matches.
+        #[arg(long, value_parser = max_matches)]
+        max_matches: Option<usize>,
     },
     /// Staged cross-source discovery (port in progress).
     Find {
@@ -119,6 +136,10 @@ enum Verb {
         ignore_case: bool,
         #[arg(long, conflicts_with = "ignore_case")]
         case_sensitive: bool,
+        #[arg(long)]
+        matches: bool,
+        #[arg(long, value_parser = max_matches)]
+        max_matches: Option<usize>,
     },
     /// Diagnose the environment and active ignore mode.
     Doctor {
@@ -140,6 +161,10 @@ enum Verb {
         ignore_case: bool,
         #[arg(long, conflicts_with = "ignore_case")]
         case_sensitive: bool,
+        #[arg(long)]
+        matches: bool,
+        #[arg(long, value_parser = max_matches)]
+        max_matches: Option<usize>,
     },
     /// Run the release self-check profile against this binary.
     Conformance {},
@@ -192,6 +217,8 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             word,
             ignore_case,
             case_sensitive,
+            matches,
+            max_matches,
             ..
         } => {
             let selection = if *paths_stdin {
@@ -209,6 +236,8 @@ fn dispatch(v: &Verb) -> (Value, i32) {
                 selection,
                 query::QueryMode::new(*fixed_strings, *word, *ignore_case),
                 *case_sensitive,
+                *matches,
+                *max_matches,
             )
         }
         Verb::Find {
@@ -223,7 +252,8 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             word,
             ignore_case,
             case_sensitive,
-            ..
+            matches,
+            max_matches,
         } => find::run(
             pattern,
             path,
@@ -234,6 +264,8 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             cursor.as_deref(),
             query::QueryMode::new(*fixed_strings, *word, *ignore_case),
             *case_sensitive,
+            *matches,
+            *max_matches,
         ),
         Verb::Doctor { path, .. } => doctor::run(path),
         Verb::Why {
@@ -244,12 +276,16 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             word,
             ignore_case,
             case_sensitive,
+            matches,
+            max_matches,
         } => why::run(
             pattern,
             file,
             root.as_deref(),
             query::QueryMode::new(*fixed_strings, *word, *ignore_case),
             *case_sensitive,
+            *matches,
+            *max_matches,
         ),
         Verb::Conformance { .. } => conformance::run(),
     }

@@ -158,6 +158,16 @@
               {
                 "aliases": [],
                 "arity": 0,
+                "name": "--matches"
+              },
+              {
+                "aliases": [],
+                "arity": 1,
+                "name": "--max-matches"
+              },
+              {
+                "aliases": [],
+                "arity": 0,
                 "name": "--paths-envelope"
               },
               {
@@ -224,6 +234,16 @@
               },
               {
                 "aliases": [],
+                "arity": 0,
+                "name": "--matches"
+              },
+              {
+                "aliases": [],
+                "arity": 1,
+                "name": "--max-matches"
+              },
+              {
+                "aliases": [],
                 "arity": 1,
                 "name": "--name"
               },
@@ -286,6 +306,16 @@
                 "aliases": [],
                 "arity": 0,
                 "name": "--ignore-case"
+              },
+              {
+                "aliases": [],
+                "arity": 0,
+                "name": "--matches"
+              },
+              {
+                "aliases": [],
+                "arity": 1,
+                "name": "--max-matches"
               },
               {
                 "aliases": [],
@@ -464,13 +494,35 @@
               "conflicts_with": "--ignore-case",
               "name": "--case-sensitive",
               "type": "bool"
+            },
+            {
+              "arity": 0,
+              "name": "--matches",
+              "output": "opt-in occurrence evidence",
+              "type": "bool"
+            },
+            {
+              "arity": 1,
+              "default": 16,
+              "effective_max": 16,
+              "name": "--max-matches",
+              "range": "1..=1000",
+              "requires": "--matches",
+              "type": "int"
             }
           ],
           "output_schema": {
             "data[]": {
               "file": "string",
+              "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}",
               "selection": "selected when a selected-input mode is used",
               "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]"
+            },
+            "meta.evidence": {
+              "match_cap": "int<=16",
+              "requested": "true when --matches",
+              "response_bytes_cap": 32768,
+              "text_bytes_cap": 512
             },
             "meta.pagination": {
               "cursor": "string|null",
@@ -596,13 +648,36 @@
               "conflicts_with": "--ignore-case",
               "name": "--case-sensitive",
               "type": "bool"
+            },
+            {
+              "arity": 0,
+              "name": "--matches",
+              "output": "opt-in occurrence evidence",
+              "type": "bool"
+            },
+            {
+              "arity": 1,
+              "default": 16,
+              "effective_max": 16,
+              "name": "--max-matches",
+              "range": "1..=1000",
+              "requires": "--matches",
+              "type": "int"
             }
           ],
           "output_schema": {
             "data[]": {
               "file": "string",
               "fix": "string|null",
+              "matches": "opt-in occurrence[] or null for history-only/structural-only",
+              "matches_unavailable_reason": "history-only|structural-only when matches is null",
               "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]"
+            },
+            "meta.evidence": {
+              "match_cap": "int<=16",
+              "requested": "true when --matches",
+              "response_bytes_cap": 32768,
+              "text_bytes_cap": 512
             },
             "meta.history": {
               "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]",
@@ -731,6 +806,21 @@
               "conflicts_with": "--ignore-case",
               "name": "--case-sensitive",
               "type": "bool"
+            },
+            {
+              "arity": 0,
+              "name": "--matches",
+              "output": "opt-in occurrence evidence",
+              "type": "bool"
+            },
+            {
+              "arity": 1,
+              "default": 16,
+              "effective_max": 16,
+              "name": "--max-matches",
+              "range": "1..=1000",
+              "requires": "--matches",
+              "type": "int"
             }
           ],
           "output_schema": {
@@ -741,10 +831,17 @@
               "hiding_filter": "{code,layer,rg_flags}|absent",
               "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore",
               "matched": "bool",
+              "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}",
               "pattern": "string",
               "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null"
             },
             "meta": {
+              "evidence": {
+                "match_cap": "int<=16",
+                "requested": "true when --matches",
+                "response_bytes_cap": 32768,
+                "text_bytes_cap": 512
+              },
               "file": "root-relative target path",
               "git_repo": "bool",
               "ignore_mode": "string",
@@ -794,9 +891,9 @@
   "errors": [],
   "meta": {
     "contract_version": "2",
-    "data_hash": "66a0df0f2e17",
+    "data_hash": "ec9e76582bdc",
     "elapsed_ms": 0,
-    "request_id": "99723b41a5b132d8",
+    "request_id": "9037b0e989094bdb",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

@@ -37,12 +37,25 @@ impl SelectionMode {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Cfg {
     ignore_files: bool, // honor .gitignore/.ignore
     hidden: bool,       // skip hidden/dotfiles
     binary_as_text: bool,
     query: QueryMode,
     encoding: Option<&'static str>, // forced decoder label, or None for auto
+}
+
+impl Cfg {
+    fn search(self) -> SearchCfg {
+        SearchCfg {
+            use_ignore: self.ignore_files,
+            skip_hidden: self.hidden,
+            binary_as_text: self.binary_as_text,
+            query: self.query,
+            encoding: self.encoding,
+        }
+    }
 }
 
 struct Layer {
@@ -248,6 +261,31 @@ fn matches_for(
     }
 }
 
+fn evidence_cfg(layer: &str, query: QueryMode) -> SearchCfg {
+    if layer == "encoding_utf16" {
+        return probe_base_cfg(Some("utf-16"), query).search();
+    }
+    layers(query)
+        .into_iter()
+        .find(|candidate| candidate.name == layer)
+        .map(|candidate| candidate.cfg.search())
+        .expect("content row has a known classification layer")
+}
+
+fn occurrence_value(value: crate::engine::Occurrence) -> Value {
+    let mut occurrence = Map::new();
+    occurrence.insert("line".into(), Value::from(value.line));
+    occurrence.insert("column_byte".into(), Value::from(value.column_byte));
+    occurrence.insert("text".into(), Value::from(value.text));
+    if value.text_lossy {
+        occurrence.insert("text_lossy".into(), Value::from(true));
+    }
+    if value.text_truncated {
+        occurrence.insert("text_truncated".into(), Value::from(true));
+    }
+    Value::from(occurrence)
+}
+
 fn has_git_component(path: &Path) -> bool {
     path.components().any(|c| c.as_os_str() == ".git")
 }
@@ -445,6 +483,7 @@ fn validate_selected_paths(
     Ok(selected)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     pattern: &str,
     path: &str,
@@ -453,8 +492,25 @@ pub fn run(
     selection_mode: Option<SelectionMode>,
     query: QueryMode,
     explicit_case_sensitive: bool,
+    evidence: bool,
+    max_matches: Option<usize>,
 ) -> (Value, i32) {
     crate::fault::maybe_fault("content");
+    if max_matches.is_some() && !evidence {
+        let mut meta = Map::new();
+        meta.insert("verb".into(), Value::from("content"));
+        return (
+            envelope(
+                false,
+                vec![],
+                meta,
+                vec![],
+                vec!["'rf' 'content' '--matches' '<pattern>' '<path>' '--json'".into()],
+                vec![err("INVALID_INPUT", "--max-matches requires --matches")],
+            ),
+            1,
+        );
+    }
     let selected = match selection_mode {
         Some(mode) => match parse_selected_paths(mode)
             .and_then(|inputs| validate_selected_paths(path, inputs))
@@ -558,6 +614,9 @@ pub fn run(
     }
 
     surfaced_by.sort();
+    let match_cap = max_matches
+        .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
+        .min(crate::engine::MAX_EVIDENCE_MATCHES);
     let data: Vec<Value> = surfaced_by
         .iter()
         .map(|(f, layer)| {
@@ -567,6 +626,15 @@ pub fn run(
                 m.insert("selection".into(), Value::from("selected"));
             }
             m.insert("surfaced_by".into(), Value::from(layer.clone()));
+            if evidence {
+                let matches =
+                    crate::engine::occurrences(f, pattern, &evidence_cfg(layer, query), match_cap)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(occurrence_value)
+                        .collect();
+                m.insert("matches".into(), Value::Array(matches));
+            }
             Value::from(m)
         })
         .collect();
@@ -595,15 +663,41 @@ pub fn run(
         "hidden_by_filters".into(),
         Value::from(total - default_files.len()),
     );
+    if evidence {
+        meta.insert(
+            "evidence".into(),
+            json!({
+                "requested": true,
+                "match_cap": match_cap,
+                "text_bytes_cap": crate::engine::MAX_EVIDENCE_TEXT_BYTES,
+                "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
+            }),
+        );
+    }
 
     let mut page_query = json!({"verb": "content", "pattern": pattern, "path": path, "selection": selection_mode.map(SelectionMode::name)});
+    if evidence {
+        page_query
+            .as_object_mut()
+            .unwrap()
+            .insert("matches".into(), Value::from(true));
+        page_query
+            .as_object_mut()
+            .unwrap()
+            .insert("max_matches".into(), Value::from(match_cap));
+    }
     if let Some(mode) = query.pagination_value() {
         page_query
             .as_object_mut()
             .unwrap()
             .insert("query".into(), mode);
     }
-    match crate::pagination::page(data, &page_query, limit, cursor) {
+    let page = if evidence {
+        crate::pagination::page_evidence(data, &page_query, limit, cursor)
+    } else {
+        crate::pagination::page(data, &page_query, limit, cursor)
+    };
+    match page {
         Ok(page) => {
             let has_more = page.next_cursor.is_some();
             meta.insert(

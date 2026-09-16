@@ -289,6 +289,137 @@ fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[test]
+fn match_evidence_flags_are_uniform_and_preserve_default_rows() {
+    let corpus = Corpus::new();
+    let cwd = Some(corpus.path.as_path());
+    let calls: [Vec<&str>; 3] = [
+        vec![
+            "content",
+            TOKEN,
+            ".",
+            "--matches",
+            "--max-matches=2",
+            "--json",
+        ],
+        vec![
+            "find",
+            TOKEN,
+            ".",
+            "--name",
+            "txt",
+            "--matches",
+            "--max-matches",
+            "2",
+            "--json",
+        ],
+        vec![
+            "why",
+            TOKEN,
+            "src/app.py",
+            "--matches",
+            "--max-matches",
+            "2",
+            "--json",
+        ],
+    ];
+    for args in calls {
+        let (code, response, _) = rf(&args, cwd, &[]);
+        assert_eq!(code, 0, "{response}");
+        assert!(response["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row.get("matches").is_some()));
+    }
+    let (_, default, _) = rf(&["content", TOKEN, ".", "--json"], cwd, &[]);
+    assert!(default["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|row| row.get("matches").is_none()));
+    for args in [
+        vec!["content", TOKEN, ".", "--max-matches", "2", "--json"],
+        vec![
+            "find",
+            TOKEN,
+            ".",
+            "--name",
+            "txt",
+            "--max-matches",
+            "2",
+            "--json",
+        ],
+        vec!["why", TOKEN, "src/app.py", "--max-matches", "2", "--json"],
+    ] {
+        let (code, response, _) = rf(&args, cwd, &[]);
+        assert_eq!(code, 1);
+        assert_eq!(response["errors"][0]["code"], "INVALID_INPUT");
+    }
+}
+
+#[test]
+fn match_evidence_is_text_and_response_bounded_with_a_resume_cursor() {
+    let root = unique_temp("evidence-bounds");
+    let suffix = "x".repeat(700);
+    for number in 0..20 {
+        let mut contents = String::new();
+        for _ in 0..16 {
+            contents.push_str(&format!("{TOKEN} {suffix}\n"));
+        }
+        std::fs::write(root.join(format!("{number:02}.txt")), contents).unwrap();
+    }
+    let root_text = root.to_string_lossy().into_owned();
+    let args = [
+        "content",
+        TOKEN,
+        &root_text,
+        "--matches",
+        "--limit",
+        "100",
+        "--json",
+    ];
+    let (code, first, raw) = rf(&args, None, &[]);
+    assert_eq!(code, 0, "{first}");
+    assert!(raw.len() < 64 * 1024, "response was {} bytes", raw.len());
+    assert_eq!(first["meta"]["evidence"]["match_cap"], 16);
+    assert_eq!(first["meta"]["evidence"]["text_bytes_cap"], 512);
+    assert!(first["meta"]["pagination"]["has_more"].as_bool().unwrap());
+    for row in first["data"].as_array().unwrap() {
+        assert_eq!(row["matches"].as_array().unwrap().len(), 16);
+        assert!(row["matches"][0]["text"].as_str().unwrap().len() <= 512);
+        assert_eq!(row["matches"][0]["text_truncated"], true);
+    }
+    let cursor = first["meta"]["pagination"]["cursor"].as_str().unwrap();
+    let next_args = [
+        "content",
+        TOKEN,
+        &root_text,
+        "--matches",
+        "--limit",
+        "100",
+        "--cursor",
+        cursor,
+        "--json",
+    ];
+    let (next_code, next, _) = rf(&next_args, None, &[]);
+    assert_eq!(next_code, 0, "{next}");
+    let first_files: BTreeSet<_> = first["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["file"].as_str().unwrap())
+        .collect();
+    let next_files: BTreeSet<_> = next["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["file"].as_str().unwrap())
+        .collect();
+    assert!(first_files.is_disjoint(&next_files));
+    let _ = std::fs::remove_dir_all(root);
+}
+
 fn rf_with_input(args: &[&str], cwd: Option<&Path>, input: &[u8]) -> (i32, Value, String) {
     use std::io::Write;
     use std::process::Stdio;
