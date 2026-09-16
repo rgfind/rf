@@ -34,5 +34,11 @@ jobs:
         # config_version. Bump this and the config together in one deliberate
         # migration; never float to a newer schema by surprise.
         run: cargo install plumbline@0.0.3 --locked
+      - name: DIAG fmt
+        run: cargo fmt --check
+      - name: DIAG clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: DIAG test
+        run: cargo test --locked
       - name: Declared CI gates (fmt, clippy, test)
         run: plumb verify --stage=ci
