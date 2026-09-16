@@ -707,6 +707,11 @@ pub fn run(
     }
     if let Some(reason) = structural_fallback.filter(|reason| *reason != "not-requested") {
         warnings.push(warn(
+            "STRUCTURAL_UNAVAILABLE",
+            format!("--structural source skipped: {reason}"),
+            vec![],
+        ));
+        warnings.push(warn(
             "EXTERNAL_TOOL_MISSING",
             format!("--structural source skipped: {reason}"),
             vec![],
