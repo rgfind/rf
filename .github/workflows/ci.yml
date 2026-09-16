@@ -41,3 +41,5 @@ jobs:
         run: cargo install plumbline@0.0.3 --locked
       - name: Declared CI gates (fmt, clippy, test)
         run: plumb verify --stage=ci
+      - name: Fault-injection conformance profile
+        run: cargo test --features fault-injection --locked
