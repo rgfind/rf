@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.0.8 — agent contract governance and bounded match evidence
+
 ## 0.0.7 — ignore provenance and query modes
 
 - Added `ignore_source` to `rf why` results for a file hidden by an active

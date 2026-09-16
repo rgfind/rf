@@ -404,7 +404,7 @@
         "robot-docs": 2,
         "why": 2
       },
-      "tool_version": "0.0.7",
+      "tool_version": "0.0.8",
       "value_domains": [
         {
           "accepted": "config",
@@ -1060,13 +1060,13 @@
   "errors": [],
   "meta": {
     "contract_version": "2",
-    "data_hash": "4c26a50feae2",
+    "data_hash": "999d6d9b8fd1",
     "elapsed_ms": 0,
-    "request_id": "b21faa3773cc441f",
+    "request_id": "76f9619390d727ae",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },
   "ok": true,
-  "tool_version": "0.0.7",
+  "tool_version": "0.0.8",
   "warnings": []
 }
