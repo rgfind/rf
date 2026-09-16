@@ -29,6 +29,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Install ripgrep
+        # The conformance test suite executes the `rg` reproduction commands the
+        # `why` verb emits and asserts they reproduce the finding, so `rg` must
+        # be on PATH. ubuntu-latest does not ship ripgrep.
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
       - name: Install the guard tool (plumbline)
         # Pinned to an exact crates.io version, in lockstep with plumbline.json's
         # config_version. Bump this and the config together in one deliberate

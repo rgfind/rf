@@ -31,6 +31,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Install ripgrep
+        # preflight runs the verification.ci test gate, whose conformance tests
+        # execute the `rg` commands the `why` verb emits. `rg` must be on PATH.
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
       - name: Install the guard tool (plumbline)
         # Pinned to an exact crates.io version, in lockstep with plumbline.json's
         # config_version. Bump this and the config together in one deliberate
