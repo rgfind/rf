@@ -375,7 +375,7 @@ fn why_reports_one_target_verdict_and_validates_inputs() {
         ("config_utf16.txt", "encoding_utf16"),
     ] {
         let pattern = TOKEN;
-        let (code, env, _) = rf(&["why", &pattern, file, "--json"], cwd, &[]);
+        let (code, env, _) = rf(&["why", pattern, file, "--json"], cwd, &[]);
         assert_eq!(code, 0, "{file}");
         assert_eq!(env["data"].as_array().map(Vec::len), Some(1));
         assert_eq!(env["data"][0]["file"], file);

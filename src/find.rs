@@ -321,87 +321,9 @@ fn file_contains_literal(root: &str, rel_path: &str, needle: &str) -> bool {
     }
 }
 
-#[cfg(test)]
-mod history_tests {
-    use super::{git_ever_matched_with, History};
-    use crate::query::QueryMode;
-    use std::fs;
-    use std::os::unix::fs::PermissionsExt;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn fake_git(label: &str, script: &str) -> std::path::PathBuf {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir =
-            std::env::temp_dir().join(format!("rf-history-{label}-{}-{nonce}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("git");
-        fs::write(&path, script).unwrap();
-        let mut permissions = fs::metadata(&path).unwrap().permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(&path, permissions).unwrap();
-        path
-    }
-
-    #[test]
-    fn history_outcomes_are_distinct_and_coverage_is_counted() {
-        let absent = git_ever_matched_with(
-            std::path::Path::new("/rf-no-such-git"),
-            "needle",
-            ".",
-            "config",
-            QueryMode::default(),
-            false,
-        );
-        assert!(matches!(absent, History::GitAbsent));
-
-        let not_work_tree = fake_git("not-work-tree", "#!/bin/sh\nexit 128\n");
-        let state = git_ever_matched_with(
-            &not_work_tree,
-            "needle",
-            ".",
-            "config",
-            QueryMode::default(),
-            false,
-        );
-        assert!(matches!(state, History::NotWorkTree));
-
-        let partial = fake_git(
-            "partial",
-            "#!/bin/sh\ncase \"$*\" in\n  *rev-parse*) printf 'true\\n' ;;\n  *rev-list*) printf 'good\\nbad\\n' ;;\n  *grep*good*) printf 'good:old.config\\n' ;;\n  *grep*) exit 2 ;;\nesac\n",
-        );
-        let state = git_ever_matched_with(
-            &partial,
-            "needle",
-            ".",
-            "config",
-            QueryMode::default(),
-            false,
-        );
-        match state {
-            History::Partial {
-                matches,
-                served,
-                failed,
-            } => {
-                assert_eq!(matches.into_iter().collect::<Vec<_>>(), vec!["old.config"]);
-                assert_eq!((served, failed), (1, 1));
-            }
-            _ => panic!("expected partial history"),
-        }
-
-        let error = fake_git(
-            "error",
-            "#!/bin/sh\ncase \"$*\" in *rev-parse*) printf 'true\\n' ;; *rev-list*) exit 2 ;; esac\n",
-        );
-        let state =
-            git_ever_matched_with(&error, "needle", ".", "config", QueryMode::default(), false);
-        assert!(matches!(state, History::Error));
-    }
-}
-
+// The parameters mirror the `find` CLI grammar one-to-one; a params struct is
+// the deliberate refactor to make when the verb next gains fields.
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     pattern: &str,
     path: &str,
@@ -863,5 +785,86 @@ pub fn run(
                 exit,
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::{git_ever_matched_with, History};
+    use crate::query::QueryMode;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn fake_git(label: &str, script: &str) -> std::path::PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("rf-history-{label}-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("git");
+        fs::write(&path, script).unwrap();
+        let mut permissions = fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&path, permissions).unwrap();
+        path
+    }
+
+    #[test]
+    fn history_outcomes_are_distinct_and_coverage_is_counted() {
+        let absent = git_ever_matched_with(
+            std::path::Path::new("/rf-no-such-git"),
+            "needle",
+            ".",
+            "config",
+            QueryMode::default(),
+            false,
+        );
+        assert!(matches!(absent, History::GitAbsent));
+
+        let not_work_tree = fake_git("not-work-tree", "#!/bin/sh\nexit 128\n");
+        let state = git_ever_matched_with(
+            &not_work_tree,
+            "needle",
+            ".",
+            "config",
+            QueryMode::default(),
+            false,
+        );
+        assert!(matches!(state, History::NotWorkTree));
+
+        let partial = fake_git(
+            "partial",
+            "#!/bin/sh\ncase \"$*\" in\n  *rev-parse*) printf 'true\\n' ;;\n  *rev-list*) printf 'good\\nbad\\n' ;;\n  *grep*good*) printf 'good:old.config\\n' ;;\n  *grep*) exit 2 ;;\nesac\n",
+        );
+        let state = git_ever_matched_with(
+            &partial,
+            "needle",
+            ".",
+            "config",
+            QueryMode::default(),
+            false,
+        );
+        match state {
+            History::Partial {
+                matches,
+                served,
+                failed,
+            } => {
+                assert_eq!(matches.into_iter().collect::<Vec<_>>(), vec!["old.config"]);
+                assert_eq!((served, failed), (1, 1));
+            }
+            _ => panic!("expected partial history"),
+        }
+
+        let error = fake_git(
+            "error",
+            "#!/bin/sh\ncase \"$*\" in *rev-parse*) printf 'true\\n' ;; *rev-list*) exit 2 ;; esac\n",
+        );
+        let state =
+            git_ever_matched_with(&error, "needle", ".", "config", QueryMode::default(), false);
+        assert!(matches!(state, History::Error));
     }
 }

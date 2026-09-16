@@ -155,16 +155,6 @@ pub fn correction(token: &str) -> Option<String> {
     (matches.len() == 1).then(|| matches[0].clone())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::correction;
-    #[test]
-    fn correction_requires_one_public_near_match() {
-        assert_eq!(correction("capabilitie").as_deref(), Some("capabilities"));
-        assert_eq!(correction("not-even-close"), None);
-    }
-}
-
 /// Build the manifest by walking clap's full command tree. Global and automatic
 /// flags are declared once at the root; all command entries use full paths.
 pub fn build() -> Value {
@@ -203,4 +193,14 @@ pub fn build() -> Value {
     root.insert("global_flags".into(), Value::from(global_flags));
     root.insert("commands".into(), Value::from(commands));
     Value::from(root)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::correction;
+    #[test]
+    fn correction_requires_one_public_near_match() {
+        assert_eq!(correction("capabilitie").as_deref(), Some("capabilities"));
+        assert_eq!(correction("not-even-close"), None);
+    }
 }
