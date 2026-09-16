@@ -50,7 +50,7 @@ jobs:
         # Pinned to an exact crates.io version, in lockstep with plumbline.json's
         # config_version. Bump this and the config together in one deliberate
         # migration; never float to a newer schema by surprise.
-        run: cargo install plumbline@0.0.3 --locked
+        run: cargo install plumbline@0.0.4 --locked
       - name: Resolve release version and tag
         # workflow_dispatch releases the version currently in Cargo.toml on the
         # dispatched commit. A tag push releases the version named by the tag.

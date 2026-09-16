@@ -38,7 +38,7 @@ jobs:
         # Pinned to an exact crates.io version, in lockstep with plumbline.json's
         # config_version. Bump this and the config together in one deliberate
         # migration; never float to a newer schema by surprise.
-        run: cargo install plumbline@0.0.3 --locked
+        run: cargo install plumbline@0.0.4 --locked
       - name: Declared CI gates (fmt, clippy, test)
         # Keep each gate direct here. Plumbline preflight runs the same declared
         # commands before tagging, while direct CI output identifies the exact

@@ -4,7 +4,7 @@ crates.io is **write-once**: once a version is published, its README, metadata,
 and code can never be changed for that version. So the documentation and the
 code must agree **at the exact moment of publishing** — not before, not after.
 
-Under plumb 0.0.3 the publish is done by **CI**, not by hand, and both plumb
+Under plumb 0.0.4 the publish is done by **CI**, not by hand, and both plumb
 commands run **inside** CI. You prepare `main` with ordinary commits, wait for a
 green CI run, then trigger the Release workflow **once** and watch. CI runs
 `plumb preflight`, creates and pushes the tag, and does the real
@@ -16,7 +16,7 @@ workflows use — never float to git HEAD (a floating install is what reddened
 the 0.0.7 tag). It reads `plumbline.json` at the repo root:
 
 ```sh
-cargo install plumbline@0.0.3 --locked
+cargo install plumbline@0.0.4 --locked
 ```
 
 ## The stop sign
