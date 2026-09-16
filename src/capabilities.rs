@@ -54,13 +54,14 @@ pub fn build() -> Value {
                     {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
                     {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
                 ],
-                "output_schema": {"data[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}}
+                "output_schema": {"data[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}, "meta.sources": {"history": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]"}, "structural": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]"}}}
             },
             "doctor": {
                 "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
                 "aliases": [],
                 "args": [{"name": "path", "arity": 1, "type": "path", "default": "."}],
-                "flags": []
+                "flags": [],
+                "output_schema": {"data[0]": {"external_tools": {"git":"{status,path,version,probe_error}", "ast-grep":"{status,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
             },
             "why": {
                 "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
@@ -127,7 +128,7 @@ pub fn build() -> Value {
             "IGNORE_VCS", "HIDDEN_SKIPPED", "BINARY_SKIPPED", "CASE_SENSITIVE",
             "ENCODING_MISS", "FD_NAME", "FD_HIDDEN", "FD_IGNORE", "RG_BINARY",
             "GIT_DELETED", "GIT_ABSENT", "GIT_NOT_WORK_TREE", "GIT_HISTORY_PARTIAL",
-            "AST_STRUCTURAL", "STRUCTURAL_UNAVAILABLE", "IGNORE_MODE", "IGNORE_SOURCE_UNRESOLVED",
+            "AST_STRUCTURAL", "STRUCTURAL_UNAVAILABLE", "IGNORE_MODE", "IGNORE_SOURCE_UNRESOLVED", "EXTERNAL_TOOL_MISSING",
             "GIT_SCRUB_WORD_UNAVAILABLE"
         ],
         "diagnosis_order": [
@@ -146,6 +147,16 @@ pub fn build() -> Value {
         },
         "env_vars": ["SOURCE_DATE_EPOCH", "NO_COLOR"]
     });
+    if let Some(object) = v.as_object_mut() {
+        object.insert("verb_dependencies".into(), json!({
+            "git": [{"verb":"find","mode":"history","behavior":"degrades with typed use-time provenance"}],
+            "ast-grep": [{"verb":"find","mode":"structural","behavior":"degrades with typed use-time provenance"}]
+        }));
+        object.insert("limits".into(), json!({
+            "external_tool_probe": {"timeout_ms": 2000, "captured_output_bytes": 8192, "probe_error_bytes": 512},
+            "structural_search": {"timeout_ms": 5000, "captured_output_bytes": 65536}
+        }));
+    }
     // The release contract lists only the two stable vars above; a fault-injection
     // build additionally reads RF_FAULT, so it discloses that here. This is the one
     // contract difference between the two builds — the release pin stays canonical.

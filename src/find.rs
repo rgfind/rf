@@ -53,6 +53,8 @@ enum History {
         served: usize,
     },
     GitAbsent,
+    GitUnusable,
+    GitTimedOut,
     NotWorkTree,
     Partial {
         matches: BTreeSet<String>,
@@ -67,6 +69,8 @@ impl History {
         match self {
             Self::Available { .. } => "available",
             Self::GitAbsent => "git-absent",
+            Self::GitUnusable => "git-unusable",
+            Self::GitTimedOut => "git-timed-out",
             Self::NotWorkTree => "not-work-tree",
             Self::Partial { .. } => "partial",
             Self::Error => "history-error",
@@ -76,7 +80,11 @@ impl History {
     fn matches(&self) -> BTreeSet<String> {
         match self {
             Self::Available { matches, .. } | Self::Partial { matches, .. } => matches.clone(),
-            Self::GitAbsent | Self::NotWorkTree | Self::Error => BTreeSet::new(),
+            Self::GitAbsent
+            | Self::GitUnusable
+            | Self::GitTimedOut
+            | Self::NotWorkTree
+            | Self::Error => BTreeSet::new(),
         }
     }
 
@@ -84,7 +92,11 @@ impl History {
         match self {
             Self::Available { served, .. } => (*served, 0),
             Self::Partial { served, failed, .. } => (*served, *failed),
-            Self::GitAbsent | Self::NotWorkTree | Self::Error => (0, 0),
+            Self::GitAbsent
+            | Self::GitUnusable
+            | Self::GitTimedOut
+            | Self::NotWorkTree
+            | Self::Error => (0, 0),
         }
     }
 }
@@ -267,12 +279,28 @@ fn git_scrub_commits(
     result
 }
 
-/// Files whose SYNTAX matches the structural pattern (ast-grep). Returns
-/// (files, available); available is false only when ast-grep is absent, so the
-/// stage contributes nothing and totality holds.
-fn ast_files(structural: &str, lang: &str, root: &str) -> (BTreeSet<String>, bool) {
-    let out = Command::new("ast-grep")
-        .args([
+enum Structural {
+    Used(BTreeSet<String>),
+    Missing,
+    Unusable,
+    TimedOut,
+}
+
+/// Files whose SYNTAX matches the structural pattern. Execution has its own
+/// deadline and capture cap, separate from the `--version` health probe.
+fn ast_files(structural: &str, lang: &str, root: &str) -> Structural {
+    let health = crate::external_tools::probe("ast-grep");
+    match health["status"].as_str().unwrap_or("missing") {
+        "missing" => return Structural::Missing,
+        "unusable" => return Structural::Unusable,
+        "timed_out" => return Structural::TimedOut,
+        _ => {}
+    }
+    let path =
+        crate::external_tools::resolved_path("ast-grep").expect("available ast-grep has a path");
+    let out = crate::external_tools::run_bounded(
+        &path,
+        &[
             "run",
             "--pattern",
             structural,
@@ -280,17 +308,18 @@ fn ast_files(structural: &str, lang: &str, root: &str) -> (BTreeSet<String>, boo
             lang,
             "--json",
             ".",
-        ])
-        .current_dir(root)
-        .output();
-    let o = match out {
-        Ok(o) => o,
-        Err(_) => return (BTreeSet::new(), false), // binary not found
-    };
-    if !o.status.success() {
-        return (BTreeSet::new(), true); // present, but bad pattern/lang: no hits
+        ],
+        Some(root),
+        crate::external_tools::STRUCTURAL_TIMEOUT,
+        crate::external_tools::STRUCTURAL_OUTPUT_BYTES,
+    );
+    if out.state == crate::external_tools::RunState::TimedOut {
+        return Structural::TimedOut;
     }
-    let text = String::from_utf8_lossy(&o.stdout);
+    if !out.success || out.output_truncated {
+        return Structural::Unusable;
+    }
+    let text = String::from_utf8_lossy(&out.stdout);
     let hits: Value = serde_json::from_str(if text.trim().is_empty() { "[]" } else { &text })
         .unwrap_or(Value::Array(vec![]));
     let mut files = BTreeSet::new();
@@ -301,7 +330,7 @@ fn ast_files(structural: &str, lang: &str, root: &str) -> (BTreeSet<String>, boo
             }
         }
     }
-    (files, true)
+    Structural::Used(files)
 }
 
 /// Does the file at root/rel_path contain `needle` as a literal byte substring?
@@ -409,7 +438,16 @@ pub fn run(
     let pipe_found: BTreeSet<_> = fd_default.intersection(&rg_default).cloned().collect();
 
     // --- source 3: Git history coverage ---
-    let history = git_ever_matched(pattern, root, ext, query, explicit_case_sensitive);
+    // Probe at use time. A doctor result from an earlier command is advisory;
+    // this result reports the executable state that this invocation observed.
+    let git_health = crate::external_tools::probe("git");
+    let history = match git_health["status"].as_str().unwrap_or("missing") {
+        "available" => git_ever_matched(pattern, root, ext, query, explicit_case_sensitive),
+        "missing" => History::GitAbsent,
+        "unusable" => History::GitUnusable,
+        "timed_out" => History::GitTimedOut,
+        _ => History::Error,
+    };
     if matches!(&history, History::Error) {
         let mut meta = Map::new();
         meta.insert("verb".into(), Value::from("find"));
@@ -436,6 +474,17 @@ pub fn run(
             history_warnings.push(warn(
                 "GIT_ABSENT",
                 "Git is unavailable; history coverage was not provided",
+                vec![],
+            ));
+            history_commands.push(crate::command::shell("git", &["--version".into()]));
+        }
+        History::GitUnusable | History::GitTimedOut => {
+            history_warnings.push(warn(
+                "EXTERNAL_TOOL_MISSING",
+                format!(
+                    "Git is {}; history coverage was not provided",
+                    git_health["status"].as_str().unwrap_or("unusable")
+                ),
                 vec![],
             ));
             history_commands.push(crate::command::shell("git", &["--version".into()]));
@@ -524,27 +573,35 @@ pub fn run(
 
     // --- source 4: ast-grep structural (a construct with no literal form) ---
     let mut ast_only: Vec<String> = Vec::new();
-    let mut ast_unavailable = false;
+    let mut structural_fallback = if structural.is_some() {
+        None
+    } else {
+        Some("not-requested")
+    };
     if let Some(sp) = structural {
         let lg = lang.unwrap_or("");
-        let (ast_hits, available) = ast_files(sp, lg, root);
-        if !available {
-            ast_unavailable = true;
-        } else {
-            // ast_only = files ast matched but a literal search for the pattern
-            // text does NOT — surfaced only structurally.
-            ast_only = ast_hits
-                .into_iter()
-                .filter(|f| !file_contains_literal(root, f, sp))
-                .collect(); // came from a BTreeSet -> already sorted
-            for f in &ast_only {
-                data.push(row(
-                    f,
-                    "ast_structural",
-                    Some("literal search finds 0; use the structural correction command".into()),
-                ));
-                bump(&mut stage_counts, "ast_structural");
+        match ast_files(sp, lg, root) {
+            Structural::Used(ast_hits) => {
+                // ast_only = files ast matched but a literal search for the pattern
+                // text does NOT — surfaced only structurally.
+                ast_only = ast_hits
+                    .into_iter()
+                    .filter(|f| !file_contains_literal(root, f, sp))
+                    .collect(); // came from a BTreeSet -> already sorted
+                for f in &ast_only {
+                    data.push(row(
+                        f,
+                        "ast_structural",
+                        Some(
+                            "literal search finds 0; use the structural correction command".into(),
+                        ),
+                    ));
+                    bump(&mut stage_counts, "ast_structural");
+                }
             }
+            Structural::Missing => structural_fallback = Some("tool-missing"),
+            Structural::Unusable => structural_fallback = Some("tool-unusable"),
+            Structural::TimedOut => structural_fallback = Some("tool-timed-out"),
         }
     }
 
@@ -590,10 +647,10 @@ pub fn run(
             git_deleted.clone(),
         ));
     }
-    if ast_unavailable {
+    if let Some(reason) = structural_fallback.filter(|reason| *reason != "not-requested") {
         warnings.push(warn(
-            "STRUCTURAL_UNAVAILABLE",
-            "--structural given but ast-grep not found; structural source skipped (brew install ast-grep)",
+            "EXTERNAL_TOOL_MISSING",
+            format!("--structural source skipped: {reason}"),
             vec![],
         ));
     }
@@ -677,6 +734,12 @@ pub fn run(
             ],
         ));
     }
+    if structural_fallback.is_some_and(|reason| reason != "not-requested") {
+        commands.push(crate::command::shell(
+            "rf",
+            &["doctor".into(), root.into(), "--json".into()],
+        ));
+    }
 
     // --- meta ---
     let mut meta = Map::new();
@@ -691,6 +754,39 @@ pub fn run(
     meta.insert("content_total".into(), Value::from(content_all.len()));
     meta.insert("history_matches".into(), Value::from(git_deleted.len()));
     meta.insert("history".into(), history_meta(&history));
+    let history_source = match &history {
+        History::Available { .. } => {
+            json!({"requested":true,"actual":"used","fallback_reason":null})
+        }
+        History::Partial { .. } => {
+            json!({"requested":true,"actual":"used","fallback_reason":"history-partial"})
+        }
+        History::GitAbsent => {
+            json!({"requested":true,"actual":"skipped","fallback_reason":"tool-missing"})
+        }
+        History::GitUnusable => {
+            json!({"requested":true,"actual":"skipped","fallback_reason":"tool-unusable"})
+        }
+        History::GitTimedOut => {
+            json!({"requested":true,"actual":"skipped","fallback_reason":"tool-timed-out"})
+        }
+        History::NotWorkTree => {
+            json!({"requested":true,"actual":"skipped","fallback_reason":"not-work-tree"})
+        }
+        History::Error => {
+            json!({"requested":true,"actual":"skipped","fallback_reason":"history-failed"})
+        }
+    };
+    let structural_source = match structural_fallback {
+        None => json!({"requested":true,"actual":"used","fallback_reason":null}),
+        Some(reason) => {
+            json!({"requested":structural.is_some(),"actual":"skipped","fallback_reason":reason})
+        }
+    };
+    meta.insert(
+        "sources".into(),
+        json!({"history":history_source,"structural":structural_source}),
+    );
     meta.insert("structural_matches".into(), Value::from(ast_only.len()));
     let counts: Map<String, Value> = stage_counts
         .into_iter()

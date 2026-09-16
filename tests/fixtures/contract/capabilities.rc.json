@@ -98,6 +98,17 @@
           "type": "bool"
         }
       ],
+      "limits": {
+        "external_tool_probe": {
+          "captured_output_bytes": 8192,
+          "probe_error_bytes": 512,
+          "timeout_ms": 2000
+        },
+        "structural_search": {
+          "captured_output_bytes": 65536,
+          "timeout_ms": 5000
+        }
+      },
       "parser_manifest": {
         "commands": {
           "capabilities": {
@@ -345,6 +356,22 @@
           "rejected": ".config"
         }
       ],
+      "verb_dependencies": {
+        "ast-grep": [
+          {
+            "behavior": "degrades with typed use-time provenance",
+            "mode": "structural",
+            "verb": "find"
+          }
+        ],
+        "git": [
+          {
+            "behavior": "degrades with typed use-time provenance",
+            "mode": "history",
+            "verb": "find"
+          }
+        ]
+      },
       "verbs": {
         "capabilities": {
           "aliases": [],
@@ -482,6 +509,22 @@
             }
           ],
           "flags": [],
+          "output_schema": {
+            "data[0]": {
+              "external_tools": {
+                "ast-grep": "{status,path,version,probe_error}",
+                "git": "{status,path,version,probe_error}"
+              },
+              "recommended_action": {
+                "affected": "array[{verb,mode,status}]",
+                "alternatives": "array[{command,purpose}]",
+                "command": "string|null",
+                "is_destructive": "false",
+                "rationale": "string",
+                "references": "array[{url,purpose}]"
+              }
+            }
+          },
           "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path"
         },
         "find": {
@@ -562,7 +605,7 @@
               "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]"
             },
             "meta.history": {
-              "actual_mode": "enum[available,git-absent,not-work-tree,partial,history-error]",
+              "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]",
               "budget_ms": 2000,
               "failed_revisions": "int",
               "requested_mode": "all-revisions",
@@ -582,6 +625,18 @@
               "stages": "tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep",
               "syntax": "enum[regex,fixed]",
               "word": "bool"
+            },
+            "meta.sources": {
+              "history": {
+                "actual": "enum[used,skipped]",
+                "fallback_reason": "null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]",
+                "requested": "bool"
+              },
+              "structural": {
+                "actual": "enum[used,skipped]",
+                "fallback_reason": "null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]",
+                "requested": "bool"
+              }
             }
           },
           "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural"
@@ -731,6 +786,7 @@
         "STRUCTURAL_UNAVAILABLE",
         "IGNORE_MODE",
         "IGNORE_SOURCE_UNRESOLVED",
+        "EXTERNAL_TOOL_MISSING",
         "GIT_SCRUB_WORD_UNAVAILABLE"
       ]
     }
@@ -738,9 +794,9 @@
   "errors": [],
   "meta": {
     "contract_version": "2",
-    "data_hash": "9a3edfcf68b9",
+    "data_hash": "66a0df0f2e17",
     "elapsed_ms": 0,
-    "request_id": "29f8dba105cfd5a3",
+    "request_id": "99723b41a5b132d8",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

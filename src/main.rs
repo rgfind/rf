@@ -12,6 +12,7 @@ mod content;
 mod doctor;
 mod engine;
 mod envelope;
+mod external_tools;
 mod fault;
 mod find;
 mod guide;

@@ -7,6 +7,8 @@
 
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -183,6 +185,108 @@ fn rf_with_stderr(
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
     let json = serde_json::from_str(&stdout).expect("machine output parses");
     (out.status.code().unwrap_or(-1), json, stdout, stderr)
+}
+
+#[cfg(unix)]
+fn executable(path: &Path, body: &str) {
+    std::fs::write(path, body).unwrap();
+    let mut permissions = std::fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(path, permissions).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
+    let root = unique_temp("external-tools");
+    let bin = root.join("bin");
+    std::fs::create_dir(&bin).unwrap();
+
+    let (_, missing, _) = rf(
+        &["doctor", ".", "--json"],
+        None,
+        &[("PATH", "/no/such/path")],
+    );
+    for tool in ["git", "ast-grep"] {
+        assert_eq!(
+            missing["data"][0]["external_tools"][tool]["status"],
+            "missing"
+        );
+        assert!(missing["data"][0]["external_tools"][tool]["path"].is_null());
+        assert!(missing["data"][0]["external_tools"][tool]["version"].is_null());
+    }
+
+    for tool in ["git", "ast-grep"] {
+        executable(
+            &bin.join(tool),
+            "#!/bin/sh\ni=0; while [ \"$i\" -lt 9000 ]; do printf x; i=$((i + 1)); done\nexit 1\n",
+        );
+    }
+    let fake_path = bin.to_string_lossy().into_owned();
+    let (_, flooded, _) = rf(&["doctor", ".", "--json"], None, &[("PATH", &fake_path)]);
+    for tool in ["git", "ast-grep"] {
+        let health = &flooded["data"][0]["external_tools"][tool];
+        assert_eq!(health["status"], "unusable");
+        assert!(health["probe_error"].as_str().unwrap_or("").len() <= 540);
+    }
+
+    for tool in ["git", "ast-grep"] {
+        executable(&bin.join(tool), "#!/bin/sh\n/bin/sleep 3\n");
+    }
+    let (_, timed, _) = rf(&["doctor", ".", "--json"], None, &[("PATH", &fake_path)]);
+    for tool in ["git", "ast-grep"] {
+        assert_eq!(
+            timed["data"][0]["external_tools"][tool]["status"],
+            "timed_out"
+        );
+    }
+
+    executable(
+        &bin.join("git"),
+        "#!/bin/sh\nprintf 'git version test\\n'\n",
+    );
+    executable(&bin.join("ast-grep"), "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then printf 'ast-grep test\\n'; exit 0; fi\n/bin/sleep 6\n");
+    let corpus = Corpus::new();
+    let (code, structural, _) = rf(
+        &[
+            "find",
+            TOKEN,
+            ".",
+            "--name",
+            "py",
+            "--structural",
+            "x",
+            "--lang",
+            "python",
+            "--json",
+        ],
+        Some(&corpus.path),
+        &[("PATH", &fake_path)],
+    );
+    assert_eq!(code, 0);
+    assert_eq!(
+        structural["meta"]["sources"]["structural"]["requested"],
+        true
+    );
+    assert_eq!(
+        structural["meta"]["sources"]["structural"]["actual"],
+        "skipped"
+    );
+    assert_eq!(
+        structural["meta"]["sources"]["structural"]["fallback_reason"],
+        "tool-timed-out"
+    );
+    assert!(structural["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|warning| warning["code"] == "EXTERNAL_TOOL_MISSING"));
+    assert!(structural["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|command| command.as_str().unwrap_or("").contains("'rf' 'doctor'")));
+    let _ = std::fs::remove_dir_all(root);
 }
 
 fn rf_with_input(args: &[&str], cwd: Option<&Path>, input: &[u8]) -> (i32, Value, String) {
