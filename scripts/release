@@ -154,7 +154,10 @@ plumb capture --yes
 cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
-cargo publish --dry-run --locked
+# The command has generated the version and fixture in this worktree but has
+# not committed them yet. The real preflight runs after that commit and remains
+# clean-worktree-only.
+cargo publish --dry-run --allow-dirty --locked
 git diff --check
 
 git add -A
