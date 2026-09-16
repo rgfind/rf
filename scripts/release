@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Cut an rf release. The tag workflow publishes the crate and creates the
+# GitHub release after Plumbline creates and pushes the release tag.
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/release [--dry-run] VERSION SUMMARY
+
+Prepare and release VERSION from main. SUMMARY is one short changelog line.
+
+The command updates the version and changelog, captures contract evidence,
+commits and pushes the release preparation, waits for CI proof, then asks
+Plumbline to create and push the release tag. The tag workflow publishes the
+crate and creates the GitHub release.
+
+--dry-run validates the inputs and shows the actions. It does not change files,
+create a commit, push, tag, publish, or create a release.
+EOF
+}
+
+dry_run=false
+if [[ "${1:-}" == "--dry-run" ]]; then
+    dry_run=true
+    shift
+fi
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    usage
+    exit 0
+fi
+if [[ $# -ne 2 ]]; then
+    usage
+    exit 2
+fi
+
+release_version="$1"
+release_summary="$2"
+
+if [[ ! "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf 'VERSION must be a stable semantic version, for example 0.0.8.\n' >&2
+    exit 2
+fi
+if [[ -z "$release_summary" || "$release_summary" == *$'\n'* || "$release_summary" == *$'\r'* ]]; then
+    printf 'SUMMARY must be one non-empty line.\n' >&2
+    exit 2
+fi
+
+for required_command in git cargo python3 plumb; do
+    if ! command -v "$required_command" >/dev/null 2>&1; then
+        printf 'Required command is not available: %s\n' "$required_command" >&2
+        exit 2
+    fi
+done
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    printf 'Run this command from an rf Git worktree.\n' >&2
+    exit 2
+}
+cd "$repo_root"
+
+if [[ "$(git branch --show-current)" != "main" ]]; then
+    printf 'Release requires the main branch.\n' >&2
+    exit 2
+fi
+if [[ -n "$(git status --porcelain)" ]]; then
+    printf 'Release requires a clean worktree. Commit or remove local changes first.\n' >&2
+    exit 2
+fi
+
+remote_main="$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" || {
+    printf 'Cannot read origin/main.\n' >&2
+    exit 2
+}
+if [[ "$remote_main" != "$(git rev-parse HEAD)" ]]; then
+    printf 'Local main is not the current origin/main. Synchronize it before release.\n' >&2
+    exit 2
+fi
+
+current_version="$(python3 - <<'PY'
+from pathlib import Path
+import re
+
+text = Path("Cargo.toml").read_text(encoding="utf-8")
+match = re.search(r'^version\s*=\s*"([^"]+)"\s*$', text, re.MULTILINE)
+if not match:
+    raise SystemExit("Cargo.toml has no package version")
+print(match.group(1))
+PY
+)"
+
+if [[ "$current_version" == "$release_version" ]]; then
+    printf 'Cargo.toml already has version %s.\n' "$release_version" >&2
+    exit 2
+fi
+if ! python3 - "$current_version" "$release_version" <<'PY'
+import sys
+
+def parse(value):
+    return tuple(int(part) for part in value.split("."))
+
+if parse(sys.argv[2]) <= parse(sys.argv[1]):
+    raise SystemExit(1)
+PY
+then
+    printf 'VERSION must be newer than Cargo.toml version %s.\n' "$current_version" >&2
+    exit 2
+fi
+
+if $dry_run; then
+    printf 'Dry run for rf v%s:\n' "$release_version"
+    printf '%s\n' '  1. Update Cargo.toml and CHANGELOG.md.'
+    printf '%s\n' '  2. Capture contract evidence and run local release checks.'
+    printf '%s\n' '  3. Commit and push the release preparation.'
+    printf '  4. Wait for CI proof, then create and push tag v%s with Plumbline.\n' "$release_version"
+    printf '%s\n' '  5. GitHub release.yml publishes the crate and creates the GitHub release.'
+    exit 0
+fi
+
+RELEASE_VERSION="$release_version" RELEASE_SUMMARY="$release_summary" python3 - <<'PY'
+from pathlib import Path
+import os
+import re
+
+version = os.environ["RELEASE_VERSION"]
+summary = os.environ["RELEASE_SUMMARY"]
+
+cargo_path = Path("Cargo.toml")
+cargo = cargo_path.read_text(encoding="utf-8")
+updated_cargo, count = re.subn(
+    r'^(version\s*=\s*")[^"]+("\s*)$',
+    rf'\g<1>{version}\g<2>',
+    cargo,
+    count=1,
+    flags=re.MULTILINE,
+)
+if count != 1:
+    raise SystemExit("Cargo.toml package version update failed")
+cargo_path.write_text(updated_cargo, encoding="utf-8")
+
+changelog_path = Path("CHANGELOG.md")
+changelog = changelog_path.read_text(encoding="utf-8")
+heading = f"## {version} — {summary}"
+prefix = "# Changelog\n\n"
+if not changelog.startswith(prefix):
+    raise SystemExit("CHANGELOG.md must start with '# Changelog'")
+changelog_path.write_text(
+    prefix + heading + "\n\n" + changelog[len(prefix):], encoding="utf-8"
+)
+PY
+
+plumb capture --yes
+cargo fmt --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+cargo publish --dry-run --locked
+git diff --check
+
+git add -A
+git commit -m "Release v${release_version}"
+git push origin main
+plumb preflight --wait
+plumb release --yes

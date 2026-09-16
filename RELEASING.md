@@ -4,8 +4,8 @@ crates.io is **write-once**: once a version is published, its README, metadata,
 and code can never be changed for that version. So the documentation and the
 code must agree **at the exact moment of publishing** — not before, not after.
 
-Under plumb 0.0.3 the publish is done by **CI**, not by hand. You run
-`plumb release` locally; it verifies everything and pushes the tag; a
+Under plumb 0.0.3 the publish is done by **CI**, not by hand. The release
+command runs Plumbline locally. It verifies everything and pushes the tag. A
 tag-triggered workflow then does the real `cargo publish`. You never run
 `cargo publish` yourself.
 
@@ -53,33 +53,28 @@ ships is in lock step. It holds four classes of gate:
 proven through the GitHub API. This is why the commit must be pushed and its
 CI must be green **before** you release.
 
-## Release steps
+## Release
 
-1. Land all code and doc changes for the version. If the contract changed, run
-   `plumb capture` to recapture the fixture, reconcile the docs against it,
-   and commit.
-2. Bump the version in `Cargo.toml`; add a `CHANGELOG.md` H2 entry for the new
-   version (e.g. `## 0.0.8 — summary`). Commit.
-3. Push `main`. Wait for `ci.yml` and `contract-guard.yml` to go green on the
-   release commit — preflight requires that green `ci.yml` run.
-4. Release:
+Run one command from a clean, current `main` branch:
 
-   ```sh
-   plumb release --yes
-   ```
+```sh
+./scripts/release 0.0.8 "bounded match evidence"
+```
 
-   This reruns the full preflight (including the CI proof), then creates the
-   annotated `v<version>` tag and atomically pushes the branch and tag. Use
-   `plumb release --dry-run` first to see what it will do without pushing.
-5. The tag triggers `release.yml`, which reruns preflight, does the real
-   `cargo publish --locked`, and creates the GitHub release. Watch that run;
-   a red preflight there stops the publish.
+The command updates `Cargo.toml` and `CHANGELOG.md`, captures the contract
+fixture, runs the local release checks, commits and pushes the preparation,
+waits for CI proof, then runs `plumb release --yes`. Plumbline creates and
+pushes the annotated tag. The tag starts `release.yml`, which publishes to
+crates.io and creates the GitHub release.
 
-## One-time setup
+Check the planned action without changing files or remote state:
 
-- Add a repository secret **`CARGO_REGISTRY_TOKEN`** holding a crates.io API
-  token scoped to publish `rf`. `release.yml` uses it for the real publish;
-  without it the publish step fails.
+```sh
+./scripts/release --dry-run 0.0.8 "bounded match evidence"
+```
+
+The command does not read or print the registry token. GitHub Actions uses the
+repository secret during the publish step.
 
 ## What the stop sign does not cover
 
