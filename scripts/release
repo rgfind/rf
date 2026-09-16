@@ -53,7 +53,8 @@ for required_command in git cargo python3 plumb; do
     fi
 done
 
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(git -C "$script_dir/.." rev-parse --show-toplevel 2>/dev/null)" || {
     printf 'Run this command from an rf Git worktree.\n' >&2
     exit 2
 }
