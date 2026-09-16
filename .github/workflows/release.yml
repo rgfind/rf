@@ -1,27 +1,38 @@
 name: Release
 
-# The publish robot, run automatically when a release tag is pushed.
+# The publish robot. One trigger, then hands-off.
 #
-# `plumb release` (run locally by the releaser) creates and atomically pushes
-# the v<version> tag. That push triggers this job, which reruns the full
-# preflight stop-sign and then does the REAL `cargo publish`. This is the
-# publish step: the old release-preflight.yml only gated and never published;
-# under plumb 0.0.3 CI publishes after the tag passes (see RELEASING.md).
+# Primary path: run this workflow with the "Run workflow" button
+# (workflow_dispatch) on main. It resolves the version from Cargo.toml, reruns
+# the full preflight stop-sign, then creates and pushes the v<version> tag and
+# does the REAL `cargo publish`. Both plumb commands now live in CI: the
+# releaser triggers once and watches, and never runs plumb locally.
 #
-# A red preflight here means the tag must not be published: the job stops before
-# the publish step. crates.io is write-once, so this gate runs against the exact
-# tagged commit, not an earlier one.
+# Back-compat path: a pushed v<version> tag also runs this job. The tag already
+# exists in that case, so the tag-creation step is skipped.
 #
-# Prerequisite: the repository secret CARGO_REGISTRY_TOKEN must hold a crates.io
-# API token scoped to publish rf. Without it the publish step fails.
+# A red preflight means the release must not publish: the job stops before the
+# tag and publish steps, so a bad commit leaves no tag and nothing on crates.io.
+# crates.io is write-once, so this gate runs against the exact release commit.
+#
+# Prerequisites:
+# - main must already be release-ready with a green CI run for its HEAD commit.
+#   preflight verifies that green ci.yml run by commit SHA via the GitHub API.
+# - The repository secret CARGO_REGISTRY_TOKEN must hold a crates.io API token
+#   scoped to publish rf. Without it the publish step fails.
 
 on:
+  workflow_dispatch:
   push:
     tags: ["v*"]
 
 permissions:
   actions: read # preflight reads the CI proof run via the GitHub API
-  contents: write # gh release create
+  contents: write # push the release tag and create the GitHub release
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -40,6 +51,23 @@ jobs:
         # config_version. Bump this and the config together in one deliberate
         # migration; never float to a newer schema by surprise.
         run: cargo install plumbline@0.0.3 --locked
+      - name: Resolve release version and tag
+        # workflow_dispatch releases the version currently in Cargo.toml on the
+        # dispatched commit. A tag push releases the version named by the tag.
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "rf") | .version')"
+            tag="v${version}"
+          else
+            tag="${{ github.ref_name }}"
+            version="${tag#v}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing rf $version as $tag"
       - name: Prove the built release binary
         shell: bash
         run: |
@@ -75,6 +103,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: plumb preflight
+      - name: Create and push the release tag
+        # Dispatch path only: preflight passed, so mark the release commit. A tag
+        # push created by GITHUB_TOKEN does not retrigger the tag path, so this
+        # cannot cause a second publish.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${RELEASE_TAG} already exists on origin. Refusing to republish." >&2
+            exit 1
+          fi
+          git tag "${RELEASE_TAG}"
+          git push origin "${RELEASE_TAG}"
       - name: Publish crate to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -82,4 +125,5 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" --generate-notes
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: gh release create "${RELEASE_TAG}" --generate-notes

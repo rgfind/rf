@@ -2,6 +2,22 @@
 
 ## 0.0.8 — agent contract governance and bounded match evidence
 
+- Added opt-in match evidence to `content`, `find`, and `why`. `--matches`
+  returns per-occurrence `line`, `column_byte`, and `text`; `--max-matches`
+  bounds the count and requires `--matches`. Truncated evidence is marked with
+  `text_lossy` and `text_truncated`. Default output and default cursor identity
+  are unchanged.
+- Added external-tool health to `doctor`. It probes `git` and `ast-grep`,
+  reports typed availability with `references` ({url, purpose}) and safe
+  commands, and emits the new `EXTERNAL_TOOL_MISSING` warning (nineteen codes).
+- `find` results now carry `meta.sources` with structural and history
+  provenance ({requested, actual, fallback_reason}). `matches` is `null` with
+  `matches_unavailable_reason` for history-only or structural-only results.
+- Added the agent-contract governance surface. `CONTRACT.md` documents the
+  contract; `capabilities` gains `contract_policy` (supported contract
+  versions, release classification, release record), per-verb
+  `schema_versions`, and `verb_dependencies`.
+
 ## 0.0.7 — ignore provenance and query modes
 
 - Added `ignore_source` to `rf why` results for a file hidden by an active

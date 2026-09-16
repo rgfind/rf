@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
-# Cut an rf release. The tag workflow publishes the crate and creates the
-# GitHub release after Plumbline creates and pushes the release tag.
+# Prepare an rf release. This command only prepares main: it bumps the version,
+# updates the changelog, captures contract evidence, runs local checks, commits,
+# and pushes. It does NOT tag or publish. After CI is green, trigger the Release
+# workflow (gh workflow run release.yml --ref main); CI reruns preflight, creates
+# and pushes the tag, and publishes the crate.
 set -euo pipefail
 
 usage() {
     cat <<'EOF'
 Usage: ./scripts/release [--dry-run] VERSION SUMMARY
 
-Prepare and release VERSION from main. SUMMARY is one short changelog line.
+Prepare VERSION on main. SUMMARY is one short changelog line.
 
 The command updates the version and changelog, captures contract evidence,
-commits and pushes the release preparation, waits for CI proof, then asks
-Plumbline to create and push the release tag. The tag workflow publishes the
-crate and creates the GitHub release.
+verifies the plumbline.json claims still match the fixture, runs local checks,
+then commits and pushes the release preparation. It does not tag or publish.
+After CI is green, trigger the Release workflow to publish:
+  gh workflow run release.yml --ref main
 
 --dry-run validates the inputs and shows the actions. It does not change files,
-create a commit, push, tag, publish, or create a release.
+create a commit, or push.
 EOF
 }
 
@@ -111,10 +115,10 @@ fi
 if $dry_run; then
     printf 'Dry run for rf v%s:\n' "$release_version"
     printf '%s\n' '  1. Update Cargo.toml and CHANGELOG.md.'
-    printf '%s\n' '  2. Capture contract evidence and run local release checks.'
-    printf '%s\n' '  3. Commit and push the release preparation.'
-    printf '  4. Wait for CI proof, then create and push tag v%s with Plumbline.\n' "$release_version"
-    printf '%s\n' '  5. GitHub release.yml publishes the crate and creates the GitHub release.'
+    printf '%s\n' '  2. Capture contract evidence; stop if plumbline.json claims drift.'
+    printf '%s\n' '  3. Run local release checks.'
+    printf '%s\n' '  4. Commit and push the release preparation.'
+    printf '%s\n' '  Then, after CI is green: run the Release workflow to tag and publish.'
     exit 0
 fi
 
@@ -151,17 +155,32 @@ changelog_path.write_text(
 PY
 
 plumb capture --yes
+# Guard against the contract drift that reddened the first 0.0.8 tag: `plumb
+# capture` regenerates the fixture but never the hand-maintained plumbline.json
+# claims. If a claim (for example tool_version or the warning code set) no longer
+# matches the fresh fixture, stop here so the releaser updates plumbline.json
+# before anything is committed or pushed.
+plumb check
 cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
-# The command has generated the version and fixture in this worktree but has
-# not committed them yet. The real preflight runs after that commit and remains
-# clean-worktree-only.
+# The command has generated the version and fixture in this worktree but has not
+# committed them yet. The real preflight runs in CI, after this commit, and
+# remains clean-worktree-only.
 cargo publish --dry-run --allow-dirty --locked
 git diff --check
 
 git add -A
 git commit -m "Release v${release_version}"
 git push origin main
-plumb preflight --wait
-plumb release --yes
+
+cat <<EOF
+Prepared and pushed rf v${release_version} on main.
+
+Next:
+  1. Wait for a green CI run of this commit (Actions tab, workflow "CI").
+  2. Publish: run the "Release" workflow on main, or
+       gh workflow run release.yml --ref main
+CI reruns preflight, creates and pushes tag v${release_version}, then publishes
+to crates.io and creates the GitHub release.
+EOF

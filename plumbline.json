@@ -110,10 +110,10 @@
     },
     {
       "id": "tool_version",
-      "fact": "tool_version = 0.0.7",
+      "fact": "tool_version = 0.0.8",
       "fixture_path": "tool_version",
       "mode": "value",
-      "expected": "0.0.7",
+      "expected": "0.0.8",
       "surface": "README.md",
       "section": "Install",
       "tier": "P"
@@ -206,7 +206,7 @@
     },
     {
       "id": "warning_code_set",
-      "fact": "eighteen warning codes",
+      "fact": "nineteen warning codes",
       "fixture_path": "data.0.warning_codes",
       "mode": "set",
       "expected": [
@@ -214,6 +214,7 @@
         "BINARY_SKIPPED",
         "CASE_SENSITIVE",
         "ENCODING_MISS",
+        "EXTERNAL_TOOL_MISSING",
         "FD_HIDDEN",
         "FD_IGNORE",
         "FD_NAME",
