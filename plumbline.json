@@ -1,5 +1,23 @@
 {
-  "$comment": "plumbline config for crate `rf` (see https://github.com/rgfind/plumbline). Read by `plumb check|capture|preflight`. Supersedes coverage-registry.json: the same tier-P claims are pinned here, plus how to build/capture the binary, which doc surfaces carry generated blocks, and the packaged-file allowlist source. This file is dev tooling config; it is excluded from the published crate by the Cargo.toml include allowlist, exactly as xtask was.",
+  "config_version": 1,
+  "release": {
+    "branch": "main",
+    "remote": "origin",
+    "verification": {
+      "ci": [
+        { "id": "fmt", "argv": ["cargo", "fmt", "--check"], "timeout_seconds": 120 },
+        { "id": "clippy", "argv": ["cargo", "clippy", "--all-targets", "--locked", "--", "-D", "warnings"], "timeout_seconds": 600 },
+        { "id": "test", "argv": ["cargo", "test", "--locked"], "timeout_seconds": 600 }
+      ],
+      "release": [
+        { "id": "publish-dry-run", "argv": ["cargo", "publish", "--dry-run", "--locked"], "timeout_seconds": 600 }
+      ],
+      "github_actions": {
+        "repository": "rgfind/rf",
+        "workflow_path": ".github/workflows/contract-guard.yml"
+      }
+    }
+  },
   "capture": {
     "build": [
       "cargo",
