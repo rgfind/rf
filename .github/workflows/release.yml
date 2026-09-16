@@ -1,0 +1,50 @@
+name: Release
+
+# The publish robot, run automatically when a release tag is pushed.
+#
+# `plumb release` (run locally by the releaser) creates and atomically pushes
+# the v<version> tag. That push triggers this job, which reruns the full
+# preflight stop-sign and then does the REAL `cargo publish`. This is the
+# publish step: the old release-preflight.yml only gated and never published;
+# under plumb 0.0.3 CI publishes after the tag passes (see RELEASING.md).
+#
+# A red preflight here means the tag must not be published: the job stops before
+# the publish step. crates.io is write-once, so this gate runs against the exact
+# tagged commit, not an earlier one.
+#
+# Prerequisite: the repository secret CARGO_REGISTRY_TOKEN must hold a crates.io
+# API token scoped to publish rf. Without it the publish step fails.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  actions: read # preflight reads the CI proof run via the GitHub API
+  contents: write # gh release create
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install the guard tool (plumbline)
+        # Pinned to an exact crates.io version, in lockstep with plumbline.json's
+        # config_version. Bump this and the config together in one deliberate
+        # migration; never float to a newer schema by surprise.
+        run: cargo install plumbline@0.0.3 --locked
+      - name: Full preflight stop-sign (local gates + CI proof for this commit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: plumb preflight
+      - name: Publish crate to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --locked
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --generate-notes

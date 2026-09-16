@@ -1,0 +1,38 @@
+name: CI
+
+# The declared code-policy gates for rf: verification.ci in plumbline.json
+# (cargo fmt --check, cargo clippy --all-targets --locked -D warnings, cargo
+# test --locked), run on every push and pull request via `plumb verify
+# --stage=ci`.
+#
+# This is the workflow `plumb preflight` proves against: it reads
+# verification.github_actions.workflow_path (this file) and requires a green
+# run of it for the exact release commit before a tag may publish. Keep this
+# file's path in step with that config field.
+#
+# contract-guard.yml checks the contract prose and fixture separately; this
+# checks the code. preflight re-runs both classes of gate at release time.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install the guard tool (plumbline)
+        # Pinned to an exact crates.io version, in lockstep with plumbline.json's
+        # config_version. Bump this and the config together in one deliberate
+        # migration; never float to a newer schema by surprise.
+        run: cargo install plumbline@0.0.3 --locked
+      - name: Declared CI gates (fmt, clippy, test)
+        run: plumb verify --stage=ci

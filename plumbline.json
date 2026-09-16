@@ -14,7 +14,7 @@
       ],
       "github_actions": {
         "repository": "rgfind/rf",
-        "workflow_path": ".github/workflows/contract-guard.yml"
+        "workflow_path": ".github/workflows/ci.yml"
       }
     }
   },
