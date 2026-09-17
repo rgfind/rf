@@ -5,6 +5,7 @@ edition = "2021"
 description = "rf — search results that agents can inspect, explain, and safely continue from. Fuses ripgrep and fd, attributes every miss to the filter that hid it, and returns one typed JSON envelope. Early development; see the repository for status."
 license = "Apache-2.0"
 repository = "https://github.com/rgfind/rf"
+homepage = "https://rgfind.dev/"
 keywords = ["ripgrep", "fd", "search", "cli", "grep"]
 categories = ["command-line-utilities"]
 readme = "README.md"
