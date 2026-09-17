@@ -12,6 +12,11 @@ owns those stages, finds the hidden matches, and names the filter that hid each.
 **Status: early development.** The command surface and the JSON envelope below
 work today; expect breaking changes before 1.0.
 
+Documentation lives at **[rgfind.dev](https://rgfind.dev/)** — the
+[quickstart](https://rgfind.dev/docs/quickstart/), the
+[JSON contract](https://rgfind.dev/docs/json-contract/), and the
+[agent guide](https://rgfind.dev/docs/agent-guide/).
+
 ## Install
 
 ```sh
