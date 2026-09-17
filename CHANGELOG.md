@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Set the crate `homepage` to <https://rgfind.dev/>, so the crates.io listing
+  links to the documentation site.
+- The README now links the documentation site — quickstart, JSON contract, and
+  agent guide at rgfind.dev. Packaging and docs only; no behavior change.
+
 ## 0.0.8 — agent contract governance and bounded match evidence
 
 - Added opt-in match evidence to `content`, `find`, and `why`. `--matches`
