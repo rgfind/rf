@@ -208,12 +208,9 @@ fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
         &[("PATH", "/no/such/path")],
     );
     for tool in ["git", "ast-grep"] {
-        assert_eq!(
-            missing["data"][0]["external_tools"][tool]["status"],
-            "missing"
-        );
-        assert!(missing["data"][0]["external_tools"][tool]["path"].is_null());
-        assert!(missing["data"][0]["external_tools"][tool]["version"].is_null());
+        assert_eq!(missing["data"]["external_tools"][tool]["status"], "missing");
+        assert!(missing["data"]["external_tools"][tool]["path"].is_null());
+        assert!(missing["data"]["external_tools"][tool]["version"].is_null());
     }
 
     for tool in ["git", "ast-grep"] {
@@ -225,7 +222,7 @@ fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
     let fake_path = bin.to_string_lossy().into_owned();
     let (_, flooded, _) = rf(&["doctor", ".", "--json"], None, &[("PATH", &fake_path)]);
     for tool in ["git", "ast-grep"] {
-        let health = &flooded["data"][0]["external_tools"][tool];
+        let health = &flooded["data"]["external_tools"][tool];
         assert_eq!(health["status"], "unusable");
         assert!(health["probe_error"].as_str().unwrap_or("").len() <= 540);
     }
@@ -235,10 +232,7 @@ fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
     }
     let (_, timed, _) = rf(&["doctor", ".", "--json"], None, &[("PATH", &fake_path)]);
     for tool in ["git", "ast-grep"] {
-        assert_eq!(
-            timed["data"][0]["external_tools"][tool]["status"],
-            "timed_out"
-        );
+        assert_eq!(timed["data"]["external_tools"][tool]["status"], "timed_out");
     }
 
     executable(
@@ -326,14 +320,17 @@ fn match_evidence_flags_are_uniform_and_preserve_default_rows() {
     for args in calls {
         let (code, response, _) = rf(&args, cwd, &[]);
         assert_eq!(code, 0, "{response}");
-        assert!(response["data"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|row| row.get("matches").is_some()));
+        // content and find return a list in data.items; why returns one
+        // verdict object as data.
+        let rows = match response["data"]["items"].as_array() {
+            Some(items) => items.clone(),
+            None => vec![response["data"].clone()],
+        };
+        assert!(!rows.is_empty());
+        assert!(rows.iter().all(|row| row.get("matches").is_some()));
     }
     let (_, default, _) = rf(&["content", TOKEN, ".", "--json"], cwd, &[]);
-    assert!(default["data"]
+    assert!(default["data"]["items"]
         .as_array()
         .unwrap()
         .iter()
@@ -385,7 +382,7 @@ fn match_evidence_is_text_and_response_bounded_with_a_resume_cursor() {
     assert_eq!(first["meta"]["evidence"]["match_cap"], 16);
     assert_eq!(first["meta"]["evidence"]["text_bytes_cap"], 512);
     assert!(first["meta"]["pagination"]["has_more"].as_bool().unwrap());
-    for row in first["data"].as_array().unwrap() {
+    for row in first["data"]["items"].as_array().unwrap() {
         assert_eq!(row["matches"].as_array().unwrap().len(), 16);
         assert!(row["matches"][0]["text"].as_str().unwrap().len() <= 512);
         assert_eq!(row["matches"][0]["text_truncated"], true);
@@ -404,13 +401,13 @@ fn match_evidence_is_text_and_response_bounded_with_a_resume_cursor() {
     ];
     let (next_code, next, _) = rf(&next_args, None, &[]);
     assert_eq!(next_code, 0, "{next}");
-    let first_files: BTreeSet<_> = first["data"]
+    let first_files: BTreeSet<_> = first["data"]["items"]
         .as_array()
         .unwrap()
         .iter()
         .map(|row| row["file"].as_str().unwrap())
         .collect();
-    let next_files: BTreeSet<_> = next["data"]
+    let next_files: BTreeSet<_> = next["data"]["items"]
         .as_array()
         .unwrap()
         .iter()
@@ -506,7 +503,7 @@ fn typo_correction_is_public_unique_and_stops_at_double_dash() {
 #[test]
 fn workflow_guide_is_declared_and_uses_typed_recipes() {
     let (_, guide, _, _) = rf_with_stderr(&["robot-docs", "guide", "--json"], None, &[]);
-    let recipes = guide["data"].as_array().unwrap();
+    let recipes = guide["data"]["items"].as_array().unwrap();
     assert!(!recipes.is_empty());
     assert!(recipes.iter().all(|recipe| [
         "id",
@@ -519,7 +516,7 @@ fn workflow_guide_is_declared_and_uses_typed_recipes() {
     .iter()
     .all(|key| recipe.get(*key).is_some())));
     let (_, caps, _, _) = rf_with_stderr(&["capabilities", "--json"], None, &[]);
-    assert!(caps["data"][0]["verbs"]["robot-docs"].is_object());
+    assert!(caps["data"]["verbs"]["robot-docs"].is_object());
 }
 
 #[test]
@@ -535,7 +532,7 @@ fn content_selected_input_validates_and_classifies_only_selected_files() {
     assert_eq!(code, 0);
     assert_eq!(selected["meta"]["selection"]["mode"], "stdin-nul");
     assert_eq!(selected["meta"]["selection"]["selected_files"], 3);
-    let found = selected["data"].as_array().unwrap();
+    let found = selected["data"]["items"].as_array().unwrap();
     assert_eq!(found.len(), 3);
     assert!(found.iter().all(|row| row["selection"] == "selected"));
     assert_eq!(
@@ -612,9 +609,9 @@ fn why_reports_one_target_verdict_and_validates_inputs() {
         let pattern = TOKEN;
         let (code, env, _) = rf(&["why", pattern, file, "--json"], cwd, &[]);
         assert_eq!(code, 0, "{file}");
-        assert_eq!(env["data"].as_array().map(Vec::len), Some(1));
-        assert_eq!(env["data"][0]["file"], file);
-        assert_eq!(env["data"][0]["surfaced_by"], class);
+        assert!(env["data"].is_object());
+        assert_eq!(env["data"]["file"], file);
+        assert_eq!(env["data"]["surfaced_by"], class);
         assert_eq!(env["meta"]["file"], file);
         assert_eq!(env["meta"]["root"], ".");
         if class == "default" {
@@ -638,11 +635,11 @@ fn why_reports_one_target_verdict_and_validates_inputs() {
         &[],
     );
     assert_eq!(code, 0);
-    assert_eq!(abs["data"][0]["file"], "secrets.env");
+    assert_eq!(abs["data"]["file"], "secrets.env");
     let (code, absent, _) = rf(&["why", "ABSENT", "src/app.py", "--json"], cwd, &[]);
     assert_eq!(code, 0);
-    assert_eq!(absent["data"][0]["matched"], false);
-    assert!(absent["data"][0]["surfaced_by"].is_null());
+    assert_eq!(absent["data"]["matched"], false);
+    assert!(absent["data"]["surfaced_by"].is_null());
     for args in [
         vec!["why", "x", ".", "--json"],
         vec!["why", "x", "missing", "--json"],
@@ -675,12 +672,12 @@ fn query_modes_keep_results_commands_and_cursors_honest() {
         cwd,
         &[],
     );
-    assert_eq!(regex["data"][0]["matched"], true);
-    assert_eq!(fixed["data"][0]["matched"], false);
+    assert_eq!(regex["data"]["matched"], true);
+    assert_eq!(fixed["data"]["matched"], false);
     assert_eq!(fixed["meta"]["query"]["syntax"], "fixed");
 
     let (_, word, _) = rf(&["why", TOKEN, "literal.txt", "--word", "--json"], cwd, &[]);
-    assert_eq!(word["data"][0]["matched"], false);
+    assert_eq!(word["data"]["matched"], false);
 
     let (_, insensitive, _) = rf(
         &[
@@ -693,7 +690,7 @@ fn query_modes_keep_results_commands_and_cursors_honest() {
         cwd,
         &[],
     );
-    assert_eq!(insensitive["data"][0]["surfaced_by"], "default");
+    assert_eq!(insensitive["data"]["surfaced_by"], "default");
     assert_eq!(insensitive["meta"]["query"]["case"], "insensitive");
 
     let (_, utf16, _) = rf(
@@ -707,7 +704,7 @@ fn query_modes_keep_results_commands_and_cursors_honest() {
         cwd,
         &[],
     );
-    assert_eq!(utf16["data"][0]["surfaced_by"], "encoding_utf16");
+    assert_eq!(utf16["data"]["surfaced_by"], "encoding_utf16");
 
     let (_, explicit, _) = rf(
         &[
@@ -771,16 +768,16 @@ fn why_reports_ignore_source_and_parent_chain_evidence() {
     let corpus = Corpus::new();
     let cwd = Some(corpus.path.as_path());
     let (_, root_rule, _) = rf(&["why", TOKEN, "secrets.env", "--json"], cwd, &[]);
-    assert_eq!(root_rule["data"][0]["ignore_source"]["class"], "gitignore");
+    assert_eq!(root_rule["data"]["ignore_source"]["class"], "gitignore");
     assert_eq!(
-        root_rule["data"][0]["ignore_source"]["source_file"],
+        root_rule["data"]["ignore_source"]["source_file"],
         ".gitignore"
     );
-    assert_eq!(root_rule["data"][0]["ignore_source"]["line"], 1);
+    assert_eq!(root_rule["data"]["ignore_source"]["line"], 1);
 
     std::fs::write(corpus.path.join(".ignore"), b"*.env\n").unwrap();
     let (_, dot_rule, _) = rf(&["why", TOKEN, "secrets.env", "--json"], cwd, &[]);
-    assert_eq!(dot_rule["data"][0]["ignore_source"]["class"], "dot_ignore");
+    assert_eq!(dot_rule["data"]["ignore_source"]["class"], "dot_ignore");
 
     std::fs::remove_file(corpus.path.join(".ignore")).unwrap();
     std::fs::create_dir(corpus.path.join("nested")).unwrap();
@@ -798,8 +795,8 @@ fn why_reports_ignore_source_and_parent_chain_evidence() {
         cwd,
         &[],
     );
-    assert_eq!(ancestor["data"][0]["ignore_source"]["class"], "gitignore");
-    assert!(ancestor["data"][0]["ignore_source"]["source_file"]
+    assert_eq!(ancestor["data"]["ignore_source"]["class"], "gitignore");
+    assert!(ancestor["data"]["ignore_source"]["source_file"]
         .as_str()
         .unwrap()
         .starts_with('/'));
@@ -813,21 +810,21 @@ fn why_reports_ignore_source_and_parent_chain_evidence() {
         &[],
     );
     assert_eq!(
-        anchored["data"][0]["ignore_source"]["source_file"],
+        anchored["data"]["ignore_source"]["source_file"],
         "anchored/.gitignore"
     );
-    assert_eq!(anchored["data"][0]["ignore_source"]["pattern"], "/build/");
+    assert_eq!(anchored["data"]["ignore_source"]["pattern"], "/build/");
 
     std::fs::write(corpus.path.join(".git/info/exclude"), b"*.excluded\n").unwrap();
     std::fs::write(corpus.path.join("secret.excluded"), TOKEN).unwrap();
     let (_, exclude, _) = rf(&["why", TOKEN, "secret.excluded", "--json"], cwd, &[]);
-    assert_eq!(exclude["data"][0]["ignore_source"]["class"], "git_exclude");
+    assert_eq!(exclude["data"]["ignore_source"]["class"], "git_exclude");
 
     std::fs::write(corpus.path.join("duplicate.dup"), TOKEN).unwrap();
     std::fs::write(corpus.path.join(".gitignore"), b"*.env\n*.dup\n*.dup\n").unwrap();
     let (_, duplicate, _) = rf(&["why", TOKEN, "duplicate.dup", "--json"], cwd, &[]);
-    assert_eq!(duplicate["data"][0]["ignore_source"]["class"], "gitignore");
-    assert!(duplicate["data"][0]["ignore_source"].get("line").is_none());
+    assert_eq!(duplicate["data"]["ignore_source"]["class"], "gitignore");
+    assert!(duplicate["data"]["ignore_source"].get("line").is_none());
 }
 
 #[test]
@@ -883,7 +880,7 @@ fn conformance() {
         );
         check(
             &format!("meta.contract_version: {}", v[0]),
-            e["meta"]["contract_version"] == "2",
+            e["meta"]["contract_version"] == "0.1",
             String::new(),
         );
     }
@@ -937,7 +934,7 @@ fn conformance() {
         e["meta"]["default_matched_files"] == 1,
         format!("{}", e["meta"]),
     );
-    let by_file: BTreeMap<String, String> = e["data"]
+    let by_file: BTreeMap<String, String> = e["data"]["items"]
         .as_array()
         .unwrap_or(&vec![])
         .iter()
@@ -986,7 +983,7 @@ fn conformance() {
     let (code, first, _) = rf(&["content", TOKEN, ".", "--limit", "2", "--json"], cd, &[]);
     check(
         "paging: first page succeeds",
-        code == 0 && first["data"].as_array().map(|a| a.len()) == Some(2),
+        code == 0 && first["data"]["items"].as_array().map(|a| a.len()) == Some(2),
         format!("{}", first),
     );
     check(
@@ -1003,7 +1000,10 @@ fn conformance() {
         .as_str()
         .unwrap_or("")
         .to_string();
-    let mut paged = first["data"].as_array().cloned().unwrap_or_default();
+    let mut paged = first["data"]["items"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     while !cursor.is_empty() {
         let args = [
             "content", TOKEN, ".", "--limit", "2", "--cursor", &cursor, "--json",
@@ -1019,7 +1019,12 @@ fn conformance() {
             next["meta"]["pagination"]["snapshot_hash"] == snapshot,
             format!("{}", next["meta"]["pagination"]),
         );
-        paged.extend(next["data"].as_array().cloned().unwrap_or_default());
+        paged.extend(
+            next["data"]["items"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default(),
+        );
         cursor = next["meta"]["pagination"]["cursor"]
             .as_str()
             .unwrap_or("")
@@ -1093,22 +1098,37 @@ fn conformance() {
         String::new(),
     );
 
-    // --- determinism: byte-identical stdout under a pinned epoch ---
+    // --- determinism: identical stdout under a pinned epoch, except
+    // meta.request_id, which is unique per invocation by contract ---
+    let strip_request_id = |mut value: Value| {
+        let had_id = value["meta"]["request_id"].is_string();
+        if let Some(meta) = value["meta"].as_object_mut() {
+            meta.remove("request_id");
+        }
+        (had_id, value)
+    };
     let a = rf(
         &["content", TOKEN, ".", "--json"],
         cd,
         &[("SOURCE_DATE_EPOCH", "0")],
     )
-    .2;
+    .1;
     let b = rf(
         &["content", TOKEN, ".", "--json"],
         cd,
         &[("SOURCE_DATE_EPOCH", "0")],
     )
-    .2;
+    .1;
     check(
-        "content: deterministic (byte-identical)",
-        a == b,
+        "content: request_id is unique per invocation",
+        a["meta"]["request_id"].is_string() && a["meta"]["request_id"] != b["meta"]["request_id"],
+        format!("{} {}", a["meta"]["request_id"], b["meta"]["request_id"]),
+    );
+    let (a_had_id, a) = strip_request_id(a);
+    let (b_had_id, b) = strip_request_id(b);
+    check(
+        "content: deterministic (identical apart from request_id)",
+        a_had_id && b_had_id && a == b,
         String::new(),
     );
     check(
@@ -1127,16 +1147,16 @@ fn conformance() {
     let (_, e, _) = rf(&["doctor", ".", "--json"], cd, &[]);
     check(
         "doctor: repo -> ignore ACTIVE",
-        e["data"][0]["ignore_mode"]
+        e["data"]["ignore_mode"]
             .as_str()
             .unwrap_or("")
             .contains("ACTIVE"),
-        format!("{}", e["data"][0]["ignore_mode"]),
+        format!("{}", e["data"]["ignore_mode"]),
     );
 
     // --- capabilities: advertises the verbs and the exit-code dictionary ---
     let (_, e, _) = rf(&["capabilities", "--json"], cd, &[]);
-    let caps = &e["data"][0];
+    let caps = &e["data"];
     check(
         "capabilities: all verbs advertised",
         ["capabilities", "content", "find", "doctor"]
@@ -1171,7 +1191,7 @@ fn conformance() {
 
     // --- conformance: the in-situ self-check meets the P-f schema floor ---
     let (code, e, _) = rf(&["conformance", "--json"], cd, &[]);
-    let d = &e["data"][0];
+    let d = &e["data"];
     check(
         "conformance: exit 0 with no failures",
         code == 0 && e["ok"] == true,
@@ -1247,7 +1267,7 @@ fn conformance() {
         &[],
     );
     check("find: exit 0", code == 0, format!("code={code}"));
-    let stage: BTreeMap<String, String> = e["data"]
+    let stage: BTreeMap<String, String> = e["data"]["items"]
         .as_array()
         .unwrap_or(&vec![])
         .iter()
@@ -1354,13 +1374,13 @@ fn conformance() {
         fd,
         &[],
     );
-    let first_files: BTreeSet<String> = find_page["data"]
+    let first_files: BTreeSet<String> = find_page["data"]["items"]
         .as_array()
         .into_iter()
         .flatten()
         .filter_map(|row| row["file"].as_str().map(String::from))
         .collect();
-    let next_files: BTreeSet<String> = find_next["data"]
+    let next_files: BTreeSet<String> = find_next["data"]["items"]
         .as_array()
         .into_iter()
         .flatten()
@@ -1505,13 +1525,13 @@ fn golden_capabilities_contract() {
         None,
         &[("SOURCE_DATE_EPOCH", "0")],
     );
-    let got = normalize_caps(e["data"][0].clone());
+    let got = normalize_caps(e["data"].clone());
     assert!(
         got == want,
         "capabilities contract drifted from the golden pin.\n\
          If this change is intentional, re-pin:\n  \
          SOURCE_DATE_EPOCH=0 cargo run -q -- capabilities --json \\\n    \
-         | python3 -c \"import sys,json; d=json.load(sys.stdin)['data'][0]; d['tool_version']='PINNED'; \
+         | python3 -c \"import sys,json; d=json.load(sys.stdin)['data']; d['tool_version']='PINNED'; \
 print(json.dumps(d,indent=2,sort_keys=True))\" > tests/golden/capabilities.data.json\n\n\
          observed (normalized):\n{}",
         serde_json::to_string_pretty(&got).unwrap_or_default()
@@ -1527,7 +1547,7 @@ fn golden_conformance_verdicts() {
         None,
         &[("SOURCE_DATE_EPOCH", "0")],
     );
-    let p = &e["data"][0];
+    let p = &e["data"];
     // Project to the pinned shape: request_id is per-host (embeds argv[0]) and
     // target is derivable from case_id, so neither is pinned; verdict + reason are.
     let cases: Vec<Value> = p["cases"]
@@ -1553,7 +1573,7 @@ fn golden_conformance_verdicts() {
         "conformance verdict set drifted from the golden pin.\n\
          If this change is intentional, re-pin:\n  \
          SOURCE_DATE_EPOCH=0 cargo run -q -- conformance --json \\\n    \
-         | python3 -c \"import sys,json; p=json.load(sys.stdin)['data'][0]; \
+         | python3 -c \"import sys,json; p=json.load(sys.stdin)['data']; \
 print(json.dumps({{'profile':p['profile'],'counts':p['counts'],\
 'cases':[{{'case_id':c['case_id'],'verdict':c['verdict'],'reason':c['reason']}} for c in p['cases']]}},\
 indent=2,sort_keys=True))\" > tests/golden/conformance.verdicts.json\n\n\
@@ -1592,7 +1612,7 @@ fn stage_argv(stage: &str) -> Vec<&'static str> {
 
 /// Verdict of a single conformance case_id (exact match), or "<absent>".
 fn verdict_of(e: &Value, case_id: &str) -> String {
-    e["data"][0]["cases"]
+    e["data"]["cases"]
         .as_array()
         .and_then(|cs| cs.iter().find(|c| c["case_id"] == case_id))
         .and_then(|c| c["verdict"].as_str())
@@ -1677,5 +1697,5 @@ fn fault_seam_proves_totality() {
         "not_applicable",
         "X-03 not release posture"
     );
-    assert_eq!(e["data"][0]["counts"]["fail"], Value::from(0));
+    assert_eq!(e["data"]["counts"]["fail"], Value::from(0));
 }

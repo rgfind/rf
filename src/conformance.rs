@@ -311,7 +311,7 @@ pub fn run() -> (Value, i32) {
             return (
                 envelope(
                     false,
-                    vec![],
+                    Value::Null,
                     meta,
                     vec![],
                     vec![],
@@ -820,7 +820,7 @@ pub fn run() -> (Value, i32) {
     };
     let code = if ok { 0 } else { 1 };
     (
-        envelope(ok, vec![Value::from(payload)], meta, vec![], vec![], errors),
+        envelope(ok, Value::from(payload), meta, vec![], vec![], errors),
         code,
     )
 }

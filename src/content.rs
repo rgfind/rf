@@ -15,7 +15,7 @@
 //! keep only the files the decoder alone surfaces.
 
 use crate::engine::{content_matches, content_matches_selected, SearchCfg};
-use crate::envelope::{envelope, err, warn};
+use crate::envelope::{envelope, err, list, warn};
 use crate::query::QueryMode;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -375,7 +375,7 @@ fn selection_error(message: impl Into<String>) -> (Value, i32) {
     (
         envelope(
             false,
-            vec![],
+            Value::Null,
             meta,
             vec![],
             vec![],
@@ -421,8 +421,9 @@ fn parse_selected_paths(mode: SelectionMode) -> Result<Vec<String>, String> {
                 .map_err(|_| "selected envelope input is not valid JSON")?;
             let data = value
                 .get("data")
+                .and_then(|data| data.get("items"))
                 .and_then(Value::as_array)
-                .ok_or("selected envelope must contain a data array")?;
+                .ok_or("selected envelope must contain a data.items array")?;
             if data.is_empty() {
                 return Err("selected envelope contains no files".into());
             }
@@ -502,7 +503,7 @@ pub fn run(
         return (
             envelope(
                 false,
-                vec![],
+                Value::Null,
                 meta,
                 vec![],
                 vec!["'rf' 'content' '--matches' '<pattern>' '<path>' '--json'".into()],
@@ -536,7 +537,7 @@ pub fn run(
                 return (
                     envelope(
                         false,
-                        vec![],
+                        Value::Null,
                         meta,
                         vec![],
                         vec![],
@@ -713,7 +714,14 @@ pub fn run(
                 }),
             );
             (
-                envelope(true, page.data, meta, warnings, commands, vec![]),
+                envelope(
+                    true,
+                    list(page.data, page.total),
+                    meta,
+                    warnings,
+                    commands,
+                    vec![],
+                ),
                 0,
             )
         }
@@ -756,7 +764,7 @@ pub fn run(
             (
                 envelope(
                     false,
-                    vec![],
+                    Value::Null,
                     failure_meta,
                     vec![],
                     restart,

@@ -44,7 +44,7 @@ fn target_failure(target: &str, root: Option<&str>, error: TargetError) -> (Valu
     (
         envelope(
             false,
-            vec![],
+            Value::Null,
             meta,
             vec![],
             vec![],
@@ -106,7 +106,7 @@ fn bad_root(target: &str, root: &str) -> (Value, i32) {
     (
         envelope(
             false,
-            vec![],
+            Value::Null,
             meta,
             vec![],
             vec![],
@@ -170,7 +170,7 @@ pub fn run(
         return (
             envelope(
                 false,
-                vec![],
+                Value::Null,
                 meta,
                 vec![],
                 vec![],
@@ -197,7 +197,7 @@ pub fn run(
             return (
                 envelope(
                     false,
-                    vec![],
+                    Value::Null,
                     meta,
                     vec![],
                     vec![],
@@ -302,14 +302,7 @@ pub fn run(
         );
     }
     (
-        envelope(
-            true,
-            vec![Value::from(row)],
-            meta,
-            warnings,
-            commands,
-            vec![],
-        ),
+        envelope(true, Value::from(row), meta, warnings, commands, vec![]),
         0,
     )
 }

@@ -21,11 +21,11 @@ pub fn build() -> Value {
             "envelope": 2, "capabilities": 2, "content": 2, "find": 2,
             "why": 2, "doctor": 2, "robot-docs": 2, "conformance": 2
         },
-        "release_scope": {"workflow_guides": ["robot-docs guide"], "workflow_guides_status": "released in contract version 2"},
+        "release_scope": {"workflow_guides": ["robot-docs guide"], "workflow_guides_status": "released in contract version 0.1"},
         "engine": "in-process (ignore + grep crates); no subprocess",
         "verbs": {
-            "robot-docs": {"summary": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
-            "robot-docs guide": {"summary": "emit agent workflow recipes", "aliases": [], "flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
+            "robot-docs": {"summary": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
+            "robot-docs guide": {"summary": "emit agent workflow recipes", "aliases": [], "flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
             "capabilities": {"summary": "emit this machine contract", "aliases": [], "flags": []},
             "content": {
                 "summary": "content search; attributes each match to the filter that would hide it",
@@ -36,7 +36,7 @@ pub fn build() -> Value {
                 ],
                 "flags": [
                     {"name": "--paths-stdin", "arity": 0, "type": "bool", "conflicts_with": "--paths-envelope", "input": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path"},
-                    {"name": "--paths-envelope", "arity": 0, "type": "bool", "conflicts_with": "--paths-stdin", "input": "stdin rf JSON envelope; each data[] row must contain file:string"},
+                    {"name": "--paths-envelope", "arity": 0, "type": "bool", "conflicts_with": "--paths-stdin", "input": "stdin rf JSON envelope; each data.items[] row must contain file:string"},
                     {"name": "--limit", "arity": 1, "type": "int", "default": 100, "range": "1..=1000"},
                     {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"},
                     {"name": "--fixed-strings", "arity": 0, "type": "bool"},
@@ -47,7 +47,7 @@ pub fn build() -> Value {
                     ,{"name": "--max-matches", "arity": 1, "type": "int", "default": 16, "range": "1..=1000", "effective_max": 16, "requires": "--matches"}
                 ],
                 "selected_input": {"validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths", "error_code": "INVALID_SELECTION", "classification": "selected files are classified by content layers; they are never marked recovered"},
-                "output_schema": {"data[]": {"file": "string", "selection": "selected when a selected-input mode is used", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "meta.selection": {"mode": "enum[root-walk,stdin-nul,rf-envelope]", "selected_files": "int when selected input is used"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}}
+                "output_schema": {"data.items[]": {"file": "string", "selection": "selected when a selected-input mode is used", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "meta.selection": {"mode": "enum[root-walk,stdin-nul,rf-envelope]", "selected_files": "int when selected input is used"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}}
             },
             "find": {
                 "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
@@ -69,14 +69,14 @@ pub fn build() -> Value {
                     ,{"name": "--matches", "arity": 0, "type": "bool", "output": "opt-in occurrence evidence"}
                     ,{"name": "--max-matches", "arity": 1, "type": "int", "default": 16, "range": "1..=1000", "effective_max": 16, "requires": "--matches"}
                 ],
-                "output_schema": {"data[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null", "matches": "opt-in occurrence[] or null for history-only/structural-only", "matches_unavailable_reason":"history-only|structural-only when matches is null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}, "meta.sources": {"history": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]"}, "structural": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]"}}}
+                "output_schema": {"data.items[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null", "matches": "opt-in occurrence[] or null for history-only/structural-only", "matches_unavailable_reason":"history-only|structural-only when matches is null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}, "meta.sources": {"history": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]"}, "structural": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]"}}}
             },
             "doctor": {
                 "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
                 "aliases": [],
                 "args": [{"name": "path", "arity": 1, "type": "path", "default": "."}],
                 "flags": [],
-                "output_schema": {"data[0]": {"external_tools": {"git":"{status,path,version,probe_error}", "ast-grep":"{status,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
+                "output_schema": {"data": {"external_tools": {"git":"{status,path,version,probe_error}", "ast-grep":"{status,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
             },
             "why": {
                 "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
@@ -95,7 +95,7 @@ pub fn build() -> Value {
                     ,{"name": "--max-matches", "arity": 1, "type": "int", "default": 16, "range": "1..=1000", "effective_max": 16, "requires": "--matches"}
                 ],
                 "output_schema": {
-                    "data[]": {"file": "root-relative target path", "pattern": "string", "matched": "bool", "hidden_from_default": "bool", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}", "hiding_filter": "{code,layer,rg_flags}|absent", "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore"},
+                    "data": {"file": "root-relative target path", "pattern": "string", "matched": "bool", "hidden_from_default": "bool", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}", "hiding_filter": "{code,layer,rg_flags}|absent", "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore"},
                     "meta": {"file": "root-relative target path", "root": "path relative to process working directory", "query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "git_repo": "bool", "ignore_mode": "string", "matched": "bool", "surfaced_by": "string|null"},
                     "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches"
                 }
@@ -110,7 +110,7 @@ pub fn build() -> Value {
                     "S-02": "release-build-fault-trigger-unavailable",
                     "X-02": "release-build-fault-trigger-unavailable"
                 },
-                "output_schema": {"data[0]": {"profile": "string", "counts": {"pass": "int", "fail": "int", "not_applicable": "int"}, "cases": "array[{case_id,verdict,reason,request_id,target}]"}}
+                "output_schema": {"data": {"profile": "string", "counts": {"pass": "int", "fail": "int", "not_applicable": "int"}, "cases": "array[{case_id,verdict,reason,request_id,target}]"}}
             }
         },
         "global_flags": [
@@ -175,26 +175,31 @@ pub fn build() -> Value {
             "external_tool_probe": {"timeout_ms": 2000, "captured_output_bytes": 8192, "probe_error_bytes": 512},
             "structural_search": {"timeout_ms": 5000, "captured_output_bytes": 65536}
         }));
+        object.insert("envelope_meta".into(), json!({
+            "ts_iso": {"format": "RFC 3339 UTC with Z", "precision": "seconds"},
+            "data_hash": {"algorithm": "sha256", "format": "sha256:<64 hex>", "covers": "data", "canonicalization": "compact JSON, keys sorted, separators (',', ':')"},
+            "request_id": {"format": "req_<16 hex>", "unique_per_invocation": true}
+        }));
         object.insert("warning_details".into(), json!({
-            "IGNORE_VCS": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"a VCS-ignore rule hides a match"},
-            "HIDDEN_SKIPPED": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"a hidden path hides a match"},
-            "BINARY_SKIPPED": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"binary detection hides a match"},
-            "CASE_SENSITIVE": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"case-insensitive search recovers a match"},
-            "ENCODING_MISS": {"sites":["content","why"],"detail_shape":"paths[]","precondition":"UTF-16 decoding recovers a match"},
-            "FD_NAME": {"sites":["find"],"detail_shape":"paths[]","precondition":"name filter excludes a content match"},
-            "FD_HIDDEN": {"sites":["find"],"detail_shape":"paths[]","precondition":"hidden path excludes a content match"},
-            "FD_IGNORE": {"sites":["find"],"detail_shape":"paths[]","precondition":"ignore rule excludes a content match"},
-            "RG_BINARY": {"sites":["find"],"detail_shape":"paths[]","precondition":"binary detection excludes a content match"},
-            "GIT_DELETED": {"sites":["find"],"detail_shape":"paths[]","precondition":"history-only match"},
-            "GIT_ABSENT": {"sites":["find"],"detail_shape":"paths[]","precondition":"Git is unavailable"},
-            "GIT_NOT_WORK_TREE": {"sites":["find"],"detail_shape":"paths[]","precondition":"root is not a Git work tree"},
-            "GIT_HISTORY_PARTIAL": {"sites":["find"],"detail_shape":"none","precondition":"history scan budget expires"},
-            "AST_STRUCTURAL": {"sites":["find"],"detail_shape":"paths[]","precondition":"structural-only match"},
-            "STRUCTURAL_UNAVAILABLE": {"sites":["find"],"detail_shape":"none","precondition":"ast-grep is unavailable"},
-            "IGNORE_MODE": {"sites":["doctor"],"detail_shape":"none","precondition":"ignore mode diagnostic"},
-            "IGNORE_SOURCE_UNRESOLVED": {"sites":["why"],"detail_shape":"paths[]","precondition":"ignore source cannot be reconstructed"},
-            "EXTERNAL_TOOL_MISSING": {"sites":["doctor","find"],"detail_shape":"none","precondition":"an optional external tool cannot run"},
-            "GIT_SCRUB_WORD_UNAVAILABLE": {"sites":["find"],"detail_shape":"paths[]","precondition":"whole-word mode omits Git pickaxe evidence"}
+            "IGNORE_VCS": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"a VCS-ignore rule hides a match"},
+            "HIDDEN_SKIPPED": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"a hidden path hides a match"},
+            "BINARY_SKIPPED": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"binary detection hides a match"},
+            "CASE_SENSITIVE": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"case-insensitive search recovers a match"},
+            "ENCODING_MISS": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"UTF-16 decoding recovers a match"},
+            "FD_NAME": {"sites":["find"],"detail_shape":"details.files[]","precondition":"name filter excludes a content match"},
+            "FD_HIDDEN": {"sites":["find"],"detail_shape":"details.files[]","precondition":"hidden path excludes a content match"},
+            "FD_IGNORE": {"sites":["find"],"detail_shape":"details.files[]","precondition":"ignore rule excludes a content match"},
+            "RG_BINARY": {"sites":["find"],"detail_shape":"details.files[]","precondition":"binary detection excludes a content match"},
+            "GIT_DELETED": {"sites":["find"],"detail_shape":"details.files[]","precondition":"history-only match"},
+            "GIT_ABSENT": {"sites":["find"],"detail_shape":"details.files[]","precondition":"Git is unavailable"},
+            "GIT_NOT_WORK_TREE": {"sites":["find"],"detail_shape":"details.files[]","precondition":"root is not a Git work tree"},
+            "GIT_HISTORY_PARTIAL": {"sites":["find"],"detail_shape":"details:null","precondition":"history scan budget expires"},
+            "AST_STRUCTURAL": {"sites":["find"],"detail_shape":"details.files[]","precondition":"structural-only match"},
+            "STRUCTURAL_UNAVAILABLE": {"sites":["find"],"detail_shape":"details:null","precondition":"ast-grep is unavailable"},
+            "IGNORE_MODE": {"sites":["doctor"],"detail_shape":"details:null","precondition":"ignore mode diagnostic"},
+            "IGNORE_SOURCE_UNRESOLVED": {"sites":["why"],"detail_shape":"details.files[]","precondition":"ignore source cannot be reconstructed"},
+            "EXTERNAL_TOOL_MISSING": {"sites":["doctor","find"],"detail_shape":"details:null","precondition":"an optional external tool cannot run"},
+            "GIT_SCRUB_WORD_UNAVAILABLE": {"sites":["find"],"detail_shape":"details.files[]","precondition":"whole-word mode omits Git pickaxe evidence"}
         }));
     }
     // The release contract lists only the two stable vars above; a fault-injection
@@ -215,8 +220,5 @@ pub fn build() -> Value {
 pub fn run() -> (Value, i32) {
     let mut meta = Map::new();
     meta.insert("verb".into(), Value::from("capabilities"));
-    (
-        envelope(true, vec![build()], meta, vec![], vec![], vec![]),
-        0,
-    )
+    (envelope(true, build(), meta, vec![], vec![], vec![]), 0)
 }

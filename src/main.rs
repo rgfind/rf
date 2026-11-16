@@ -90,7 +90,7 @@ enum Verb {
         /// Read a NUL-delimited selected file list from stdin.
         #[arg(long, conflicts_with = "paths_envelope")]
         paths_stdin: bool,
-        /// Read selected files from the data[].file fields of an rf JSON envelope on stdin.
+        /// Read selected files from the data.items[].file fields of an rf JSON envelope on stdin.
         #[arg(long, conflicts_with = "paths_stdin")]
         paths_envelope: bool,
         #[arg(long, default_value_t = pagination::DEFAULT_LIMIT, value_parser = pagination::limit)]
@@ -307,7 +307,7 @@ fn render_human(env: &Value) -> String {
                 meta["default_matched_files"],
                 meta["hidden_by_filters"]
             ));
-            for d in env["data"].as_array().unwrap_or(&vec![]) {
+            for d in env["data"]["items"].as_array().unwrap_or(&vec![]) {
                 out.push(format!(
                     "  {:<12} {}",
                     d["surfaced_by"].as_str().unwrap_or(""),
@@ -324,7 +324,7 @@ fn render_human(env: &Value) -> String {
                 meta["content_total"],
                 meta["history_matches"]
             ));
-            for d in env["data"].as_array().unwrap_or(&vec![]) {
+            for d in env["data"]["items"].as_array().unwrap_or(&vec![]) {
                 out.push(format!(
                     "  {:<14} {}",
                     d["stage"].as_str().unwrap_or(""),
@@ -333,7 +333,7 @@ fn render_human(env: &Value) -> String {
             }
         }
         "doctor" => {
-            let d = &env["data"][0];
+            let d = &env["data"];
             out.push(format!("rf: {}", d["rf_version"].as_str().unwrap_or("")));
             out.push(format!("engine: {}", d["engine"].as_str().unwrap_or("")));
             out.push(format!(
@@ -342,7 +342,7 @@ fn render_human(env: &Value) -> String {
             ));
         }
         "why" => {
-            let d = &env["data"][0];
+            let d = &env["data"];
             let pattern = d["pattern"].as_str().unwrap_or("");
             let file = d["file"].as_str().unwrap_or("");
             if d["matched"].as_bool().unwrap_or(false) {
@@ -380,7 +380,7 @@ fn render_human(env: &Value) -> String {
             }
         }
         "conformance" => {
-            let d = &env["data"][0];
+            let d = &env["data"];
             out.push(format!(
                 "conformance [{}]: {}",
                 d["profile"].as_str().unwrap_or(""),
@@ -405,7 +405,7 @@ fn render_human(env: &Value) -> String {
         out.push(format!(
             "  ! {}: {}",
             w["code"].as_str().unwrap_or(""),
-            w["msg"].as_str().unwrap_or("")
+            w["message"].as_str().unwrap_or("")
         ));
     }
     for c in env["commands"].as_array().unwrap_or(&vec![]) {
@@ -491,10 +491,17 @@ fn main() {
                     .unwrap()
                     .insert("did_you_mean".into(), Value::from(suggestion.clone()));
                 let command = crate::command::shell("rf", &[suggestion]);
-                let env = envelope(false, vec![], meta, vec![], vec![command], vec![problem]);
+                let env = envelope(
+                    false,
+                    Value::Null,
+                    meta,
+                    vec![],
+                    vec![command],
+                    vec![problem],
+                );
                 emit(env, 1, json, started);
             }
-            let env = envelope(false, vec![], meta, vec![], vec![], vec![problem]);
+            let env = envelope(false, Value::Null, meta, vec![], vec![], vec![problem]);
             emit(env, 1, json, started);
         }
     };
@@ -508,7 +515,7 @@ fn main() {
             meta.insert("verb".into(), Value::Null);
             let env = envelope(
                 false,
-                vec![],
+                Value::Null,
                 meta,
                 vec![],
                 vec![],

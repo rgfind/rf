@@ -13,7 +13,7 @@
 //! totality holds.
 
 use crate::engine::{content_matches, name_matches, rel, SearchCfg};
-use crate::envelope::{envelope, err, warn};
+use crate::envelope::{envelope, err, list, warn};
 use crate::query::QueryMode;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -372,7 +372,7 @@ pub fn run(
         return (
             envelope(
                 false,
-                vec![],
+                Value::Null,
                 meta,
                 vec![],
                 vec![],
@@ -388,7 +388,7 @@ pub fn run(
         return (
             envelope(
                 false,
-                vec![],
+                Value::Null,
                 meta,
                 vec![],
                 vec![],
@@ -424,7 +424,7 @@ pub fn run(
             return (
                 envelope(
                     false,
-                    vec![],
+                    Value::Null,
                     meta,
                     vec![],
                     vec![],
@@ -442,7 +442,7 @@ pub fn run(
             return (
                 envelope(
                     false,
-                    vec![],
+                    Value::Null,
                     meta,
                     vec![],
                     vec![],
@@ -472,7 +472,7 @@ pub fn run(
         return (
             envelope(
                 false,
-                vec![],
+                Value::Null,
                 meta,
                 vec![],
                 vec![history_probe_command(root)],
@@ -909,7 +909,14 @@ pub fn run(
                 }),
             );
             (
-                envelope(true, page.data, meta, warnings, commands, vec![]),
+                envelope(
+                    true,
+                    list(page.data, page.total),
+                    meta,
+                    warnings,
+                    commands,
+                    vec![],
+                ),
                 0,
             )
         }
@@ -961,7 +968,7 @@ pub fn run(
             (
                 envelope(
                     false,
-                    vec![],
+                    Value::Null,
                     failure_meta,
                     vec![],
                     restart,

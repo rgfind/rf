@@ -1,14 +1,16 @@
 //! The universal machine-first envelope: the fixed 7-key contract every verb emits.
 //!
 //! Every verb emits the same seven keys: ok, tool_version, data, meta,
-//! warnings, commands, errors. `meta` is content-addressed and honors
-//! SOURCE_DATE_EPOCH, so a given input yields byte-identical output.
+//! warnings, commands, errors. `data` is an object or null, never a bare
+//! array. `meta.ts_iso` honors SOURCE_DATE_EPOCH; `meta.request_id` is unique
+//! per invocation and `meta.data_hash` covers `data` only.
 
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const CONTRACT_VERSION: &str = "2";
+pub const CONTRACT_VERSION: &str = "0.1";
 pub const TOOL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn sha_hex(input: &str) -> String {
@@ -78,35 +80,65 @@ fn now_iso() -> String {
     )
 }
 
-/// Build the full envelope value. `meta_extra` carries verb-specific fields
-/// (verb, headline, counts) merged over the base content-addressed meta.
+/// A list payload: rows in `items`, the count of all matches in `total`.
+/// `total` can exceed `items.len()` when a page bound clipped the rows.
+pub fn list(items: Vec<Value>, total: usize) -> Value {
+    let mut m = Map::new();
+    m.insert("items".into(), Value::from(items));
+    m.insert("total".into(), Value::from(total));
+    Value::from(m)
+}
+
+/// `sha256:<64 hex>` over the compact, key-sorted JSON of `data`. serde_json
+/// backs objects with a BTreeMap (no preserve_order feature), so its compact
+/// form is already the canonical one that `capabilities` declares.
+pub fn data_hash(data: &Value) -> String {
+    format!("sha256:{}", hash_value(data))
+}
+
+/// An id that joins one invocation to its logs. Two calls never share one,
+/// even with the same argv, so it mixes the process id, the clock and a
+/// per-process counter. It is not derived from argv or data.
+fn request_id() -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let seed = format!(
+        "{}:{nanos}:{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+    format!("req_{}", &sha_hex(&seed)[..16])
+}
+
+/// Build the full envelope value. `data` is the verb payload: an object, or
+/// `Value::Null` when the request produced no result. A failed request may
+/// still carry a payload (a report with failing parts), so `ok` does not
+/// decide whether `data` is kept. `meta_extra` carries verb-specific fields
+/// (verb, headline, counts) merged over the base meta.
 pub fn envelope(
     ok: bool,
-    data: Vec<Value>,
+    data: Value,
     meta_extra: Map<String, Value>,
     warnings: Vec<Value>,
     commands: Vec<String>,
     errors: Vec<Value>,
 ) -> Value {
-    let argv: Vec<String> = std::env::args().collect();
-    let body = canonical(&data);
-    let body_repr = format!("{body:?}");
-
-    let mut meta = Map::new();
-    meta.insert(
-        "request_id".into(),
-        Value::from(sha_hex(&format!("{} {}", argv.join(" "), body_repr))[..16].to_string()),
+    debug_assert!(
+        data.is_object() || data.is_null(),
+        "envelope data must be an object or null"
     );
+    let mut meta = Map::new();
+    meta.insert("request_id".into(), Value::from(request_id()));
     meta.insert("ts_iso".into(), Value::from(now_iso()));
     meta.insert("contract_version".into(), Value::from(CONTRACT_VERSION));
     // This is finalized by the top-level emitter, which owns the wall-clock
     // measurement. Keeping the key here means every envelope has the same
     // meta floor, including errors made below the dispatcher.
     meta.insert("elapsed_ms".into(), Value::from(0));
-    meta.insert(
-        "data_hash".into(),
-        Value::from(hash_data(&data)[..12].to_string()),
-    );
+    meta.insert("data_hash".into(), Value::from(data_hash(&data)));
     for (k, v) in meta_extra {
         meta.insert(k, v);
     }
@@ -114,12 +146,7 @@ pub fn envelope(
     let mut root = Map::new();
     root.insert("ok".into(), Value::from(ok));
     root.insert("tool_version".into(), Value::from(TOOL_VERSION));
-    // An empty array means a successful query found nothing. A failed request
-    // did not produce a result, so it is deliberately distinguishable as null.
-    root.insert(
-        "data".into(),
-        if ok { Value::from(data) } else { Value::Null },
-    );
+    root.insert("data".into(), data);
     root.insert("meta".into(), Value::from(meta));
     root.insert("warnings".into(), Value::from(warnings));
     root.insert(
@@ -130,18 +157,21 @@ pub fn envelope(
     Value::from(root)
 }
 
-/// A single common error object. `emit` fills `exit_code`, because it is the
+/// A single common error object with the fixed eight keys. A key that does not
+/// apply is null, never absent. `emit` fills `exit_code`, because it is the
 /// top-level owner of the process status.
 pub fn err(code: &str, message: impl Into<String>) -> Value {
     let mut m = Map::new();
     m.insert("code".into(), Value::from(code));
     m.insert("message".into(), Value::from(message.into()));
+    m.insert("arg".into(), Value::Null);
     m.insert("path".into(), Value::Null);
     m.insert(
         "remediation".into(),
         Value::from("Run `rf --help` for command syntax."),
     );
     m.insert("did_you_mean".into(), Value::Null);
+    m.insert("details".into(), Value::Null);
     m.insert("exit_code".into(), Value::Null);
     Value::from(m)
 }
@@ -162,14 +192,20 @@ pub fn err_with(
     value
 }
 
-/// A single warning entry {code, msg, files}.
-pub fn warn(code: &str, msg: impl Into<String>, files: Vec<String>) -> Value {
+/// A single warning entry with the fixed three keys {code, message, details}.
+/// The affected files go in `details.files`; `details` is null when there are
+/// none.
+pub fn warn(code: &str, message: impl Into<String>, files: Vec<String>) -> Value {
     let mut m = Map::new();
     m.insert("code".into(), Value::from(code));
-    m.insert("msg".into(), Value::from(msg.into()));
+    m.insert("message".into(), Value::from(message.into()));
     m.insert(
-        "files".into(),
-        Value::from(files.into_iter().map(Value::from).collect::<Vec<_>>()),
+        "details".into(),
+        if files.is_empty() {
+            Value::Null
+        } else {
+            serde_json::json!({ "files": files })
+        },
     );
     Value::from(m)
 }

@@ -53,7 +53,8 @@ pub fn page(
     let start = match cursor {
         None => 0,
         Some(cursor) => {
-            let fields: Vec<&str> = cursor.split('.').collect();
+            let mut fields: Vec<&str> = cursor.rsplitn(4, '.').collect();
+            fields.reverse();
             let expected_version = format!("v{CONTRACT_VERSION}");
             if fields.len() != 4
                 || fields[0] != expected_version
@@ -100,7 +101,8 @@ pub fn page_evidence(
     let start = match cursor {
         None => 0,
         Some(cursor) => {
-            let fields: Vec<&str> = cursor.split('.').collect();
+            let mut fields: Vec<&str> = cursor.rsplitn(4, '.').collect();
+            fields.reverse();
             let expected_version = format!("v{CONTRACT_VERSION}");
             if fields.len() != 4
                 || fields[0] != expected_version

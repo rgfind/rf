@@ -136,7 +136,7 @@ pub fn run(path: &str) -> (Value, i32) {
         vec!["rf content '<pattern>' <path> --json".into()]
     };
     (
-        envelope(true, vec![Value::from(d)], meta, warnings, commands, vec![]),
+        envelope(true, Value::from(d), meta, warnings, commands, vec![]),
         0,
     )
 }
