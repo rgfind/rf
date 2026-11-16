@@ -1339,48 +1339,20 @@ fn conformance() {
             .starts_with("PARTIAL"),
         format!("{}", e["meta"]["headline"]),
     );
-    let (find_page_code, find_page, _) = rf(
-        &[
-            "find",
-            TOKEN,
-            ".",
-            "--name",
-            "config",
-            "--structural",
-            "db.connect($$$)",
-            "--lang",
-            "python",
-            "--limit",
-            "2",
-            "--json",
-        ],
-        fd,
-        &[],
-    );
+    // The paging calls take the same source set as the call above, so they
+    // also run where ast-grep is absent.
+    let mut page_args = find_args.clone();
+    page_args.pop();
+    page_args.extend(["--limit", "2", "--json"]);
+    let (find_page_code, find_page, _) = rf(&page_args, fd, &[]);
     let find_cursor = find_page["meta"]["pagination"]["cursor"]
         .as_str()
         .unwrap_or("")
         .to_string();
-    let (find_next_code, find_next, _) = rf(
-        &[
-            "find",
-            TOKEN,
-            ".",
-            "--name",
-            "config",
-            "--structural",
-            "db.connect($$$)",
-            "--lang",
-            "python",
-            "--limit",
-            "2",
-            "--cursor",
-            &find_cursor,
-            "--json",
-        ],
-        fd,
-        &[],
-    );
+    let mut next_args = find_args.clone();
+    next_args.pop();
+    next_args.extend(["--limit", "2", "--cursor", &find_cursor, "--json"]);
+    let (find_next_code, find_next, _) = rf(&next_args, fd, &[]);
     let first_files: BTreeSet<String> = find_page["data"]["items"]
         .as_array()
         .into_iter()
@@ -1395,7 +1367,11 @@ fn conformance() {
         .collect();
     check(
         "find paging: page continuation has no duplicate rows",
-        find_page_code == 0 && find_next_code == 0 && first_files.is_disjoint(&next_files),
+        find_page_code == 0
+            && find_next_code == 0
+            && !first_files.is_empty()
+            && !next_files.is_empty()
+            && first_files.is_disjoint(&next_files),
         format!("first={first_files:?}, next={next_files:?}"),
     );
     check(
