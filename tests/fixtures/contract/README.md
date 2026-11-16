@@ -1,48 +1,50 @@
-# Release-candidate contract fixture
+# Contract fixture
 
-`capabilities.rc.json` is the byte-for-byte output of `rf capabilities --json`
-from the packaged-and-installed release candidate. It is captured, never
-hand-edited. It is the source of truth the crate docs (README, CHANGELOG) are
-reconciled against — distinct from the site's published-artifact fixture.
+`capabilities.rc.json` is the output of `rf capabilities --json` from a fresh
+build of the source tree. `plumb capture` writes it. Do not edit it by hand.
+The crate documents (README, CHANGELOG) and the claims in `plumbline.json` are
+checked against it. The site has its own fixture, made from the published
+crate.
 
-## Capture procedure (shared packaged-artifact procedure)
+## Capture procedure
 
-1. Commit the version bump so the worktree is clean (packaging forbids a
-   dirty-worktree override).
-2. `cargo package --package rf` — build the archive for the crate member.
-3. Extract the archive and install from the extracted manifest into a temporary
-   cargo root: `cargo install --path <extracted>/rf-0.0.5 --root <tmproot> --locked`.
-4. Run `<tmproot>/bin/rf capabilities --json` and `<tmproot>/bin/rf conformance`
-   from the installed binary — never a source-tree `cargo run`.
+1. `plumb capture --yes`. It builds `rf` (`cargo build --quiet --bin rf`),
+   runs `rf capabilities --json` with `SOURCE_DATE_EPOCH=0`, and writes this
+   fixture. It also refreshes the generated blocks in `README.md`.
+2. `plumb check`. It stops if a claim in `plumbline.json` does not agree with
+   the fixture. `plumb capture` does not change the claims; change them by
+   hand.
 
-## Pinned release candidate
+`plumb preflight` has the gate `fixture-fresh`. It makes a fresh capture and
+compares it with the committed fixture. The comparison is on the contract
+content, not byte for byte (see `RELEASING.md`, gate 2).
 
-- Next package version: `rf 0.0.5` (contract version 2)
-- Source commit: `aa6b9b74c14b014eab5b970626878013f6dc3f07` (cargo `.cargo_vcs_info.json`)
-- Capture content hash (sha256): `261dbd7d9ee8eff28c6224244c8f537b69c58bdc7a5a0be0bc3d1afc8b45c919`
-- Package archive (sha256): `f2c30df87354800512f2d4990c47eb0f69a559ef89ba4f4ba0013a80eefb89c8`
-  (`target/package/rf-0.0.5.crate`, 20 files) — the verification package built at
-  source commit `aa6b9b7`.
-- Installed binary: `<tmproot>/bin/rf`, installed from the extracted `rf-0.0.5`
-  package manifest (not the working tree)
-- Conformance at capture: profile `release-self-check`, 28 pass / 5 not-applicable
-  / 0 fail (green)
+## Current capture
 
-Committing this re-capture moves HEAD past `aa6b9b7`, so `cargo publish`
-re-packages at the final release commit. Every *included* file is byte-identical
-to the verification package (this fixture and its README are excluded from the
-archive); only the auto-generated `.cargo_vcs_info.json` records a different
-commit sha, so the uploaded archive's hash differs from the one above by that one
-field. Re-run the packaged-artifact procedure at the exact publish commit if a
-matching archive hash is required.
+- Package version: `rf 0.1.0` (contract version `0.1`).
+- Captured at source commit `9692a39` with plumbline 0.0.4. The release
+  commit `ec79e2a` changed only the release workflow file.
+- Fixture file (sha256):
+  `e5549de41ca3b7d5031787613a2521204a4ee498564642b1d1375b1433d67156`.
+- `fixture-fresh` passed in the release run for the release commit:
+  <https://github.com/rgfind/rf/actions/runs/43963625334>.
+- Conformance of the release binary in that run: profile
+  `release-self-check`, 262 pass, 28 not applicable, 0 fail.
+- Published archive checksum (crates.io index):
+  `04e465e1b639d580e53156ada63a69837e636738271739033912f7c6642e2862`.
 
 ## Validity
 
 Prose edits (README, CHANGELOG) keep this fixture valid, because they do not
-change what the binary emits. A code or contract change after this capture
-invalidates the fixture and forces a re-capture and re-verify before publish.
+change the output of the binary. A code or contract change makes the fixture
+stale. Then capture and check again before a release.
 
-## Re-capture history
+## History
+
+The entries below are for rf 0.0.5. At that time the fixture was captured
+from a packaged and installed release candidate (`cargo package`, then
+`cargo install --path <extracted>/rf-0.0.5`). That procedure is not in use
+now.
 
 - Captured at `aa10addf` (rf-guy.9) — first RC capture.
 - Re-captured at `aa6b9b7` (rf-guy.12, final pre-publish) — re-anchored provenance
@@ -56,6 +58,3 @@ invalidates the fixture and forces a re-capture and re-verify before publish.
   `elapsed_ms`) is byte-identical to the prior fixture. Conformance green
   (28/0/5). None of these changes touch the compiled binary's contract; the
   re-capture re-anchors source commit, capture hash, and archive hash only.
-
-This fixture is current for the staged publish commit. Any further code or
-contract change forces another re-capture and re-verify before publish.
