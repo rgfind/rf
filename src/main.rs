@@ -15,6 +15,7 @@ mod envelope;
 mod external_tools;
 mod fault;
 mod find;
+mod flags;
 mod guide;
 mod manifest;
 mod pagination;
@@ -167,7 +168,7 @@ enum Verb {
     /// Show help for rf or for one verb.
     Help {
         /// Verb path, for example `content` or `robot-docs guide`.
-        path: Vec<String>,
+        verb_path: Vec<String>,
     },
 }
 
@@ -250,39 +251,6 @@ fn undecodable(args: &[OsString]) -> Option<Value> {
     None
 }
 
-/// Make the help spellings one surface: `-h` becomes `--help`, and
-/// `help <path>` becomes `<path> --help`. Tokens after `--` are data.
-fn normalize(args: Vec<OsString>) -> Vec<OsString> {
-    let split = args
-        .iter()
-        .position(|a| a.as_os_str() == OsStr::new("--"))
-        .unwrap_or(args.len());
-    let (head, tail) = args.split_at(split);
-    let mut out: Vec<OsString> = Vec::new();
-    let mut seen_command = false;
-    let mut help_verb = false;
-    for token in head {
-        let bytes = token.as_encoded_bytes();
-        if bytes == b"-h" {
-            out.push("--help".into());
-        } else if !seen_command && !bytes.starts_with(b"-") {
-            seen_command = true;
-            if bytes == b"help" {
-                help_verb = true;
-            } else {
-                out.push(token.clone());
-            }
-        } else {
-            out.push(token.clone());
-        }
-    }
-    if help_verb && !out.iter().any(|a| a.as_os_str() == OsStr::new("--help")) {
-        out.push("--help".into());
-    }
-    out.extend(tail.iter().cloned());
-    out
-}
-
 fn is_bare(args: &[OsString]) -> bool {
     args.iter().all(|a| {
         let bytes = a.as_encoded_bytes();
@@ -290,11 +258,33 @@ fn is_bare(args: &[OsString]) -> bool {
     })
 }
 
-fn usage_text() -> String {
-    match <Cli as clap::CommandFactory>::command().try_get_matches_from(["rf", "--help"]) {
+/// The help text of one node of the verb path. The root is the empty path.
+fn help_text(path: &[String]) -> String {
+    let argv = std::iter::once("rf")
+        .chain(path.iter().map(String::as_str))
+        .chain(std::iter::once("--help"));
+    match <Cli as clap::CommandFactory>::command().try_get_matches_from(argv) {
         Err(e) => e.render().to_string(),
         Ok(_) => String::new(),
     }
+}
+
+fn usage_text() -> String {
+    help_text(&[])
+}
+
+fn internal(message: &str, json: bool, started: Instant) -> ! {
+    let mut meta = Map::new();
+    meta.insert("verb".into(), Value::Null);
+    let env = envelope(
+        false,
+        Value::Null,
+        meta,
+        vec![],
+        vec![],
+        vec![err("INTERNAL", message)],
+    );
+    emit(env, 6, json, started)
 }
 
 /// Write to stdout and stderr with checked writes, then exit. A closed stdout
@@ -427,7 +417,7 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             *max_matches,
         ),
         Verb::Conformance { .. } => conformance::run(),
-        Verb::Help { .. } => unreachable!("help is rewritten to --help before the parser"),
+        Verb::Help { .. } => unreachable!("the validator answers help before the parser"),
     }
 }
 
@@ -554,6 +544,18 @@ fn render_human(env: &Value) -> String {
     out.join("\n")
 }
 
+/// The did-you-mean lines for stderr. Empty when the hint is null.
+fn hint_lines(env: &Value) -> String {
+    let Some(hint) = env["errors"][0]["did_you_mean"].as_str() else {
+        return String::new();
+    };
+    let mut out = format!("  did you mean: {hint}\n");
+    if let Some(command) = env["commands"][0].as_str() {
+        out.push_str(&format!("  corrected:    {command}\n"));
+    }
+    out
+}
+
 fn emit(mut env: Value, code: i32, json: bool, started: Instant) -> ! {
     if let Some(meta) = env.get_mut("meta").and_then(Value::as_object_mut) {
         // A fixed source epoch is the explicit reproducible-output mode. It
@@ -582,6 +584,7 @@ fn emit(mut env: Value, code: i32, json: bool, started: Instant) -> ! {
         if let Some(message) = env["errors"][0]["message"].as_str() {
             stderr.push_str(&format!("error: {message}\n"));
         }
+        stderr.push_str(&hint_lines(&env));
     } else {
         // A refusal with no payload is stderr text only in human rendering.
         if !env["data"].is_null() || env["ok"].as_bool().unwrap_or(false) {
@@ -595,6 +598,7 @@ fn emit(mut env: Value, code: i32, json: bool, started: Instant) -> ! {
                 e["message"].as_str().unwrap_or("")
             ));
         }
+        stderr.push_str(&hint_lines(&env));
     }
     finish(&stdout, &stderr, code)
 }
@@ -630,89 +634,50 @@ fn main() {
             started,
         );
     }
-    let args = normalize(raw);
-    let had_dashes = args.iter().any(|a| a.as_os_str() == OsStr::new("--"));
-    // Parse. Help and version are successful surfaces; every other parser
-    // refusal becomes a user-input error (1) with an envelope.
-    let cli = match Cli::try_parse_from(std::iter::once(OsString::from("rf")).chain(args)) {
-        Ok(c) => c,
-        Err(e) => {
-            use clap::error::ErrorKind;
-            match e.kind() {
-                ErrorKind::DisplayHelp => {
-                    let usage = e.render().to_string();
-                    surface(
-                        &usage,
-                        json!({"usage": usage, "capabilities_command": "rf capabilities --json"}),
-                        json,
-                        started,
-                    );
-                }
-                ErrorKind::DisplayVersion => surface(
-                    TOOL_VERSION,
-                    json!({"contract_version": CONTRACT_VERSION, "build": null}),
-                    json,
-                    started,
-                ),
-                _ => {}
-            }
+    let tokens: Vec<String> = raw
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    // The validator checks argv in the fixed diagnosis order. Clap then only
+    // builds the typed struct from argv that is already valid.
+    let argv = match flags::validate(&tokens) {
+        flags::Outcome::Run(argv) => argv,
+        flags::Outcome::Help(path) => {
+            let usage = help_text(&path);
+            surface(
+                &usage,
+                json!({"usage": usage, "capabilities_command": "rf capabilities --json"}),
+                json,
+                started,
+            );
+        }
+        flags::Outcome::Version => surface(
+            TOOL_VERSION,
+            json!({"contract_version": CONTRACT_VERSION, "build": null}),
+            json,
+            started,
+        ),
+        flags::Outcome::Refuse { error, command } => {
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::Null);
-            let code = match e.kind() {
-                ErrorKind::UnknownArgument => "UNKNOWN_FLAG",
-                ErrorKind::InvalidSubcommand => "UNKNOWN_COMMAND",
-                ErrorKind::InvalidValue | ErrorKind::ValueValidation => "INVALID_INPUT",
-                ErrorKind::MissingRequiredArgument => "MISSING_ARGUMENT",
-                _ => "USAGE",
-            };
-            let rendered = e.to_string();
-            let token = rendered
-                .split('`')
-                .nth(1)
-                .or_else(|| rendered.split('\'').nth(1));
-            let suggestion = if had_dashes {
-                None
-            } else {
-                token.and_then(manifest::correction)
-            };
-            let mut problem = err(code, "invalid arguments; see --help");
-            if let Some(suggestion) = suggestion {
-                problem
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("did_you_mean".into(), Value::from(suggestion.clone()));
-                let command = crate::command::shell("rf", &[suggestion]);
-                let env = envelope(
-                    false,
-                    Value::Null,
-                    meta,
-                    vec![],
-                    vec![command],
-                    vec![problem],
-                );
-                emit(env, 1, json, started);
-            }
-            let env = envelope(false, Value::Null, meta, vec![], vec![], vec![problem]);
+            let commands = command.into_iter().collect();
+            let env = envelope(false, Value::Null, meta, vec![], commands, vec![error]);
             emit(env, 1, json, started);
         }
+    };
+    let cli = match Cli::try_parse_from(std::iter::once("rf".to_string()).chain(argv)) {
+        Ok(c) => c,
+        Err(_) => internal(
+            "the parser refused argv that the validator accepted",
+            json,
+            started,
+        ),
     };
 
     // Totality: no backend panic reaches the user as an unmediated crash.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| dispatch(&cli.verb)));
     match result {
         Ok((env, code)) => emit(env, code, json, started),
-        Err(_) => {
-            let mut meta = Map::new();
-            meta.insert("verb".into(), Value::Null);
-            let env = envelope(
-                false,
-                Value::Null,
-                meta,
-                vec![],
-                vec![],
-                vec![err("INTERNAL", "internal error (panic caught)")],
-            );
-            emit(env, 6, json, started);
-        }
+        Err(_) => internal("internal error (panic caught)", json, started),
     }
 }

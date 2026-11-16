@@ -351,7 +351,8 @@ fn match_evidence_flags_are_uniform_and_preserve_default_rows() {
     ] {
         let (code, response, _) = rf(&args, cwd, &[]);
         assert_eq!(code, 1);
-        assert_eq!(response["errors"][0]["code"], "INVALID_INPUT");
+        assert_eq!(response["errors"][0]["code"], "MISSING_REQUIRED");
+        assert_eq!(response["errors"][0]["arg"], "--max-matches");
     }
 }
 
@@ -493,7 +494,7 @@ fn error_envelopes_and_global_json_are_total() {
 fn typo_correction_is_public_unique_and_stops_at_double_dash() {
     let (_, near, _, _) = rf_with_stderr(&["--json", "capabilitie"], None, &[]);
     assert_eq!(near["errors"][0]["did_you_mean"], "capabilities");
-    assert_eq!(near["commands"][0], "'rf' 'capabilities'");
+    assert_eq!(near["commands"][0], "'rf' '--json' 'capabilities'");
     let (_, far, _, _) = rf_with_stderr(&["--json", "not-even-close"], None, &[]);
     assert!(far["errors"][0]["did_you_mean"].is_null());
     let (_, literal, _, _) = rf_with_stderr(&["--json", "content", "--", "--jsno"], None, &[]);
@@ -591,7 +592,7 @@ fn content_selected_input_validates_and_classifies_only_selected_files() {
         b"src/app.py\0",
     );
     assert_eq!(both_code, 1);
-    assert_eq!(both["errors"][0]["code"], "USAGE");
+    assert_eq!(both["errors"][0]["code"], "INVALID_INPUT");
 }
 
 #[test]
@@ -760,7 +761,7 @@ fn query_modes_keep_results_commands_and_cursors_honest() {
         &[],
     );
     assert_eq!(code, 1);
-    assert_eq!(conflict["errors"][0]["code"], "USAGE");
+    assert_eq!(conflict["errors"][0]["code"], "INVALID_INPUT");
 }
 
 #[test]
@@ -1183,7 +1184,7 @@ fn conformance() {
     );
     check(
         "capabilities: error codes registered (X-06)",
-        ["USAGE", "BAD_PATTERN", "INTERNAL"]
+        ["MISSING_REQUIRED", "BAD_PATTERN", "INTERNAL"]
             .iter()
             .all(|c| caps["error_codes"].get(*c).is_some()),
         String::new(),
@@ -1836,4 +1837,201 @@ fn mode_and_help_surfaces_follow_the_selector() {
         assert_eq!(status.code(), Some(141), "{args:?}");
         assert!(!stderr.contains("panicked"), "{stderr}");
     }
+}
+
+#[test]
+fn parser_faults_follow_the_diagnosis_order() {
+    let run = |args: &[&str]| {
+        let (code, env, _, stderr) = rf_with_stderr(args, None, &[]);
+        assert_eq!(code, 1, "{args:?}");
+        assert_eq!(env["ok"], false, "{args:?}");
+        (env["errors"][0].clone(), env["commands"].clone(), stderr)
+    };
+    let expect = |args: &[&str], code: &str, arg: &str| {
+        let (error, _, _) = run(args);
+        assert_eq!(error["code"], code, "{args:?}");
+        assert_eq!(error["arg"], arg, "{args:?}");
+        error
+    };
+
+    // A value flag never consumes a flag-shaped token, and never runs dry.
+    expect(
+        &["--json", "content", "x", ".", "--limit"],
+        "MISSING_REQUIRED",
+        "--limit",
+    );
+    expect(
+        &["--json", "content", "--limit", "--word", "x"],
+        "MISSING_REQUIRED",
+        "--limit",
+    );
+    expect(
+        &["content", "--limit", "--json", "x"],
+        "MISSING_REQUIRED",
+        "--limit",
+    );
+    expect(
+        &["--json", "content", "--limit", "--bogus", "x"],
+        "UNKNOWN_FLAG",
+        "--bogus",
+    );
+
+    // Value hygiene.
+    expect(
+        &["--json", "content", "--limit=", "x"],
+        "INVALID_INPUT",
+        "--limit",
+    );
+    expect(
+        &["--json", "content", "--limit", "", "x"],
+        "INVALID_INPUT",
+        "--limit",
+    );
+    expect(
+        &["--json", "content", "--limit=0x10", "x"],
+        "INVALID_INPUT",
+        "--limit",
+    );
+    expect(
+        &["--json", "content", "--limit", "-5", "x"],
+        "INVALID_INPUT",
+        "--limit",
+    );
+    expect(
+        &["--json", "content", "--word=true", "x"],
+        "INVALID_INPUT",
+        "--word",
+    );
+    expect(
+        &["--json", "content", "--cursor=-abc", "x"],
+        "INVALID_INPUT",
+        "--cursor",
+    );
+    expect(&["--json", "find", "--name=-rs"], "INVALID_INPUT", "--name");
+    expect(
+        &["--json", "why", "--root=", "x", "a"],
+        "INVALID_INPUT",
+        "--root",
+    );
+    let lang = expect(
+        &[
+            "--json",
+            "find",
+            "x",
+            "--name",
+            "rs",
+            "--structural",
+            "f",
+            "--lang",
+            "rsut",
+        ],
+        "INVALID_INPUT",
+        "--lang",
+    );
+    assert_eq!(lang["did_you_mean"], "rust");
+
+    // Surplus positional, conflicts in both orders, companions.
+    expect(
+        &["--json", "content", "x", ".", "extra"],
+        "INVALID_INPUT",
+        "extra",
+    );
+    expect(
+        &["--json", "capabilities", "extra"],
+        "INVALID_INPUT",
+        "extra",
+    );
+    let pair = expect(
+        &[
+            "--json",
+            "content",
+            "--ignore-case",
+            "--case-sensitive",
+            "x",
+        ],
+        "INVALID_INPUT",
+        "--case-sensitive",
+    );
+    let message = pair["message"].as_str().unwrap();
+    assert!(message.contains("--ignore-case") && message.contains("--case-sensitive"));
+    expect(
+        &[
+            "--json",
+            "content",
+            "--case-sensitive",
+            "--ignore-case",
+            "x",
+        ],
+        "INVALID_INPUT",
+        "--ignore-case",
+    );
+    let (alone, commands, _) = run(&["--json", "content", "--max-matches", "5", "x"]);
+    assert_eq!(alone["code"], "MISSING_REQUIRED");
+    assert!(alone["message"].as_str().unwrap().contains("--matches"));
+    assert_eq!(
+        commands[0],
+        "'rf' '--json' 'content' '--matches' '--max-matches' '5' 'x'"
+    );
+    expect(
+        &["--json", "find", "x", "--name", "rs", "--lang", "rust"],
+        "MISSING_REQUIRED",
+        "--lang",
+    );
+    expect(
+        &["--json", "find", "x", "--name", "rs", "--structural", "f"],
+        "MISSING_REQUIRED",
+        "--structural",
+    );
+    expect(&["--json", "find", "x"], "MISSING_REQUIRED", "--name");
+    expect(&["--json", "content"], "MISSING_REQUIRED", "pattern");
+    expect(&["--json", "robot-docs"], "MISSING_REQUIRED", "command");
+
+    // Stage order: a bad value is reported before a missing positional, and
+    // an unknown name before both.
+    expect(
+        &["--json", "content", "--limit=abc"],
+        "INVALID_INPUT",
+        "--limit",
+    );
+    expect(&["--json", "--bogus", "badverb"], "UNKNOWN_FLAG", "--bogus");
+    expect(
+        &["--json", "content", "--bogus", "--limit=abc"],
+        "UNKNOWN_FLAG",
+        "--bogus",
+    );
+
+    // Names match exactly; one near candidate gives a hint and a corrected line.
+    let prefix = expect(
+        &["--json", "content", "--lim", "5", "x"],
+        "UNKNOWN_FLAG",
+        "--lim",
+    );
+    assert!(prefix["did_you_mean"].is_null());
+    assert!(prefix["remediation"].as_str().unwrap().contains("--limit"));
+    let human = Command::new(BIN)
+        .args(["content", "--wrod", "x"])
+        .output()
+        .expect("spawn rf");
+    assert_eq!(human.status.code(), Some(1));
+    assert!(human.stdout.is_empty(), "human mode has no envelope");
+    let stderr = String::from_utf8_lossy(&human.stderr);
+    assert!(stderr.contains("did you mean: --word"), "{stderr}");
+    assert!(
+        stderr.contains("corrected:    'rf' 'content' '--word' 'x'"),
+        "{stderr}"
+    );
+    let (verb, commands, stderr) = run(&["--json", "contnt", "x"]);
+    assert_eq!(verb["code"], "UNKNOWN_COMMAND");
+    assert_eq!(verb["did_you_mean"], "content");
+    assert_eq!(commands[0], "'rf' '--json' 'content' 'x'");
+    assert!(stderr.contains("corrected:"));
+    let (far, _, stderr) = run(&["--json", "con", "x"]);
+    assert!(far["did_you_mean"].is_null());
+    assert!(!stderr.contains("corrected:"));
+
+    // A value that looks like a flag passes after `--`, and a negative-looking
+    // pattern is data there.
+    let (code, env, _) = rf(&["--json", "content", "--", "--limit", "."], None, &[]);
+    assert_eq!(code, 0);
+    assert_eq!(env["meta"]["pattern"], "--limit");
 }

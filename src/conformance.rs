@@ -405,7 +405,7 @@ pub fn run() -> (Value, i32) {
         );
     }
 
-    // B-07: a value-taking flag as the final token -> exit 1, INVALID_INPUT. Folds over
+    // B-07: a value-taking flag as the final token -> exit 1, MISSING_REQUIRED. Folds over
     // find's arity-1 flags.
     let arity1: [(&str, Vec<&str>); 3] = [
         ("--name", vec!["find", "x", ".", "--name"]),
@@ -420,7 +420,7 @@ pub fn run() -> (Value, i32) {
         s.observe(&p);
         let pass = p.exit == 1
             && p.ok == Some(false)
-            && p.err0.as_deref() == Some("INVALID_INPUT")
+            && p.err0.as_deref() == Some("MISSING_REQUIRED")
             && p.seven;
         s.case(
             "B-07",
@@ -475,15 +475,17 @@ pub fn run() -> (Value, i32) {
         );
     }
 
-    // R-02: --structural without --lang -> exit 1, USAGE (rf's documented guard).
+    // R-02: --structural without --lang -> exit 1, MISSING_REQUIRED (declared `requires`).
     {
         let p = run_probe(
             &exe,
             &["find", "x", ".", "--name", "conf", "--structural", "f($$$)"],
         );
         s.observe(&p);
-        let pass =
-            p.exit == 1 && p.ok == Some(false) && p.err0.as_deref() == Some("USAGE") && p.seven;
+        let pass = p.exit == 1
+            && p.ok == Some(false)
+            && p.err0.as_deref() == Some("MISSING_REQUIRED")
+            && p.seven;
         s.case(
             "R-02",
             &[("verb", "find")],
@@ -878,19 +880,22 @@ mod reconciliation_tests {
     }
 
     #[test]
-    fn manifest_includes_global_aliases_and_is_the_name_source() {
-        let names = crate::manifest::public_names();
-        for name in [
-            "content",
-            "find",
-            "--json",
-            "--no-color",
-            "--help",
-            "-h",
-            "--version",
-            "-V",
-        ] {
-            assert!(names.contains(name), "missing parser name {name}");
+    fn manifest_and_flag_table_agree_on_global_names() {
+        let manifest = crate::manifest::build();
+        let mut parsed: Vec<String> = Vec::new();
+        for flag in manifest["global_flags"].as_array().unwrap() {
+            parsed.push(flag["name"].as_str().unwrap().to_string());
+            for alias in flag["aliases"].as_array().unwrap() {
+                parsed.push(alias.as_str().unwrap().to_string());
+            }
         }
+        parsed.sort();
+        let mut declared: Vec<String> = crate::flags::GLOBALS
+            .iter()
+            .flat_map(|f| std::iter::once(f.name).chain(f.alias))
+            .map(String::from)
+            .collect();
+        declared.sort();
+        assert_eq!(parsed, declared);
     }
 }

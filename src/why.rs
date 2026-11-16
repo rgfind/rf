@@ -174,7 +174,7 @@ pub fn run(
                 meta,
                 vec![],
                 vec![],
-                vec![err("INVALID_INPUT", "--max-matches requires --matches")],
+                vec![err("MISSING_REQUIRED", "--max-matches requires --matches")],
             ),
             1,
         );

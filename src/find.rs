@@ -376,7 +376,7 @@ pub fn run(
                 meta,
                 vec![],
                 vec![],
-                vec![err("INVALID_INPUT", "--max-matches requires --matches")],
+                vec![err("MISSING_REQUIRED", "--max-matches requires --matches")],
             ),
             1,
         );
@@ -392,10 +392,7 @@ pub fn run(
                 meta,
                 vec![],
                 vec![],
-                vec![err(
-                    "USAGE",
-                    "--structural requires --lang (ast-grep needs a language)",
-                )],
+                vec![err("MISSING_REQUIRED", "--structural requires --lang")],
             ),
             1,
         );

@@ -46,13 +46,12 @@
     "CONFORMANCE_FAIL": "one or more conformance cases returned verdict:fail",
     "HISTORY_ERROR": "Git history could not be scanned; no partial result was returned",
     "INTERNAL": "internal fault caught by the totality wrapper",
-    "INVALID_INPUT": "a supplied value failed parser validation",
+    "INVALID_INPUT": "a supplied value failed validation: type, range, enum, pattern, empty value, flag conflict, or surplus positional",
     "INVALID_SELECTION": "selected-input bytes or paths failed validation",
     "INVALID_TARGET": "why target or root failed validation",
-    "MISSING_ARGUMENT": "a required positional or flag value is absent",
+    "MISSING_REQUIRED": "a required positional, flag, flag value, or companion flag is absent",
     "UNKNOWN_COMMAND": "an unrecognized command path",
-    "UNKNOWN_FLAG": "an unrecognized global or verb-local flag",
-    "USAGE": "invalid arguments: unknown verb/flag, missing flag value, or --structural without --lang"
+    "UNKNOWN_FLAG": "an unrecognized global or verb-local flag"
   },
   "exit_codes": {
     "0": {
@@ -78,38 +77,38 @@
   },
   "global_flags": [
     {
-      "aliases": [],
       "arity": 0,
+      "default": false,
+      "description": "machine envelope",
       "name": "--json",
-      "positions": "before or after a verb",
-      "summary": "machine envelope",
-      "type": "bool"
+      "position": "anywhere"
     },
     {
-      "aliases": [],
       "arity": 0,
+      "default": false,
+      "description": "disable terminal decoration",
       "name": "--no-color",
-      "positions": "before or after a verb",
-      "summary": "disable terminal decoration",
-      "type": "bool"
+      "position": "anywhere"
     },
     {
       "aliases": [
         "-h"
       ],
       "arity": 0,
+      "default": false,
+      "description": "usage text; exit 0",
       "name": "--help",
-      "summary": "usage text; exit 0",
-      "type": "bool"
+      "position": "anywhere"
     },
     {
       "aliases": [
         "-V"
       ],
       "arity": 0,
+      "default": false,
+      "description": "version string; exit 0",
       "name": "--version",
-      "summary": "version string; exit 0",
-      "type": "bool"
+      "position": "anywhere"
     }
   ],
   "limits": {
@@ -296,7 +295,7 @@
           "help"
         ],
         "positionals": [
-          "path"
+          "verb_path"
         ]
       },
       "robot-docs": {
@@ -443,11 +442,13 @@
   "verbs": {
     "capabilities": {
       "aliases": [],
+      "args": [],
       "flags": [],
       "summary": "emit this machine contract"
     },
     "conformance": {
       "aliases": [],
+      "args": [],
       "flags": [],
       "not_applicable": {
         "S-01": "release-build-fault-trigger-unavailable",
@@ -472,81 +473,105 @@
       "aliases": [],
       "args": [
         {
-          "arity": 1,
           "name": "pattern",
+          "required": true,
           "type": "string"
         },
         {
-          "arity": 1,
           "default": ".",
           "name": "path",
+          "required": false,
           "type": "path"
         }
       ],
       "flags": [
         {
           "arity": 0,
-          "conflicts_with": "--paths-envelope",
-          "input": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path",
-          "name": "--paths-stdin",
-          "type": "bool"
+          "conflicts_with": [
+            "--paths-envelope"
+          ],
+          "default": false,
+          "description": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path",
+          "name": "--paths-stdin"
         },
         {
           "arity": 0,
-          "conflicts_with": "--paths-stdin",
-          "input": "stdin rf JSON envelope; each data.items[] row must contain file:string",
-          "name": "--paths-envelope",
-          "type": "bool"
+          "conflicts_with": [
+            "--paths-stdin"
+          ],
+          "default": false,
+          "description": "stdin rf JSON envelope; each data.items[] row must contain file:string",
+          "name": "--paths-envelope"
         },
         {
+          "allow_empty": false,
           "arity": 1,
           "default": 100,
+          "description": "maximum result rows in one page",
+          "maximum": 1000,
+          "minimum": 1,
           "name": "--limit",
-          "range": "1..=1000",
-          "type": "int"
+          "required": false,
+          "value_type": "int"
         },
         {
+          "allow_empty": false,
           "arity": 1,
-          "domain": "opaque cursor from meta.pagination.cursor",
+          "description": "opaque cursor from meta.pagination.cursor",
           "name": "--cursor",
-          "type": "string"
+          "required": false,
+          "value_pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "value_type": "string"
         },
         {
           "arity": 0,
-          "name": "--fixed-strings",
-          "type": "bool"
+          "default": false,
+          "description": "read the pattern as a literal string",
+          "name": "--fixed-strings"
         },
         {
           "arity": 0,
-          "name": "--word",
-          "type": "bool"
+          "default": false,
+          "description": "match whole words only",
+          "name": "--word"
         },
         {
           "arity": 0,
-          "conflicts_with": "--case-sensitive",
-          "name": "--ignore-case",
-          "type": "bool"
+          "conflicts_with": [
+            "--case-sensitive"
+          ],
+          "default": false,
+          "description": "match without case",
+          "name": "--ignore-case"
         },
         {
           "arity": 0,
-          "conflicts_with": "--ignore-case",
-          "name": "--case-sensitive",
-          "type": "bool"
+          "conflicts_with": [
+            "--ignore-case"
+          ],
+          "default": false,
+          "description": "match with case; no case-recovery layer",
+          "name": "--case-sensitive"
         },
         {
           "arity": 0,
-          "name": "--matches",
-          "output": "opt-in occurrence evidence",
-          "type": "bool"
+          "default": false,
+          "description": "opt-in occurrence evidence in each result row",
+          "name": "--matches"
         },
         {
+          "allow_empty": false,
           "arity": 1,
           "default": 16,
-          "effective_max": 16,
+          "description": "maximum occurrences per result file; values above 16 are capped at 16",
+          "maximum": 1000,
+          "minimum": 1,
           "name": "--max-matches",
-          "range": "1..=1000",
-          "requires": "--matches",
-          "type": "int"
+          "required": false,
+          "requires": [
+            "--matches"
+          ],
+          "value_type": "int"
         }
       ],
       "output_schema": {
@@ -592,9 +617,9 @@
       "aliases": [],
       "args": [
         {
-          "arity": 1,
           "default": ".",
           "name": "path",
+          "required": false,
           "type": "path"
         }
       ],
@@ -621,86 +646,146 @@
       "aliases": [],
       "args": [
         {
-          "arity": 1,
           "name": "pattern",
+          "required": true,
           "type": "string"
         },
         {
-          "arity": 1,
           "default": ".",
           "name": "path",
+          "required": false,
           "type": "path"
         }
       ],
       "flags": [
         {
+          "allow_empty": false,
           "arity": 1,
+          "description": "file extension without dot or path separator",
           "name": "--name",
           "required": true,
-          "type": "string",
-          "value_pattern": "non-empty file extension without dot or path separator"
+          "value_pattern": "^[^-./\\\\\\s][^./\\\\\\s]*$",
+          "value_type": "string"
         },
         {
+          "allow_empty": false,
           "arity": 1,
-          "domain": "ast-grep pattern; a construct with no fixed literal form",
+          "description": "ast-grep pattern; a construct with no fixed literal form",
           "name": "--structural",
-          "type": "string"
+          "required": false,
+          "requires": [
+            "--lang"
+          ],
+          "value_type": "string"
         },
         {
+          "allow_empty": false,
           "arity": 1,
-          "domain": "ast-grep language id; required with --structural",
+          "description": "ast-grep language id",
+          "enum": [
+            "bash",
+            "c",
+            "cpp",
+            "csharp",
+            "css",
+            "elixir",
+            "go",
+            "haskell",
+            "hcl",
+            "html",
+            "java",
+            "javascript",
+            "json",
+            "kotlin",
+            "lua",
+            "nix",
+            "php",
+            "python",
+            "ruby",
+            "rust",
+            "scala",
+            "solidity",
+            "swift",
+            "tsx",
+            "typescript",
+            "yaml"
+          ],
           "name": "--lang",
-          "type": "string"
+          "required": false,
+          "requires": [
+            "--structural"
+          ],
+          "value_type": "string"
         },
         {
+          "allow_empty": false,
           "arity": 1,
           "default": 100,
+          "description": "maximum result rows in one page",
+          "maximum": 1000,
+          "minimum": 1,
           "name": "--limit",
-          "range": "1..=1000",
-          "type": "int"
+          "required": false,
+          "value_type": "int"
         },
         {
+          "allow_empty": false,
           "arity": 1,
-          "domain": "opaque cursor from meta.pagination.cursor",
+          "description": "opaque cursor from meta.pagination.cursor",
           "name": "--cursor",
-          "type": "string"
+          "required": false,
+          "value_pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "value_type": "string"
         },
         {
           "arity": 0,
-          "name": "--fixed-strings",
-          "type": "bool"
+          "default": false,
+          "description": "read the pattern as a literal string",
+          "name": "--fixed-strings"
         },
         {
           "arity": 0,
-          "name": "--word",
-          "type": "bool"
+          "default": false,
+          "description": "match whole words only",
+          "name": "--word"
         },
         {
           "arity": 0,
-          "conflicts_with": "--case-sensitive",
-          "name": "--ignore-case",
-          "type": "bool"
+          "conflicts_with": [
+            "--case-sensitive"
+          ],
+          "default": false,
+          "description": "match without case",
+          "name": "--ignore-case"
         },
         {
           "arity": 0,
-          "conflicts_with": "--ignore-case",
-          "name": "--case-sensitive",
-          "type": "bool"
+          "conflicts_with": [
+            "--ignore-case"
+          ],
+          "default": false,
+          "description": "match with case; no case-recovery layer",
+          "name": "--case-sensitive"
         },
         {
           "arity": 0,
-          "name": "--matches",
-          "output": "opt-in occurrence evidence",
-          "type": "bool"
+          "default": false,
+          "description": "opt-in occurrence evidence in each result row",
+          "name": "--matches"
         },
         {
+          "allow_empty": false,
           "arity": 1,
           "default": 16,
-          "effective_max": 16,
+          "description": "maximum occurrences per result file; values above 16 are capped at 16",
+          "maximum": 1000,
+          "minimum": 1,
           "name": "--max-matches",
-          "range": "1..=1000",
-          "requires": "--matches",
-          "type": "int"
+          "required": false,
+          "requires": [
+            "--matches"
+          ],
+          "value_type": "int"
         }
       ],
       "output_schema": {
@@ -758,8 +843,9 @@
       "aliases": [],
       "args": [
         {
-          "arity": "0..",
-          "name": "path",
+          "name": "verb_path",
+          "repeatable": true,
+          "required": false,
           "type": "string"
         }
       ],
@@ -768,14 +854,17 @@
     },
     "robot-docs": {
       "aliases": [],
+      "args": [],
       "flags": [],
       "subcommands": {
         "guide": {
+          "args": [],
           "flags": [
             {
               "arity": 0,
-              "name": "--compact",
-              "type": "bool"
+              "default": false,
+              "description": "emit short recipes",
+              "name": "--compact"
             }
           ],
           "output_schema": {
@@ -794,11 +883,13 @@
     },
     "robot-docs guide": {
       "aliases": [],
+      "args": [],
       "flags": [
         {
           "arity": 0,
-          "name": "--compact",
-          "type": "bool"
+          "default": false,
+          "description": "emit short recipes",
+          "name": "--compact"
         }
       ],
       "output_schema": {
@@ -817,60 +908,75 @@
       "aliases": [],
       "args": [
         {
-          "arity": 1,
           "name": "pattern",
+          "required": true,
           "type": "string"
         },
         {
-          "arity": 1,
           "name": "file",
+          "required": true,
           "type": "path"
         }
       ],
       "flags": [
         {
+          "allow_empty": false,
           "arity": 1,
-          "input": "directory that supplies target validation and ignore context",
+          "description": "directory that supplies target validation and ignore context",
+          "must_exist": true,
           "name": "--root",
           "required": false,
-          "type": "path"
+          "value_type": "path"
         },
         {
           "arity": 0,
-          "name": "--fixed-strings",
-          "type": "bool"
+          "default": false,
+          "description": "read the pattern as a literal string",
+          "name": "--fixed-strings"
         },
         {
           "arity": 0,
-          "name": "--word",
-          "type": "bool"
+          "default": false,
+          "description": "match whole words only",
+          "name": "--word"
         },
         {
           "arity": 0,
-          "conflicts_with": "--case-sensitive",
-          "name": "--ignore-case",
-          "type": "bool"
+          "conflicts_with": [
+            "--case-sensitive"
+          ],
+          "default": false,
+          "description": "match without case",
+          "name": "--ignore-case"
         },
         {
           "arity": 0,
-          "conflicts_with": "--ignore-case",
-          "name": "--case-sensitive",
-          "type": "bool"
+          "conflicts_with": [
+            "--ignore-case"
+          ],
+          "default": false,
+          "description": "match with case; no case-recovery layer",
+          "name": "--case-sensitive"
         },
         {
           "arity": 0,
-          "name": "--matches",
-          "output": "opt-in occurrence evidence",
-          "type": "bool"
+          "default": false,
+          "description": "opt-in occurrence evidence in each result row",
+          "name": "--matches"
         },
         {
+          "allow_empty": false,
           "arity": 1,
           "default": 16,
-          "effective_max": 16,
+          "description": "maximum occurrences per result file; values above 16 are capped at 16",
+          "maximum": 1000,
+          "minimum": 1,
           "name": "--max-matches",
-          "range": "1..=1000",
-          "requires": "--matches",
-          "type": "int"
+          "required": false,
+          "requires": [
+            "--matches"
+          ],
+          "value_type": "int"
         }
       ],
       "output_schema": {

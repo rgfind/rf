@@ -2,8 +2,8 @@
 //!
 //! This is intentionally independent from `capabilities`: it walks clap's live
 //! registry and records every accepted command path, flag spelling, alias, and
-//! positional. Consumers may use its names for parser-derived suggestions; the
-//! conformance verb compares it with the hand-written public contract.
+//! positional. The conformance verb compares it with the public contract, and a unit
+//! test compares it with the flag table.
 
 use clap::{Arg, ArgAction, Command, CommandFactory};
 use serde_json::{Map, Value};
@@ -82,79 +82,6 @@ fn walk(command: &Command, parent: &[String], commands: &mut Map<String, Value>)
     }
 }
 
-/// All parser-accepted public names. This is the only name source for future
-/// typo correction and recipe validation; it never duplicates a hand list.
-#[allow(dead_code)]
-pub fn public_names() -> BTreeSet<String> {
-    let manifest = build();
-    let mut names = BTreeSet::new();
-    for flag in manifest["global_flags"].as_array().into_iter().flatten() {
-        for name in
-            std::iter::once(&flag["name"]).chain(flag["aliases"].as_array().into_iter().flatten())
-        {
-            if let Some(name) = name.as_str() {
-                names.insert(name.to_string());
-            }
-        }
-    }
-    for (path, command) in manifest["commands"].as_object().into_iter().flatten() {
-        names.insert(path.clone());
-        for alias in command["aliases"].as_array().into_iter().flatten() {
-            if let Some(alias) = alias.as_str() {
-                names.insert(alias.to_string());
-            }
-        }
-        for flag in command["flags"].as_array().into_iter().flatten() {
-            for name in std::iter::once(&flag["name"])
-                .chain(flag["aliases"].as_array().into_iter().flatten())
-            {
-                if let Some(name) = name.as_str() {
-                    names.insert(name.to_string());
-                }
-            }
-        }
-    }
-    names
-}
-
-/// The unique public ASCII name at edit distance one. Ties and distant tokens
-/// deliberately yield no suggestion.
-pub fn correction(token: &str) -> Option<String> {
-    fn distance_one(a: &str, b: &str) -> bool {
-        if !a.is_ascii() || !b.is_ascii() || a == b || a.len().abs_diff(b.len()) > 1 {
-            return false;
-        }
-        let (mut i, mut j, mut edits) = (0, 0, 0);
-        let aa = a.as_bytes();
-        let bb = b.as_bytes();
-        while i < aa.len() && j < bb.len() {
-            if aa[i] == bb[j] {
-                i += 1;
-                j += 1;
-                continue;
-            }
-            edits += 1;
-            if edits > 1 {
-                return false;
-            }
-            if aa.len() > bb.len() {
-                i += 1;
-            } else if bb.len() > aa.len() {
-                j += 1;
-            } else {
-                i += 1;
-                j += 1;
-            }
-        }
-        edits + (aa.len() - i) + (bb.len() - j) == 1
-    }
-    let matches: Vec<_> = public_names()
-        .into_iter()
-        .filter(|name| distance_one(token, name))
-        .collect();
-    (matches.len() == 1).then(|| matches[0].clone())
-}
-
 /// Build the manifest by walking clap's full command tree. Global and automatic
 /// flags are declared once at the root; all command entries use full paths.
 pub fn build() -> Value {
@@ -193,14 +120,4 @@ pub fn build() -> Value {
     root.insert("global_flags".into(), Value::from(global_flags));
     root.insert("commands".into(), Value::from(commands));
     Value::from(root)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::correction;
-    #[test]
-    fn correction_requires_one_public_near_match() {
-        assert_eq!(correction("capabilitie").as_deref(), Some("capabilities"));
-        assert_eq!(correction("not-even-close"), None);
-    }
 }

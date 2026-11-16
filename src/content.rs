@@ -507,7 +507,7 @@ pub fn run(
                 meta,
                 vec![],
                 vec!["'rf' 'content' '--matches' '<pattern>' '<path>' '--json'".into()],
-                vec![err("INVALID_INPUT", "--max-matches requires --matches")],
+                vec![err("MISSING_REQUIRED", "--max-matches requires --matches")],
             ),
             1,
         );

@@ -24,77 +24,33 @@ pub fn build() -> Value {
         "release_scope": {"workflow_guides": ["robot-docs guide"], "workflow_guides_status": "released in contract version 0.1"},
         "engine": "in-process (ignore + grep crates); no subprocess",
         "verbs": {
-            "robot-docs": {"summary": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
-            "robot-docs guide": {"summary": "emit agent workflow recipes", "aliases": [], "flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
+            "robot-docs": {"summary": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"flags": [], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
+            "robot-docs guide": {"summary": "emit agent workflow recipes", "aliases": [], "flags": [], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
             "capabilities": {"summary": "emit this machine contract", "aliases": [], "flags": []},
-            "help": {"summary": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "args": [{"name": "path", "arity": "0..", "type": "string"}], "flags": []},
+            "help": {"summary": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "flags": []},
             "content": {
                 "summary": "content search; attributes each match to the filter that would hide it",
                 "aliases": [],
-                "args": [
-                    {"name": "pattern", "arity": 1, "type": "string"},
-                    {"name": "path", "arity": 1, "type": "path", "default": "."}
-                ],
-                "flags": [
-                    {"name": "--paths-stdin", "arity": 0, "type": "bool", "conflicts_with": "--paths-envelope", "input": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path"},
-                    {"name": "--paths-envelope", "arity": 0, "type": "bool", "conflicts_with": "--paths-stdin", "input": "stdin rf JSON envelope; each data.items[] row must contain file:string"},
-                    {"name": "--limit", "arity": 1, "type": "int", "default": 100, "range": "1..=1000"},
-                    {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"},
-                    {"name": "--fixed-strings", "arity": 0, "type": "bool"},
-                    {"name": "--word", "arity": 0, "type": "bool"},
-                    {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
-                    {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
-                    ,{"name": "--matches", "arity": 0, "type": "bool", "output": "opt-in occurrence evidence"}
-                    ,{"name": "--max-matches", "arity": 1, "type": "int", "default": 16, "range": "1..=1000", "effective_max": 16, "requires": "--matches"}
-                ],
+                "flags": [],
                 "selected_input": {"validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths", "error_code": "INVALID_SELECTION", "classification": "selected files are classified by content layers; they are never marked recovered"},
                 "output_schema": {"data.items[]": {"file": "string", "selection": "selected when a selected-input mode is used", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "meta.selection": {"mode": "enum[root-walk,stdin-nul,rf-envelope]", "selected_files": "int when selected input is used"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}}
             },
             "find": {
                 "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
                 "aliases": [],
-                "args": [
-                    {"name": "pattern", "arity": 1, "type": "string"},
-                    {"name": "path", "arity": 1, "type": "path", "default": "."}
-                ],
-                "flags": [
-                    {"name": "--name", "arity": 1, "type": "string", "required": true, "value_pattern": "non-empty file extension without dot or path separator"},
-                    {"name": "--structural", "arity": 1, "type": "string", "domain": "ast-grep pattern; a construct with no fixed literal form"},
-                    {"name": "--lang", "arity": 1, "type": "string", "domain": "ast-grep language id; required with --structural"},
-                    {"name": "--limit", "arity": 1, "type": "int", "default": 100, "range": "1..=1000"},
-                    {"name": "--cursor", "arity": 1, "type": "string", "domain": "opaque cursor from meta.pagination.cursor"},
-                    {"name": "--fixed-strings", "arity": 0, "type": "bool"},
-                    {"name": "--word", "arity": 0, "type": "bool"},
-                    {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
-                    {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
-                    ,{"name": "--matches", "arity": 0, "type": "bool", "output": "opt-in occurrence evidence"}
-                    ,{"name": "--max-matches", "arity": 1, "type": "int", "default": 16, "range": "1..=1000", "effective_max": 16, "requires": "--matches"}
-                ],
+                "flags": [],
                 "output_schema": {"data.items[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null", "matches": "opt-in occurrence[] or null for history-only/structural-only", "matches_unavailable_reason":"history-only|structural-only when matches is null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}, "meta.sources": {"history": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]"}, "structural": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]"}}}
             },
             "doctor": {
                 "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
                 "aliases": [],
-                "args": [{"name": "path", "arity": 1, "type": "path", "default": "."}],
                 "flags": [],
                 "output_schema": {"data": {"external_tools": {"git":"{status,path,version,probe_error}", "ast-grep":"{status,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
             },
             "why": {
                 "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
                 "aliases": [],
-                "args": [
-                    {"name": "pattern", "arity": 1, "type": "string"},
-                    {"name": "file", "arity": 1, "type": "path"}
-                ],
-                "flags": [
-                    {"name": "--root", "arity": 1, "type": "path", "required": false, "input": "directory that supplies target validation and ignore context"},
-                    {"name": "--fixed-strings", "arity": 0, "type": "bool"},
-                    {"name": "--word", "arity": 0, "type": "bool"},
-                    {"name": "--ignore-case", "arity": 0, "type": "bool", "conflicts_with": "--case-sensitive"},
-                    {"name": "--case-sensitive", "arity": 0, "type": "bool", "conflicts_with": "--ignore-case"}
-                    ,{"name": "--matches", "arity": 0, "type": "bool", "output": "opt-in occurrence evidence"}
-                    ,{"name": "--max-matches", "arity": 1, "type": "int", "default": 16, "range": "1..=1000", "effective_max": 16, "requires": "--matches"}
-                ],
+                "flags": [],
                 "output_schema": {
                     "data": {"file": "root-relative target path", "pattern": "string", "matched": "bool", "hidden_from_default": "bool", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}", "hiding_filter": "{code,layer,rg_flags}|absent", "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore"},
                     "meta": {"file": "root-relative target path", "root": "path relative to process working directory", "query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "git_repo": "bool", "ignore_mode": "string", "matched": "bool", "surfaced_by": "string|null"},
@@ -114,12 +70,7 @@ pub fn build() -> Value {
                 "output_schema": {"data": {"profile": "string", "counts": {"pass": "int", "fail": "int", "not_applicable": "int"}, "cases": "array[{case_id,verdict,reason,request_id,target}]"}}
             }
         },
-        "global_flags": [
-            {"name": "--json", "aliases": [], "arity": 0, "type": "bool", "positions": "before or after a verb", "summary": "machine envelope"},
-            {"name": "--no-color", "aliases": [], "arity": 0, "type": "bool", "positions": "before or after a verb", "summary": "disable terminal decoration"},
-            {"name": "--help", "aliases": ["-h"], "arity": 0, "type": "bool", "summary": "usage text; exit 0"},
-            {"name": "--version", "aliases": ["-V"], "arity": 0, "type": "bool", "summary": "version string; exit 0"}
-        ],
+        "global_flags": crate::flags::global_flags_json(),
         "exit_codes": {
             "0": {"meaning": "success (includes empty results: data:[]); a self-check with no failures", "retryable": false},
             "1": {"meaning": "user-input-error (bad flags / missing args), or a failing conformance self-check", "retryable": false},
@@ -128,13 +79,12 @@ pub fn build() -> Value {
             "6": {"meaning": "internal defect caught by the totality wrapper", "retryable": false}
         },
         "error_codes": {
-            "USAGE": "invalid arguments: unknown verb/flag, missing flag value, or --structural without --lang",
             "UNKNOWN_FLAG": "an unrecognized global or verb-local flag",
             "UNKNOWN_COMMAND": "an unrecognized command path",
-            "INVALID_INPUT": "a supplied value failed parser validation",
+            "INVALID_INPUT": "a supplied value failed validation: type, range, enum, pattern, empty value, flag conflict, or surplus positional",
             "INVALID_SELECTION": "selected-input bytes or paths failed validation",
             "INVALID_TARGET": "why target or root failed validation",
-            "MISSING_ARGUMENT": "a required positional or flag value is absent",
+            "MISSING_REQUIRED": "a required positional, flag, flag value, or companion flag is absent",
             "BAD_PATTERN": "the search regex failed to compile",
             "CONFLICT": "a cursor snapshot no longer matches the current result set",
             "HISTORY_ERROR": "Git history could not be scanned; no partial result was returned",
@@ -208,6 +158,26 @@ pub fn build() -> Value {
     #[cfg(feature = "fault-injection")]
     if let Some(a) = v.get_mut("env_vars").and_then(Value::as_array_mut) {
         a.push(Value::from("RF_FAULT"));
+    }
+    // Flag and positional declarations come from the one table that the argv
+    // validator reads, so declared and checked behavior cannot drift.
+    if let Some(verbs) = v.get_mut("verbs").and_then(Value::as_object_mut) {
+        for node in &crate::flags::NODES {
+            let flags = crate::flags::flags_json(node.path);
+            let args = crate::flags::args_json(node.path);
+            if let Some(flat) = verbs.get_mut(&node.path.join(" ")) {
+                flat["flags"] = flags.clone();
+                flat["args"] = args.clone();
+            }
+            let mut entry = verbs.get_mut(node.path[0]);
+            for name in &node.path[1..] {
+                entry = entry.and_then(|e| e["subcommands"].get_mut(*name));
+            }
+            if let Some(entry) = entry {
+                entry["flags"] = flags;
+                entry["args"] = args;
+            }
+        }
     }
     // The parser-derived surface, published as an independent second source. The
     // conformance verb (X-01) reconciles it against the hand-kept `verbs` above.
