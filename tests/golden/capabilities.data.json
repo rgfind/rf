@@ -2,7 +2,7 @@
   "contract_policy": {
     "policy_version": 3,
     "release_classification": "breaking-pending-release-verification",
-    "release_record": "release-records/unreleased.md",
+    "release_record": "release-records/0.1.0.md",
     "supported_contract_versions": [
       "0.1"
     ],

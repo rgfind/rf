@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 — make-cli 0.1 contract
 
 - **Breaking: contract version `0.1`.** rf now follows the make-cli 0.1.0
   contract. Contract version `2` ends, and no old spelling stays as an alias.
-  The full compatibility statement is in `release-records/unreleased.md`.
+  The full compatibility statement is in `release-records/0.1.0.md`.
   - Version scheme: `contract_version` is a `major.minor` string. Before `1.0`
     a minor bump may break.
   - Envelope: `data` is an object. Rows are in `data.items`; the capabilities

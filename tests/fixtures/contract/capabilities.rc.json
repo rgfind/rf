@@ -4,7 +4,7 @@
     "contract_policy": {
       "policy_version": 3,
       "release_classification": "breaking-pending-release-verification",
-      "release_record": "release-records/unreleased.md",
+      "release_record": "release-records/0.1.0.md",
       "supported_contract_versions": [
         "0.1"
       ],
@@ -900,7 +900,7 @@
       "robot-docs": 2,
       "why": 2
     },
-    "tool_version": "0.0.8",
+    "tool_version": "0.1.0",
     "verb_dependencies": {
       "ast-grep": [
         {
@@ -2918,13 +2918,13 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:a631911a0b95b7886d7ebed499af7ca798759ebffaa3f55ab15b50b44e87237d",
+    "data_hash": "sha256:da4baef41dd1a86b5f70664b769ed94a165918d68272e2ec4c041a5176d37cab",
     "elapsed_ms": 0,
-    "request_id": "req_2f810e6061ff3f01",
+    "request_id": "req_8049df67eb28711f",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },
   "ok": true,
-  "tool_version": "0.0.8",
+  "tool_version": "0.1.0",
   "warnings": []
 }
