@@ -45,7 +45,7 @@ pub fn build() -> Value {
                 "description": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
                 "aliases": [],
                 "flags": [],
-                "output_schema": {"data": {"external_tools": {"git":"{status,path,version,probe_error}", "ast-grep":"{status,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
+                "output_schema": {"data": {"overall": "enum[healthy,degraded,unhealthy]", "external_tools": {"git":"{status,state,path,version,probe_error}", "ast-grep":"{status,state,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
             },
             "why": {
                 "description": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
@@ -131,6 +131,7 @@ pub fn build() -> Value {
                 "robot-docs" => &[1],
                 "content" => &[0, 1, 5],
                 "find" => &[0, 1, 3, 5],
+                "doctor" => &[0, 1, 6],
                 _ => &[0, 1],
             };
             if let Some(flat) = verbs.get_mut(&node.path.join(" ")) {

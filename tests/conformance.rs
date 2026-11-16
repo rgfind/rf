@@ -274,7 +274,7 @@ fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|warning| warning["code"] == "EXTERNAL_TOOL_MISSING"));
+        .any(|warning| warning["code"] == "STRUCTURAL_UNAVAILABLE"));
     assert!(structural["commands"]
         .as_array()
         .unwrap()
@@ -641,15 +641,16 @@ fn why_reports_one_target_verdict_and_validates_inputs() {
     assert_eq!(code, 0);
     assert_eq!(absent["data"]["matched"], false);
     assert!(absent["data"]["surfaced_by"].is_null());
-    for args in [
-        vec!["why", "x", ".", "--json"],
-        vec!["why", "x", "missing", "--json"],
-        vec!["why", "x", ".git/HEAD", "--json"],
-        vec!["why", "[", "missing", "--json"],
+    for (args, want) in [
+        (vec!["why", "x", ".", "--json"], "INVALID_INPUT"),
+        (vec!["why", "x", "missing", "--json"], "NOT_FOUND"),
+        (vec!["why", "x", ".git/HEAD", "--json"], "INVALID_INPUT"),
+        (vec!["why", "[", "missing", "--json"], "NOT_FOUND"),
     ] {
         let (code, env, _) = rf(&args, cwd, &[]);
         assert_eq!(code, 1, "{args:?}");
-        assert_eq!(env["errors"][0]["code"], "INVALID_TARGET");
+        assert_eq!(env["errors"][0]["code"], want, "{args:?}");
+        assert_eq!(env["errors"][0]["arg"], "file", "{args:?}");
     }
     let (code, bad_pattern, _) = rf(&["why", "[", "src/app.py", "--json"], cwd, &[]);
     assert_eq!(code, 1);
@@ -1251,22 +1252,14 @@ fn conformance() {
         .map(|o| o.status.success())
         .unwrap_or(false);
 
-    let (code, e, _) = rf(
-        &[
-            "find",
-            TOKEN,
-            ".",
-            "--name",
-            "config",
-            "--structural",
-            "db.connect($$$)",
-            "--lang",
-            "python",
-            "--json",
-        ],
-        fd,
-        &[],
-    );
+    // Without ast-grep a structural request is DEPENDENCY_MISSING, so the
+    // structural source is requested only where the program is present.
+    let mut find_args = vec!["find", TOKEN, ".", "--name", "config"];
+    if ast_available {
+        find_args.extend(["--structural", "db.connect($$$)", "--lang", "python"]);
+    }
+    find_args.push("--json");
+    let (code, e, _) = rf(&find_args, fd, &[]);
     check("find: exit 0", code == 0, format!("code={code}"));
     let stage: BTreeMap<String, String> = e["data"]["items"]
         .as_array()
@@ -1436,12 +1429,6 @@ fn conformance() {
     std::fs::remove_dir_all(plain).unwrap();
 
     // structural source is conditional on ast-grep; both branches must be total
-    let warns: Vec<String> = e["warnings"]
-        .as_array()
-        .unwrap_or(&vec![])
-        .iter()
-        .map(|w| w["code"].as_str().unwrap_or("").to_string())
-        .collect();
     if ast_available {
         check(
             "find: conn.py -> ast_structural",
@@ -1453,18 +1440,36 @@ fn conformance() {
             e["meta"]["structural_matches"] == 1,
             format!("{}", e["meta"]),
         );
-    } else {
-        check(
-            "find: STRUCTURAL_UNAVAILABLE warned (ast-grep absent)",
-            warns.iter().any(|c| c == "STRUCTURAL_UNAVAILABLE"),
-            format!("{warns:?}"),
-        );
-        check(
-            "find: no crash without ast-grep (exit 0)",
-            code == 0,
-            String::new(),
-        );
     }
+    let (code, no_ast, _) = rf(
+        &[
+            "find",
+            TOKEN,
+            ".",
+            "--name",
+            "config",
+            "--structural",
+            "db.connect($$$)",
+            "--lang",
+            "python",
+            "--json",
+        ],
+        fd,
+        &[("PATH", "/rf-no-ast-grep-bin")],
+    );
+    let entry = &no_ast["errors"][0];
+    check(
+        "find: absent ast-grep is DEPENDENCY_MISSING (exit 3)",
+        code == 3
+            && no_ast["ok"] == false
+            && no_ast["data"].is_null()
+            && entry["code"] == "DEPENDENCY_MISSING"
+            && entry["details"]["program"] == "ast-grep"
+            && entry["details"]["child_exit"].is_null()
+            && entry["details"]["child_signal"].is_null()
+            && entry["remediation"].is_string(),
+        format!("code={code} {no_ast}"),
+    );
 
     // --- report (visible with `cargo test -- --nocapture`) ---
     let mut fails = Vec::new();
@@ -1591,18 +1596,13 @@ indent=2,sort_keys=True))\" > tests/golden/conformance.verdicts.json\n\n\
 // Exactly one runs per `cargo test` invocation, chosen by the feature flag.
 
 /// argv that reaches each stage's seam with otherwise-valid input.
-fn stage_argv(stage: &str) -> Vec<&'static str> {
+fn stage_argv<'a>(stage: &str, empty: &'a str) -> Vec<&'a str> {
     match stage {
-        "content" | "engine" => vec![
-            "content",
-            "zzq_no_such_token",
-            "/rf-conformance-empty",
-            "--json",
-        ],
+        "content" | "engine" => vec!["content", "zzq_no_such_token", empty, "--json"],
         "find" => vec![
             "find",
             "zzq_no_such_token",
-            "/rf-conformance-empty",
+            empty,
             "--name",
             "conf",
             "--json",
@@ -1625,18 +1625,19 @@ fn verdict_of(e: &Value, case_id: &str) -> String {
 #[test]
 fn fault_seam_absent_in_release() {
     // RF_FAULT must be inert: the seam is not compiled in, so a normal search runs.
+    let empty_dir = unique_temp("fault-empty");
+    let empty = empty_dir.to_string_lossy().into_owned();
     for stage in ["content", "find", "doctor", "engine"] {
-        let (code, e, _) = rf(&stage_argv(stage), None, &[("RF_FAULT", stage)]);
-        assert_eq!(
-            code, 0,
-            "RF_FAULT={stage} should be inert in a release build"
-        );
-        assert_eq!(
-            e["ok"],
-            Value::from(true),
-            "RF_FAULT={stage} perturbed output"
+        let (code, e, _) = rf(&stage_argv(stage, &empty), None, &[("RF_FAULT", stage)]);
+        // doctor is a report: exit 6 where a tool is absent is a normal run.
+        let normal = (code == 0 && e["ok"] == true)
+            || (stage == "doctor" && code == 6 && e["data"]["overall"].is_string());
+        assert!(
+            normal,
+            "RF_FAULT={stage} should be inert in a release build: code={code} {e}"
         );
     }
+    let _ = std::fs::remove_dir(&empty_dir);
     // And the self-check reports the totality cases not-applicable, not pass.
     let (_, e, _) = rf(&["conformance", "--json"], None, &[]);
     for id in ["S-01", "S-02"] {
@@ -1655,8 +1656,10 @@ fn fault_seam_proves_totality() {
     // Injecting a fault at each stage must yield a TOTAL error envelope: the
     // catch_unwind wrapper turns the panic into exit 7 + INTERNAL + seven keys,
     // never an unmediated crash (which would be exit 101 with no JSON).
+    let empty_dir = unique_temp("fault-empty");
+    let empty = empty_dir.to_string_lossy().into_owned();
     for stage in ["content", "find", "doctor", "engine"] {
-        let (code, e, _) = rf(&stage_argv(stage), None, &[("RF_FAULT", stage)]);
+        let (code, e, _) = rf(&stage_argv(stage, &empty), None, &[("RF_FAULT", stage)]);
         assert_eq!(
             code, 7,
             "stage {stage}: fault must exit 7 (internal), not crash"
@@ -1725,7 +1728,8 @@ fn mode_and_help_surfaces_follow_the_selector() {
 
     // No selector gives human text, even when stdout is a pipe.
     let (code, out) = text(&["doctor"]);
-    assert_eq!(code, 0);
+    assert!(code == 0 || code == 6, "doctor exit {code}");
+    assert!(out.contains("overall: "), "{out}");
     assert!(serde_json::from_str::<Value>(&out).is_err(), "{out}");
     let (code, _, _) = rf(&["--human", "doctor", "--json"], None, &[]);
     assert_eq!(code, 1, "--human is removed");
@@ -2189,4 +2193,186 @@ fn stale_cursor_names_its_own_remedy() {
         stale["errors"][0]["remediation"],
         "Restart the query without --cursor."
     );
+}
+
+// --- Paths, child programs and doctor health (make-cli 0.1.0 exit dictionary) ---
+
+#[test]
+fn missing_and_unreadable_paths_are_typed() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = unique_temp("paths");
+    std::fs::write(root.join("a.txt"), "hello\n").unwrap();
+    std::fs::write(root.join("locked.txt"), "hello\n").unwrap();
+    std::fs::create_dir(root.join("only")).unwrap();
+    std::fs::write(root.join("only").join("locked.txt"), "hello\n").unwrap();
+    let lock = |path: &Path, mode: u32| {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    };
+    lock(&root.join("locked.txt"), 0o000);
+    lock(&root.join("only").join("locked.txt"), 0o000);
+    let cwd = Some(root.as_path());
+
+    // A path that does not exist: NOT_FOUND, exit 1, and the argument is named.
+    for (args, arg) in [
+        (vec!["content", "hello", "absent", "--json"], "path"),
+        (
+            vec!["find", "hello", "absent", "--name", "txt", "--json"],
+            "path",
+        ),
+        (vec!["doctor", "absent", "--json"], "path"),
+        (vec!["why", "hello", "absent", "--json"], "file"),
+        (
+            vec!["why", "hello", "a.txt", "--root", "absent", "--json"],
+            "--root",
+        ),
+    ] {
+        let (code, env, _) = rf(&args, cwd, &[]);
+        let entry = &env["errors"][0];
+        assert_eq!(code, 1, "{args:?}");
+        assert_eq!(entry["code"], "NOT_FOUND", "{args:?}");
+        assert_eq!(entry["arg"], arg, "{args:?}");
+        assert_eq!(entry["exit_code"], 1, "{args:?}");
+        assert!(env["data"].is_null(), "{args:?}");
+    }
+
+    // A path that exists and cannot be read: IO_FAILURE, exit 3, with the
+    // operation, the absolute file and the errno name.
+    let absolute = std::fs::canonicalize(&root).unwrap();
+    for args in [
+        vec!["why", "hello", "locked.txt", "--json"],
+        vec!["content", "hello", "only", "--json"],
+    ] {
+        let (code, env, _) = rf(&args, cwd, &[]);
+        let entry = &env["errors"][0];
+        assert_eq!(code, 3, "{args:?} {env}");
+        assert_eq!(entry["code"], "IO_FAILURE", "{args:?}");
+        assert_eq!(entry["details"]["os_error"], "EACCES", "{args:?}");
+        assert!(entry["details"]["op"].is_string(), "{args:?}");
+        let file = entry["details"]["file"].as_str().unwrap_or("");
+        assert!(
+            Path::new(file).is_absolute() && file.ends_with("locked.txt"),
+            "{args:?} file={file} root={}",
+            absolute.display()
+        );
+        assert!(entry["path"].is_null(), "path is a JSONPath, never a file");
+    }
+
+    // Some files read and some not: the result stands, with a warning that
+    // names each file that was skipped.
+    for args in [
+        vec!["content", "hello", ".", "--json"],
+        vec!["find", "hello", ".", "--name", "txt", "--json"],
+    ] {
+        let (code, env, _) = rf(&args, cwd, &[]);
+        assert_eq!(code, 0, "{args:?} {env}");
+        assert_eq!(env["ok"], true, "{args:?}");
+        let partial = env["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|warning| warning["code"] == "PARTIAL_RESULT")
+            .unwrap_or_else(|| panic!("no PARTIAL_RESULT: {args:?} {env}"));
+        let files: Vec<&str> = partial["details"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        assert_eq!(files, ["locked.txt", "only/locked.txt"], "{args:?}");
+        assert!(
+            env["data"]["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["file"] == "a.txt"),
+            "{args:?} {env}"
+        );
+    }
+
+    lock(&root.join("locked.txt"), 0o644);
+    lock(&root.join("only").join("locked.txt"), 0o644);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn doctor_reports_faulty_components_with_exit_six() {
+    let root = unique_temp("doctor-health");
+    let bin = root.join("bin");
+    std::fs::create_dir(&bin).unwrap();
+
+    // Both tools absent: two degraded components, in component-name order.
+    let (code, env, _) = rf(
+        &["doctor", ".", "--json"],
+        None,
+        &[("PATH", "/no/such/path")],
+    );
+    assert_eq!(code, 6);
+    assert_eq!(env["ok"], false);
+    assert_eq!(env["data"]["overall"], "degraded");
+    assert!(
+        env["data"]["external_tools"].is_object(),
+        "the report stays"
+    );
+    let listed = |env: &Value| -> Vec<(String, String)> {
+        env["errors"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| {
+                (
+                    entry["code"].as_str().unwrap_or("").to_string(),
+                    entry["details"]["component"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        listed(&env),
+        [
+            ("COMPONENT_DEGRADED".to_string(), "ast-grep".to_string()),
+            ("COMPONENT_DEGRADED".to_string(), "git".to_string()),
+        ]
+    );
+    for entry in env["errors"].as_array().unwrap() {
+        assert_eq!(entry["exit_code"], 6);
+        assert!(entry["remediation"].is_string());
+    }
+
+    // git present and broken, ast-grep absent: the unhealthy group goes first.
+    executable(&bin.join("git"), "#!/bin/sh\nexit 1\n");
+    let fake_path = bin.to_string_lossy().into_owned();
+    let (code, env, _) = rf(&["doctor", ".", "--json"], None, &[("PATH", &fake_path)]);
+    assert_eq!(code, 6);
+    assert_eq!(env["data"]["overall"], "unhealthy");
+    assert_eq!(env["data"]["external_tools"]["git"]["state"], "unhealthy");
+    assert_eq!(
+        env["data"]["external_tools"]["ast-grep"]["state"],
+        "degraded"
+    );
+    assert_eq!(
+        listed(&env),
+        [
+            ("COMPONENT_UNHEALTHY".to_string(), "git".to_string()),
+            ("COMPONENT_DEGRADED".to_string(), "ast-grep".to_string()),
+        ]
+    );
+
+    // Both tools answer: healthy, exit 0, no errors.
+    executable(
+        &bin.join("git"),
+        "#!/bin/sh\nprintf 'git version test\\n'\n",
+    );
+    executable(
+        &bin.join("ast-grep"),
+        "#!/bin/sh\nprintf 'ast-grep test\\n'\n",
+    );
+    let (code, env, _) = rf(&["doctor", ".", "--json"], None, &[("PATH", &fake_path)]);
+    assert_eq!(code, 0, "{env}");
+    assert_eq!(env["ok"], true);
+    assert_eq!(env["data"]["overall"], "healthy");
+    assert_eq!(env["errors"], serde_json::json!([]));
+    let _ = std::fs::remove_dir_all(root);
 }

@@ -156,19 +156,14 @@ fn vd(pass: bool) -> &'static str {
 
 /// Argv that reaches a given stage's injection seam with otherwise-valid input,
 /// so the only thing that can fault is the seam itself.
-fn stage_argv(stage: &str) -> Vec<&'static str> {
+fn stage_argv<'a>(stage: &str, empty: &'a str) -> Vec<&'a str> {
     match stage {
         // content and engine share the content path; engine faults deeper in it.
-        "content" | "engine" => vec![
-            "content",
-            "zzq_no_such_token",
-            "/rf-conformance-empty",
-            "--json",
-        ],
+        "content" | "engine" => vec!["content", "zzq_no_such_token", empty, "--json"],
         "find" => vec![
             "find",
             "zzq_no_such_token",
-            "/rf-conformance-empty",
+            empty,
             "--name",
             "conf",
             "--json",
@@ -341,6 +336,14 @@ pub fn run() -> (Value, i32) {
     let caps = capabilities::build();
     let mut s = Sweep::new();
 
+    // A real, empty search root. A path that does not exist is NOT_FOUND, so
+    // the no-result probes need a directory that is present and holds nothing.
+    let empty_dir =
+        std::env::temp_dir().join(format!("rf-conformance-empty-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&empty_dir);
+    let empty_owned = empty_dir.to_string_lossy().into_owned();
+    let empty = empty_owned.as_str();
+
     // Minimal valid argv per verb (a happy path that needs no external corpus).
     let exe_arg = exe.to_string_lossy().into_owned();
     let happy: Vec<(&str, Vec<&str>)> = vec![
@@ -348,19 +351,14 @@ pub fn run() -> (Value, i32) {
         ("capabilities", vec!["capabilities", "--json"]),
         (
             "content",
-            vec![
-                "content",
-                "zzq_no_such_token",
-                "/rf-conformance-empty",
-                "--json",
-            ],
+            vec!["content", "zzq_no_such_token", empty, "--json"],
         ),
         (
             "find",
             vec![
                 "find",
                 "zzq_no_such_token",
-                "/rf-conformance-empty",
+                empty,
                 "--name",
                 "conf",
                 "--json",
@@ -457,18 +455,24 @@ pub fn run() -> (Value, i32) {
         );
     }
 
-    // T-01/T-02: why validates target inputs before compiling a pattern.
-    for (id, args) in [
-        ("T-01", vec!["why", "x", "."]),
-        ("T-02", vec!["why", "x", "/rf-conformance-missing-target"]),
-        ("T-03", vec!["why", "[", "/rf-conformance-missing-target"]),
+    // T-01..T-03: why validates target inputs before compiling a pattern. A
+    // directory is not a valid target; a path that does not exist is not found.
+    for (id, args, code) in [
+        ("T-01", vec!["why", "x", "."], "INVALID_INPUT"),
+        (
+            "T-02",
+            vec!["why", "x", "/rf-conformance-missing-target"],
+            "NOT_FOUND",
+        ),
+        (
+            "T-03",
+            vec!["why", "[", "/rf-conformance-missing-target"],
+            "NOT_FOUND",
+        ),
     ] {
         let p = run_probe(&exe, &args);
         s.observe(&p);
-        let pass = p.exit == 1
-            && p.ok == Some(false)
-            && p.err0.as_deref() == Some("INVALID_TARGET")
-            && p.seven;
+        let pass = p.exit == 1 && p.ok == Some(false) && p.err0.as_deref() == Some(code) && p.seven;
         s.case(
             id,
             &[("verb", "why")],
@@ -501,10 +505,20 @@ pub fn run() -> (Value, i32) {
     // ---- Group 2: mode matrix (rf has one machine shape: the envelope) ----
 
     // M-01: every happy path parses as JSON with all seven envelope keys, ok:true.
+    // doctor is a report: on a machine where a tool is absent it is ok:false
+    // with exit 6 and a component code, and that is also a correct answer.
     for (verb, args) in &happy {
         let p = run_probe(&exe, args);
         s.observe(&p);
-        let pass = p.exit == 0 && p.ok == Some(true) && p.seven;
+        let healthy = p.exit == 0 && p.ok == Some(true);
+        let reported = *verb == "doctor"
+            && p.exit == 6
+            && p.ok == Some(false)
+            && matches!(
+                p.err0.as_deref(),
+                Some("COMPONENT_UNHEALTHY" | "COMPONENT_DEGRADED")
+            );
+        let pass = (healthy || reported) && p.seven;
         s.case(
             "M-01",
             &[("verb", verb), ("shape", "envelope")],
@@ -521,7 +535,7 @@ pub fn run() -> (Value, i32) {
     // panic into a total error envelope. With the seam absent (the release build),
     // there is no trigger to pull, so these stay honestly not-applicable.
     if crate::fault::SEAM_PRESENT {
-        let p = run_probe_env(&exe, &stage_argv("content"), Some("content"));
+        let p = run_probe_env(&exe, &stage_argv("content", empty), Some("content"));
         s.observe(&p);
         s.case(
             "S-01",
@@ -530,7 +544,7 @@ pub fn run() -> (Value, i32) {
             None,
             p.request_id.as_deref(),
         );
-        let p = run_probe_env(&exe, &stage_argv("find"), Some("find"));
+        let p = run_probe_env(&exe, &stage_argv("find", empty), Some("find"));
         s.observe(&p);
         s.case(
             "S-02",
@@ -609,7 +623,7 @@ pub fn run() -> (Value, i32) {
 
     // B-13: a positional whose text is a flag, after `--`, is treated as data.
     {
-        let p = run_probe(&exe, &["doctor", "--", "--json"]);
+        let p = run_probe(&exe, &["content", "--", "--json", empty]);
         s.observe(&p);
         let pass = p.exit == 0 && p.ok == Some(true) && p.seven;
         s.case(
@@ -653,7 +667,7 @@ pub fn run() -> (Value, i32) {
     // the seam (release build), there is nothing to enumerate -> not-applicable.
     if crate::fault::SEAM_PRESENT {
         let all_total = crate::fault::STAGES.iter().all(|stage| {
-            let p = run_probe_env(&exe, &stage_argv(stage), Some(stage));
+            let p = run_probe_env(&exe, &stage_argv(stage, empty), Some(stage));
             let total = is_total_fault(&p);
             s.observe(&p);
             total
@@ -745,7 +759,7 @@ pub fn run() -> (Value, i32) {
         let accepted_args = [
             command,
             "zzq_no_such_token",
-            "/rf-conformance-empty",
+            empty,
             flag,
             accepted,
             "--json",
@@ -753,7 +767,7 @@ pub fn run() -> (Value, i32) {
         let rejected_args = [
             command,
             "zzq_no_such_token",
-            "/rf-conformance-empty",
+            empty,
             flag,
             rejected,
             "--json",
@@ -838,6 +852,8 @@ pub fn run() -> (Value, i32) {
         .filter(|row| row["verdict"] == "fail")
         .filter_map(|row| row["case_id"].as_str().map(String::from))
         .collect();
+    let _ = std::fs::remove_dir(&empty_dir);
+
     let mut payload = Map::new();
     payload.insert("profile".into(), Value::from(PROFILE));
     payload.insert("counts".into(), Value::from(counts));

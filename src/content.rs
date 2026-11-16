@@ -220,9 +220,20 @@ pub(crate) enum TargetError {
     Missing,
     Directory,
     NotRegular,
-    Unreadable,
+    /// The raw OS error number of the refused read.
+    Unreadable(i32),
     InsideGit,
     OutsideRoot,
+}
+
+impl TargetError {
+    pub(crate) fn from_io(error: &std::io::Error) -> Self {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            TargetError::Missing
+        } else {
+            TargetError::Unreadable(error.raw_os_error().unwrap_or(0))
+        }
+    }
 }
 
 fn probe_base_cfg(encoding: Option<&'static str>, query: QueryMode) -> Cfg {
@@ -299,7 +310,7 @@ pub(crate) fn validate_single_target(
 ) -> Result<(PathBuf, PathBuf), TargetError> {
     let canonical = match std::fs::canonicalize(input) {
         Ok(path) => path,
-        Err(_) => return Err(TargetError::Missing),
+        Err(error) => return Err(TargetError::from_io(&error)),
     };
     if !canonical.starts_with(root) {
         return Err(TargetError::OutsideRoot);
@@ -311,14 +322,14 @@ pub(crate) fn validate_single_target(
     if has_git_component(&relative) {
         return Err(TargetError::InsideGit);
     }
-    let metadata = std::fs::metadata(&canonical).map_err(|_| TargetError::Missing)?;
+    let metadata = std::fs::metadata(&canonical).map_err(|e| TargetError::from_io(&e))?;
     if metadata.is_dir() {
         return Err(TargetError::Directory);
     }
     if !metadata.is_file() {
         return Err(TargetError::NotRegular);
     }
-    std::fs::File::open(&canonical).map_err(|_| TargetError::Unreadable)?;
+    std::fs::File::open(&canonical).map_err(|e| TargetError::from_io(&e))?;
     Ok((relative, canonical))
 }
 
@@ -466,7 +477,7 @@ fn validate_selected_paths(
             let detail = match error {
                 TargetError::Missing => "is missing or unreadable",
                 TargetError::Directory | TargetError::NotRegular => "is not a regular file",
-                TargetError::Unreadable => "is unreadable",
+                TargetError::Unreadable(_) => "is unreadable",
                 TargetError::InsideGit => "is inside .git",
                 TargetError::OutsideRoot => "is outside the query root",
             };
@@ -521,6 +532,10 @@ pub fn run(
         },
         None => None,
     };
+    if let Err(failure) = crate::paths::must_exist("content", "path", path) {
+        return failure;
+    }
+    crate::engine::take_skips();
     let ls = layers(query);
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut surfaced_by: Vec<(String, String)> = Vec::new(); // (file, layer)
@@ -612,6 +627,12 @@ pub fn run(
             args.extend(["-e".into(), pattern.into(), "--".into(), path.into()]);
             commands.push(crate::command::shell("rg", &args));
         }
+    }
+
+    match crate::paths::settle("content", |p| p.to_string()) {
+        Ok(Some(partial)) => warnings.push(partial),
+        Ok(None) => {}
+        Err(failure) => return failure,
     }
 
     surfaced_by.sort();

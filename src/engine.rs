@@ -9,8 +9,9 @@ use grep_regex::RegexMatcherBuilder;
 use grep_searcher::sinks::Bytes;
 use grep_searcher::{BinaryDetection, Encoding, SearcherBuilder};
 use ignore::{DirEntry, WalkBuilder};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const MAX_EVIDENCE_TEXT_BYTES: usize = 512;
 pub const MAX_EVIDENCE_MATCHES: usize = 16;
@@ -32,6 +33,58 @@ pub struct Occurrence {
     pub text: String,
     pub text_lossy: bool,
     pub text_truncated: bool,
+}
+
+/// Paths that the engine could not read in this invocation, and whether it
+/// read any file. A skipped path is recorded, never dropped without a trace:
+/// the caller reports it as `PARTIAL_RESULT`, or as `IO_FAILURE` when no file
+/// was read.
+#[derive(Default)]
+pub struct Skips {
+    /// Walked-form path -> errno name.
+    pub unreadable: BTreeMap<String, String>,
+    pub read_ok: bool,
+}
+
+thread_local! {
+    static SKIPS: RefCell<Skips> = RefCell::new(Skips::default());
+}
+
+/// Take the record and reset it.
+pub fn take_skips() -> Skips {
+    SKIPS.with(|skips| skips.take())
+}
+
+fn record_skip(path: &Path, error: &std::io::Error) {
+    if path.components().any(|c| c.as_os_str() == ".git") {
+        return;
+    }
+    SKIPS.with(|skips| {
+        skips.borrow_mut().unreadable.insert(
+            norm(&path.to_string_lossy()),
+            crate::paths::errno_name(error),
+        );
+    });
+}
+
+fn record_read() {
+    SKIPS.with(|skips| skips.borrow_mut().read_ok = true);
+}
+
+fn error_path(error: &ignore::Error) -> Option<&Path> {
+    match error {
+        ignore::Error::WithPath { path, .. } => Some(path),
+        ignore::Error::WithDepth { err, .. } | ignore::Error::WithLineNumber { err, .. } => {
+            error_path(err)
+        }
+        _ => None,
+    }
+}
+
+fn record_walk_error(error: &ignore::Error) {
+    if let (Some(path), Some(io)) = (error_path(error), error.io_error()) {
+        record_skip(path, io);
+    }
 }
 
 /// Strip a leading `./`. Used for the display form when the root is ".".
@@ -104,7 +157,10 @@ pub fn content_matches(
     for dent in walk(root, cfg.use_ignore, cfg.skip_hidden) {
         let dent = match dent {
             Ok(d) => d,
-            Err(_) => continue,
+            Err(e) => {
+                record_walk_error(&e);
+                continue;
+            }
         };
         if has_git_component(&dent) || !is_file(&dent) {
             continue;
@@ -114,14 +170,17 @@ pub fn content_matches(
         // files (e.g. .pyc), where the matching line routinely holds non-UTF-8
         // bytes. The UTF8 sink errors on decode and the match is lost; the
         // Bytes sink takes the raw line, so a binary match is never dropped.
-        let _ = searcher.search_path(
+        match searcher.search_path(
             &matcher,
             dent.path(),
             Bytes(|_lnum, _line| {
                 hit = true;
                 Ok(false) // first match is enough
             }),
-        );
+        ) {
+            Ok(()) => record_read(),
+            Err(e) => record_skip(dent.path(), &e),
+        }
         if hit {
             out.insert(norm(&dent.path().to_string_lossy()));
         }
@@ -181,14 +240,17 @@ pub fn content_matches_selected(
             continue;
         };
         let mut hit = false;
-        let _ = searcher.search_path(
+        match searcher.search_path(
             &matcher,
             dent.path(),
             Bytes(|_lnum, _line| {
                 hit = true;
                 Ok(false)
             }),
-        );
+        ) {
+            Ok(()) => record_read(),
+            Err(e) => record_skip(dent.path(), &e),
+        }
         if hit {
             out.insert(display.clone());
         }
@@ -275,7 +337,10 @@ pub fn name_matches(
     for dent in walk(root, use_ignore, skip_hidden) {
         let dent = match dent {
             Ok(d) => d,
-            Err(_) => continue,
+            Err(e) => {
+                record_walk_error(&e);
+                continue;
+            }
         };
         if has_git_component(&dent) || !is_file(&dent) {
             continue;

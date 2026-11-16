@@ -102,6 +102,32 @@
       ],
       "summary": "a search without case finds a match that the default search does not"
     },
+    "COMPONENT_DEGRADED": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "{component, status}",
+      "exit": 6,
+      "fixture": "run doctor with a PATH that has no git or no ast-grep",
+      "precondition": "git or ast-grep is not on PATH",
+      "sites": [
+        "doctor"
+      ],
+      "summary": "doctor found an optional external tool absent; the dependent find source cannot run"
+    },
+    "COMPONENT_UNHEALTHY": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "{component, status}",
+      "exit": 6,
+      "fixture": "put a script named ast-grep that exits 1 first on PATH, then run doctor",
+      "precondition": "git or ast-grep is on PATH and its --version call fails or exceeds the probe limit",
+      "sites": [
+        "doctor"
+      ],
+      "summary": "doctor found an external tool that is present and cannot run"
+    },
     "CONFLICT": {
       "appears_in": [
         "errors"
@@ -129,6 +155,19 @@
       ],
       "summary": "one or more conformance cases have verdict fail"
     },
+    "DEPENDENCY_MISSING": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "{program, child_exit, child_signal}",
+      "exit": 3,
+      "fixture": "run find --structural with a PATH that has no ast-grep",
+      "precondition": "ast-grep is not on PATH",
+      "sites": [
+        "find"
+      ],
+      "summary": "a program that the call needs is not on the search path"
+    },
     "ENCODING_MISS": {
       "appears_in": [
         "warnings"
@@ -149,13 +188,12 @@
       ],
       "details": "null",
       "exit": null,
-      "fixture": "run doctor with a PATH that has no git or no ast-grep",
-      "precondition": "an optional external tool cannot run",
+      "fixture": "put a script named git that exits 1 first on PATH, then run find",
+      "precondition": "git is present and cannot run, so history was not searched",
       "sites": [
-        "doctor",
         "find"
       ],
-      "summary": "an optional external tool cannot run"
+      "summary": "git is present and cannot run, so history was not searched"
     },
     "FD_HIDDEN": {
       "appears_in": [
@@ -365,17 +403,20 @@
       ],
       "summary": "selected-input bytes or paths failed validation"
     },
-    "INVALID_TARGET": {
+    "IO_FAILURE": {
       "appears_in": [
         "errors"
       ],
-      "details": "null",
-      "example_invocation": "rf --json why x no-such-file",
-      "exit": 1,
+      "details": "{op, file, os_error}; files[] also, when more than one path failed",
+      "exit": 3,
+      "fixture": "chmod 000 a file, then run why or content on it",
+      "precondition": "a file that exists and has no read permission",
       "sites": [
+        "content",
+        "find",
         "why"
       ],
-      "summary": "the why target or root failed validation"
+      "summary": "a path that the caller named exists and rf cannot read it"
     },
     "MISSING_REQUIRED": {
       "appears_in": [
@@ -388,6 +429,35 @@
         "*"
       ],
       "summary": "a required positional, flag, flag value, or companion flag is absent"
+    },
+    "NOT_FOUND": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "rf --json why x no-such-file",
+      "exit": 1,
+      "sites": [
+        "content",
+        "doctor",
+        "find",
+        "why"
+      ],
+      "summary": "a path that the caller named does not exist"
+    },
+    "PARTIAL_RESULT": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "chmod 000 one file in a tree that has other readable files, then run content",
+      "precondition": "one or more paths under the root could not be read; the result covers the other paths",
+      "sites": [
+        "content",
+        "find"
+      ],
+      "summary": "one or more paths under the root could not be read; the result covers the other paths"
     },
     "RG_BINARY": {
       "appears_in": [
@@ -408,12 +478,12 @@
       ],
       "details": "null",
       "exit": null,
-      "fixture": "run find --structural with a PATH that has no ast-grep",
-      "precondition": "ast-grep is not available, so the structural stage did not run",
+      "fixture": "put a script named ast-grep that exits 1 first on PATH, then run find --structural",
+      "precondition": "ast-grep is present and failed or exceeded its time limit, so the structural stage did not run",
       "sites": [
         "find"
       ],
-      "summary": "ast-grep is not available, so the structural stage did not run"
+      "summary": "ast-grep is present and failed or exceeded its time limit, so the structural stage did not run"
     },
     "UNKNOWN_COMMAND": {
       "appears_in": [
@@ -906,6 +976,7 @@
         },
         {
           "default": ".",
+          "must_exist": true,
           "name": "path",
           "required": false,
           "type": "path"
@@ -1052,6 +1123,7 @@
       "args": [
         {
           "default": ".",
+          "must_exist": true,
           "name": "path",
           "required": false,
           "type": "path"
@@ -1060,7 +1132,8 @@
       "description": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
       "exit_codes": [
         0,
-        1
+        1,
+        6
       ],
       "flags": [],
       "json": true,
@@ -1068,9 +1141,10 @@
       "output_schema": {
         "data": {
           "external_tools": {
-            "ast-grep": "{status,path,version,probe_error}",
-            "git": "{status,path,version,probe_error}"
+            "ast-grep": "{status,state,path,version,probe_error}",
+            "git": "{status,state,path,version,probe_error}"
           },
+          "overall": "enum[healthy,degraded,unhealthy]",
           "recommended_action": {
             "affected": "array[{verb,mode,status}]",
             "alternatives": "array[{command,purpose}]",
@@ -1092,6 +1166,7 @@
         },
         {
           "default": ".",
+          "must_exist": true,
           "name": "path",
           "required": false,
           "type": "path"
@@ -1385,6 +1460,7 @@
           "type": "string"
         },
         {
+          "must_exist": true,
           "name": "file",
           "required": true,
           "type": "path"

@@ -19,6 +19,7 @@ mod flags;
 mod guide;
 mod manifest;
 mod pagination;
+mod paths;
 mod provenance;
 mod query;
 mod registry;
@@ -471,6 +472,16 @@ fn render_human(env: &Value) -> String {
                 "ignore_mode: {}",
                 d["ignore_mode"].as_str().unwrap_or("")
             ));
+            if let Some(tools) = d["external_tools"].as_object() {
+                for (tool, health) in tools {
+                    out.push(format!(
+                        "{tool}: {} ({})",
+                        health["state"].as_str().unwrap_or(""),
+                        health["status"].as_str().unwrap_or("")
+                    ));
+                }
+            }
+            out.push(format!("overall: {}", d["overall"].as_str().unwrap_or("")));
         }
         "why" => {
             let d = &env["data"];

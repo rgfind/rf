@@ -398,6 +398,10 @@ pub fn run(
         );
     }
     crate::fault::maybe_fault("find");
+    if let Err(failure) = crate::paths::must_exist("find", "path", path) {
+        return failure;
+    }
+    crate::engine::take_skips();
     let ext = name;
     let root = path;
     let relset = |s: BTreeSet<String>| -> BTreeSet<String> {
@@ -450,6 +454,10 @@ pub fn run(
         }
     };
     let pipe_found: BTreeSet<_> = fd_default.intersection(&rg_default).cloned().collect();
+    let partial = match crate::paths::settle("find", |p| rel(root, p)) {
+        Ok(partial) => partial,
+        Err(failure) => return failure,
+    };
 
     // --- source 3: Git history coverage ---
     // Probe at use time. A doctor result from an earlier command is advisory;
@@ -654,7 +662,30 @@ pub fn run(
                     bump(&mut stage_counts, "ast_structural");
                 }
             }
-            Structural::Missing => structural_fallback = Some("tool-missing"),
+            Structural::Missing => {
+                let mut error = err(
+                    "DEPENDENCY_MISSING",
+                    "ast-grep is not on PATH; --structural cannot run",
+                );
+                error["details"] =
+                    json!({"program":"ast-grep","child_exit":null,"child_signal":null});
+                let mut meta = Map::new();
+                meta.insert("verb".into(), Value::from("find"));
+                return (
+                    envelope(
+                        false,
+                        Value::Null,
+                        meta,
+                        vec![],
+                        vec![crate::command::shell(
+                            "rf",
+                            &["doctor".into(), root.into(), "--json".into()],
+                        )],
+                        vec![error],
+                    ),
+                    3,
+                );
+            }
             Structural::Unusable => structural_fallback = Some("tool-unusable"),
             Structural::TimedOut => structural_fallback = Some("tool-timed-out"),
         }
@@ -695,6 +726,7 @@ pub fn run(
 
     // --- warnings: one per miss, carrying the paste-ready fix ---
     let mut warnings: Vec<Value> = history_warnings;
+    warnings.extend(partial);
     if query.word && !git_deleted.is_empty() {
         warnings.push(warn(
             "GIT_SCRUB_WORD_UNAVAILABLE",
@@ -705,11 +737,6 @@ pub fn run(
     if let Some(reason) = structural_fallback.filter(|reason| *reason != "not-requested") {
         warnings.push(warn(
             "STRUCTURAL_UNAVAILABLE",
-            format!("--structural source skipped: {reason}"),
-            vec![],
-        ));
-        warnings.push(warn(
-            "EXTERNAL_TOOL_MISSING",
             format!("--structural source skipped: {reason}"),
             vec![],
         ));

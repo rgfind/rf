@@ -3,7 +3,7 @@
 use crate::content::{classify_target, validate_single_target, Class, TargetError};
 use crate::doctor::git_context;
 use crate::engine::SearchCfg;
-use crate::envelope::{envelope, err, err_with, warn};
+use crate::envelope::{envelope, err, warn};
 use crate::query::QueryMode;
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -26,37 +26,46 @@ fn display_root(root: &Path) -> String {
     }
 }
 
-fn target_failure(target: &str, root: Option<&str>, error: TargetError) -> (Value, i32) {
-    let remediation = match error {
-        TargetError::Missing => format!("no such file: {target}; pass one existing regular file"),
-        TargetError::Directory => {
-            format!("{target} is a directory; use 'rf content <pattern> <dir>' to search a tree")
-        }
-        TargetError::NotRegular => format!("{target} is not a regular file"),
-        TargetError::Unreadable => format!("{target} is not readable"),
-        TargetError::InsideGit => {
-            format!("{target} is inside .git; rf does not search repository internals")
-        }
-        TargetError::OutsideRoot => format!("{target} is outside --root {}", root.unwrap_or(".")),
-    };
+fn invalid(arg: &str, message: String, remediation: &str) -> (Value, i32) {
+    let mut error = err("INVALID_INPUT", message);
+    let object = error.as_object_mut().expect("error is an object");
+    object.insert("arg".into(), Value::from(arg));
+    object.insert("remediation".into(), Value::from(remediation));
     let mut meta = Map::new();
     meta.insert("verb".into(), Value::from("why"));
     (
-        envelope(
-            false,
-            Value::Null,
-            meta,
-            vec![],
-            vec![],
-            vec![err_with(
-                "INVALID_TARGET",
-                "target cannot be searched",
-                target,
-                remediation,
-            )],
-        ),
+        envelope(false, Value::Null, meta, vec![], vec![], vec![error]),
         1,
     )
+}
+
+fn target_failure(target: &str, root: Option<&str>, error: TargetError) -> (Value, i32) {
+    let fix = "Name one regular file under --root.";
+    match error {
+        TargetError::Missing => crate::paths::not_found("why", "file", target),
+        TargetError::Unreadable(number) => crate::paths::io_failure(
+            "why",
+            Path::new(target),
+            &crate::paths::errno_name(&std::io::Error::from_raw_os_error(number)),
+            &[],
+        ),
+        TargetError::Directory => invalid(
+            "file",
+            format!("{target} is a directory"),
+            "Name one regular file; `rf content <pattern> <dir>` searches a tree.",
+        ),
+        TargetError::NotRegular => invalid("file", format!("{target} is not a regular file"), fix),
+        TargetError::InsideGit => invalid(
+            "file",
+            format!("{target} is inside .git; rf does not search repository internals"),
+            fix,
+        ),
+        TargetError::OutsideRoot => invalid(
+            "file",
+            format!("{target} is outside --root {}", root.unwrap_or(".")),
+            fix,
+        ),
+    }
 }
 
 fn evidence_cfg(class: Option<Class>, query: QueryMode) -> SearchCfg {
@@ -100,27 +109,6 @@ fn occurrence_value(value: crate::engine::Occurrence) -> Value {
     Value::from(occurrence)
 }
 
-fn bad_root(target: &str, root: &str) -> (Value, i32) {
-    let mut meta = Map::new();
-    meta.insert("verb".into(), Value::from("why"));
-    (
-        envelope(
-            false,
-            Value::Null,
-            meta,
-            vec![],
-            vec![],
-            vec![err_with(
-                "INVALID_TARGET",
-                "root cannot be used for target validation",
-                target,
-                format!("--root {root} does not exist or is not a directory"),
-            )],
-        ),
-        1,
-    )
-}
-
 fn resolve_root(target: &str, root_arg: Option<&str>) -> Result<(PathBuf, PathBuf), (Value, i32)> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let target_path = Path::new(target);
@@ -131,16 +119,23 @@ fn resolve_root(target: &str, root_arg: Option<&str>) -> Result<(PathBuf, PathBu
     };
 
     if let Some(root_arg) = root_arg {
+        crate::paths::must_exist("why", "--root", root_arg)?;
         let root = match std::fs::canonicalize(root_arg) {
             Ok(root) if root.is_dir() => root,
-            _ => return Err(bad_root(target, root_arg)),
+            _ => {
+                return Err(invalid(
+                    "--root",
+                    format!("--root {root_arg} is not a directory"),
+                    "Give --root a directory.",
+                ))
+            }
         };
         return Ok((root, target_candidate));
     }
 
     let canonical_target = match std::fs::canonicalize(&target_candidate) {
         Ok(path) => path,
-        Err(_) => return Err(target_failure(target, None, TargetError::Missing)),
+        Err(error) => return Err(target_failure(target, None, TargetError::from_io(&error))),
     };
     let context = git_context(&slash(&canonical_target));
     let root = if context.in_repo {

@@ -66,6 +66,9 @@ pub struct Pos {
     pub required: bool,
     pub default: Option<&'static str>,
     pub repeatable: bool,
+    /// The verb reads this path: absent is `NOT_FOUND`, unreadable is
+    /// `IO_FAILURE`. The verb makes the check, after the argv stages.
+    pub must_exist: bool,
 }
 
 pub struct Node {
@@ -165,6 +168,7 @@ const PATTERN: Pos = Pos {
     required: true,
     default: None,
     repeatable: false,
+    must_exist: false,
 };
 const PATH: Pos = Pos {
     name: "path",
@@ -172,6 +176,7 @@ const PATH: Pos = Pos {
     required: false,
     default: Some("."),
     repeatable: false,
+    must_exist: true,
 };
 
 pub static GLOBALS: [Flag; 4] = [
@@ -231,6 +236,7 @@ pub static NODES: [Node; 9] = [
             required: false,
             default: None,
             repeatable: true,
+            must_exist: false,
         }],
         subs: &[],
     },
@@ -331,6 +337,7 @@ pub static NODES: [Node; 9] = [
                 required: true,
                 default: None,
                 repeatable: false,
+                must_exist: true,
             },
         ],
         subs: &[],
@@ -433,6 +440,9 @@ pub fn args_json(path: &[&str]) -> Value {
                 }
                 if a.repeatable {
                     m.insert("repeatable".into(), Value::from(true));
+                }
+                if a.kind == Kind::Path {
+                    m.insert("must_exist".into(), Value::from(a.must_exist));
                 }
                 Value::from(m)
             })
