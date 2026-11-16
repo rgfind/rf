@@ -23,9 +23,10 @@ mod query;
 mod why;
 
 use clap::{Parser, Subcommand};
-use envelope::{envelope, err};
-use serde_json::{Map, Value};
-use std::io::IsTerminal;
+use envelope::{envelope, err, CONTRACT_VERSION, TOOL_VERSION};
+use serde_json::{json, Map, Value};
+use std::ffi::{OsStr, OsString};
+use std::io::Write;
 use std::time::Instant;
 
 #[derive(Parser)]
@@ -44,11 +45,6 @@ struct Cli {
     /// the accepted global flag is part of the stable parser contract.
     #[arg(long = "no-color", global = true)]
     no_color: bool,
-    /// Force the human-readable render even when stdout is not a terminal (the
-    /// mirror of --json). Use it to save or page the human output. --json wins
-    /// if both are given.
-    #[arg(long, global = true)]
-    human: bool,
     #[command(subcommand)]
     verb: Verb,
 }
@@ -168,6 +164,11 @@ enum Verb {
     },
     /// Run the release self-check profile against this binary.
     Conformance {},
+    /// Show help for rf or for one verb.
+    Help {
+        /// Verb path, for example `content` or `robot-docs guide`.
+        path: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -178,26 +179,164 @@ enum RobotDocs {
     },
 }
 
-fn bootstrap_json() -> bool {
-    // This scan is deliberately lexical and stops at `--`: a later `--json` or
-    // `--human` is data, not a global option. It decides the render mode before
-    // clap can reject malformed argv. Precedence: --json (machine) wins over
-    // --human (human); with neither, a real terminal gets the human render.
-    let (mut json, mut human) = (false, false);
-    for a in std::env::args().skip(1).take_while(|a| a != "--") {
-        match a.as_str() {
-            "--json" => json = true,
-            "--human" => human = true,
-            _ => {}
+/// Lexical mode scan over raw argv. It decodes nothing and stops at `--`.
+/// A malformed selector (`--json=false`) still selects machine rendering; the
+/// parser then refuses it.
+fn bootstrap_json(args: &[OsString]) -> bool {
+    args.iter()
+        .take_while(|a| a.as_os_str() != OsStr::new("--"))
+        .any(|a| {
+            let bytes = a.as_encoded_bytes();
+            bytes == b"--json" || bytes.starts_with(b"--json=")
+        })
+}
+
+/// Text form of one raw token: each undecodable byte becomes `\xNN`.
+fn escaped(token: &OsStr) -> String {
+    let mut out = String::new();
+    for chunk in token.as_encoded_bytes().utf8_chunks() {
+        out.push_str(chunk.valid());
+        for byte in chunk.invalid() {
+            out.push_str(&format!("\\x{byte:02x}"));
         }
     }
-    if json {
-        true
-    } else if human {
-        false
-    } else {
-        !std::io::stdout().is_terminal()
+    out
+}
+
+fn hex(token: &OsStr) -> String {
+    token
+        .as_encoded_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+/// The verbs whose next positional is also a command name.
+const GROUPS: [&str; 2] = ["robot-docs", "help"];
+
+/// Classify the first undecodable token by its position.
+fn undecodable(args: &[OsString]) -> Option<Value> {
+    let mut after_dashes = false;
+    let mut command_slots = 1;
+    for token in args {
+        let bytes = token.as_encoded_bytes();
+        if !after_dashes && bytes == b"--" {
+            after_dashes = true;
+            continue;
+        }
+        let is_flag = !after_dashes && bytes.starts_with(b"-") && bytes.len() > 1;
+        let Some(text) = token.to_str() else {
+            let shown = escaped(token);
+            let (code, what) = if is_flag {
+                ("UNKNOWN_FLAG", "unknown flag")
+            } else if command_slots > 0 && !after_dashes {
+                ("UNKNOWN_COMMAND", "unknown command")
+            } else {
+                ("INVALID_INPUT", "argument is not valid UTF-8:")
+            };
+            let mut problem = err(code, format!("{what} \"{shown}\""));
+            let object = problem.as_object_mut().unwrap();
+            object.insert("arg".into(), Value::from(shown));
+            object.insert("details".into(), json!({"bytes_hex": hex(token)}));
+            return Some(problem);
+        };
+        if !is_flag && command_slots > 0 {
+            command_slots -= 1;
+            if GROUPS.contains(&text) {
+                command_slots += 1;
+            }
+        }
     }
+    None
+}
+
+/// Make the help spellings one surface: `-h` becomes `--help`, and
+/// `help <path>` becomes `<path> --help`. Tokens after `--` are data.
+fn normalize(args: Vec<OsString>) -> Vec<OsString> {
+    let split = args
+        .iter()
+        .position(|a| a.as_os_str() == OsStr::new("--"))
+        .unwrap_or(args.len());
+    let (head, tail) = args.split_at(split);
+    let mut out: Vec<OsString> = Vec::new();
+    let mut seen_command = false;
+    let mut help_verb = false;
+    for token in head {
+        let bytes = token.as_encoded_bytes();
+        if bytes == b"-h" {
+            out.push("--help".into());
+        } else if !seen_command && !bytes.starts_with(b"-") {
+            seen_command = true;
+            if bytes == b"help" {
+                help_verb = true;
+            } else {
+                out.push(token.clone());
+            }
+        } else {
+            out.push(token.clone());
+        }
+    }
+    if help_verb && !out.iter().any(|a| a.as_os_str() == OsStr::new("--help")) {
+        out.push("--help".into());
+    }
+    out.extend(tail.iter().cloned());
+    out
+}
+
+fn is_bare(args: &[OsString]) -> bool {
+    args.iter().all(|a| {
+        let bytes = a.as_encoded_bytes();
+        bytes == b"--json" || bytes == b"--no-color"
+    })
+}
+
+fn usage_text() -> String {
+    match <Cli as clap::CommandFactory>::command().try_get_matches_from(["rf", "--help"]) {
+        Err(e) => e.render().to_string(),
+        Ok(_) => String::new(),
+    }
+}
+
+/// Write to stdout and stderr with checked writes, then exit. A closed stdout
+/// reader ends the process with 141 and no panic text.
+fn finish(stdout: &str, stderr: &str, code: i32) -> ! {
+    let mut out = std::io::stdout().lock();
+    let wrote = out.write_all(stdout.as_bytes()).and_then(|()| out.flush());
+    if let Err(e) = wrote {
+        if e.kind() == std::io::ErrorKind::BrokenPipe {
+            std::process::exit(141);
+        }
+    }
+    if !stderr.is_empty() {
+        let _ = std::io::stderr().write_all(stderr.as_bytes());
+    }
+    std::process::exit(code);
+}
+
+/// A successful help surface: human text, or an envelope under `--json`.
+fn surface(text: &str, data: Value, json: bool, started: Instant) -> ! {
+    if json {
+        let mut meta = Map::new();
+        meta.insert("verb".into(), Value::Null);
+        emit(
+            envelope(true, data, meta, vec![], vec![], vec![]),
+            0,
+            true,
+            started,
+        );
+    }
+    let mut text = text.to_string();
+    if !text.ends_with('\n') {
+        text.push('\n');
+    }
+    finish(&text, "", 0)
+}
+
+fn refuse(problem: Value, json: bool, started: Instant) -> ! {
+    let mut meta = Map::new();
+    meta.insert("verb".into(), Value::Null);
+    let env = envelope(false, Value::Null, meta, vec![], vec![], vec![problem]);
+    emit(env, 1, json, started)
 }
 
 fn dispatch(v: &Verb) -> (Value, i32) {
@@ -288,10 +427,11 @@ fn dispatch(v: &Verb) -> (Value, i32) {
             *max_matches,
         ),
         Verb::Conformance { .. } => conformance::run(),
+        Verb::Help { .. } => unreachable!("help is rewritten to --help before the parser"),
     }
 }
 
-/// Minimal human rendering for a TTY; JSON is the machine default.
+/// Minimal human rendering. It is the default; `--json` selects the envelope.
 fn render_human(env: &Value) -> String {
     let meta = &env["meta"];
     let verb = meta["verb"].as_str().unwrap_or("");
@@ -434,36 +574,87 @@ fn emit(mut env: Value, code: i32, json: bool, started: Instant) -> ! {
             }
         }
     }
+    let mut stdout = String::new();
+    let mut stderr = String::new();
     if json {
-        println!("{}", serde_json::to_string_pretty(&env).unwrap_or_default());
+        stdout.push_str(&serde_json::to_string_pretty(&env).unwrap_or_default());
+        stdout.push('\n');
         if let Some(message) = env["errors"][0]["message"].as_str() {
-            eprintln!("error: {message}");
+            stderr.push_str(&format!("error: {message}\n"));
         }
     } else {
-        println!("{}", render_human(&env));
+        // A refusal with no payload is stderr text only in human rendering.
+        if !env["data"].is_null() || env["ok"].as_bool().unwrap_or(false) {
+            stdout.push_str(&render_human(&env));
+            stdout.push('\n');
+        }
         for e in env["errors"].as_array().unwrap_or(&vec![]) {
-            eprintln!(
-                "error: {}: {}",
+            stderr.push_str(&format!(
+                "error: {}: {}\n",
                 e["code"].as_str().unwrap_or(""),
                 e["message"].as_str().unwrap_or("")
-            );
+            ));
         }
     }
-    std::process::exit(code);
+    finish(&stdout, &stderr, code)
 }
 
 fn main() {
     let started = Instant::now();
-    let json = bootstrap_json();
-    // Parse. clap exits 0 on --help/--version; remap its bad-args exit to the
-    // the user-input-error code (1) with an envelope.
-    let cli = match Cli::try_parse() {
+    let raw: Vec<OsString> = std::env::args_os().skip(1).collect();
+    let json = bootstrap_json(&raw);
+    if let Some(problem) = undecodable(&raw) {
+        refuse(problem, json, started);
+    }
+    let selector_end = raw
+        .iter()
+        .position(|a| a.as_os_str() == OsStr::new("--"))
+        .unwrap_or(raw.len());
+    if raw[..selector_end]
+        .iter()
+        .any(|a| a.as_encoded_bytes().starts_with(b"--json="))
+    {
+        let mut problem = err("INVALID_INPUT", "--json takes no value");
+        problem
+            .as_object_mut()
+            .unwrap()
+            .insert("arg".into(), Value::from("--json"));
+        refuse(problem, json, started);
+    }
+    if is_bare(&raw) {
+        let usage = usage_text();
+        surface(
+            &usage,
+            json!({"usage": usage, "default_action": null}),
+            json,
+            started,
+        );
+    }
+    let args = normalize(raw);
+    let had_dashes = args.iter().any(|a| a.as_os_str() == OsStr::new("--"));
+    // Parse. Help and version are successful surfaces; every other parser
+    // refusal becomes a user-input error (1) with an envelope.
+    let cli = match Cli::try_parse_from(std::iter::once(OsString::from("rf")).chain(args)) {
         Ok(c) => c,
         Err(e) => {
             use clap::error::ErrorKind;
-            if matches!(e.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayVersion) {
-                e.print().ok();
-                std::process::exit(0);
+            match e.kind() {
+                ErrorKind::DisplayHelp => {
+                    let usage = e.render().to_string();
+                    surface(
+                        &usage,
+                        json!({"usage": usage, "capabilities_command": "rf capabilities --json"}),
+                        json,
+                        started,
+                    );
+                }
+                ErrorKind::DisplayVersion => surface(
+                    TOOL_VERSION,
+                    json!({"contract_version": CONTRACT_VERSION, "build": null}),
+                    json,
+                    started,
+                ),
+                _ => {}
             }
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::Null);
@@ -479,7 +670,7 @@ fn main() {
                 .split('`')
                 .nth(1)
                 .or_else(|| rendered.split('\'').nth(1));
-            let suggestion = if std::env::args().skip(1).any(|arg| arg == "--") {
+            let suggestion = if had_dashes {
                 None
             } else {
                 token.and_then(manifest::correction)
@@ -509,7 +700,7 @@ fn main() {
     // Totality: no backend panic reaches the user as an unmediated crash.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| dispatch(&cli.verb)));
     match result {
-        Ok((env, code)) => emit(env, code, json || cli.json, started),
+        Ok((env, code)) => emit(env, code, json, started),
         Err(_) => {
             let mut meta = Map::new();
             meta.insert("verb".into(), Value::Null);
@@ -521,7 +712,7 @@ fn main() {
                 vec![],
                 vec![err("INTERNAL", "internal error (panic caught)")],
             );
-            emit(env, 6, json || cli.json, started);
+            emit(env, 6, json, started);
         }
     }
 }

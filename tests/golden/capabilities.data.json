@@ -94,14 +94,6 @@
       "type": "bool"
     },
     {
-      "aliases": [],
-      "arity": 0,
-      "name": "--human",
-      "positions": "before or after a verb",
-      "summary": "force the human render even when stdout is not a terminal; --json wins if both are given",
-      "type": "bool"
-    },
-    {
       "aliases": [
         "-h"
       ],
@@ -297,6 +289,16 @@
           "pattern"
         ]
       },
+      "help": {
+        "aliases": [],
+        "flags": [],
+        "path": [
+          "help"
+        ],
+        "positionals": [
+          "path"
+        ]
+      },
       "robot-docs": {
         "aliases": [],
         "flags": [],
@@ -375,11 +377,6 @@
         ],
         "arity": 0,
         "name": "--help"
-      },
-      {
-        "aliases": [],
-        "arity": 0,
-        "name": "--human"
       },
       {
         "aliases": [],
@@ -756,6 +753,18 @@
         }
       },
       "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural"
+    },
+    "help": {
+      "aliases": [],
+      "args": [
+        {
+          "arity": "0..",
+          "name": "path",
+          "type": "string"
+        }
+      ],
+      "flags": [],
+      "summary": "show help for rf or for one verb; same bytes as --help at that node"
     },
     "robot-docs": {
       "aliases": [],

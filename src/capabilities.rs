@@ -27,6 +27,7 @@ pub fn build() -> Value {
             "robot-docs": {"summary": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
             "robot-docs guide": {"summary": "emit agent workflow recipes", "aliases": [], "flags": [{"name":"--compact", "arity":0, "type":"bool"}], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
             "capabilities": {"summary": "emit this machine contract", "aliases": [], "flags": []},
+            "help": {"summary": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "args": [{"name": "path", "arity": "0..", "type": "string"}], "flags": []},
             "content": {
                 "summary": "content search; attributes each match to the filter that would hide it",
                 "aliases": [],
@@ -116,7 +117,6 @@ pub fn build() -> Value {
         "global_flags": [
             {"name": "--json", "aliases": [], "arity": 0, "type": "bool", "positions": "before or after a verb", "summary": "machine envelope"},
             {"name": "--no-color", "aliases": [], "arity": 0, "type": "bool", "positions": "before or after a verb", "summary": "disable terminal decoration"},
-            {"name": "--human", "aliases": [], "arity": 0, "type": "bool", "positions": "before or after a verb", "summary": "force the human render even when stdout is not a terminal; --json wins if both are given"},
             {"name": "--help", "aliases": ["-h"], "arity": 0, "type": "bool", "summary": "usage text; exit 0"},
             {"name": "--version", "aliases": ["-V"], "arity": 0, "type": "bool", "summary": "version string; exit 0"}
         ],

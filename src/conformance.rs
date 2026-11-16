@@ -40,14 +40,27 @@ struct Probe {
     stdout_nonempty: bool,
 }
 
+/// A machine probe: `--json` goes first, because machine rendering is selected,
+/// never automatic.
 fn run_probe(exe: &Path, args: &[&str]) -> Probe {
     run_probe_env(exe, args, None)
+}
+
+/// A human probe: argv is passed as written, with no selector added.
+fn run_probe_human(exe: &Path, args: &[&str]) -> Probe {
+    run_probe_raw(exe, args, None)
 }
 
 /// Run a probe with explicit control over the fault seam. `fault: None` strips any
 /// ambient `RF_FAULT` so a normal probe is never perturbed by the caller's env;
 /// `fault: Some(stage)` sets it, to exercise that stage's injection seam.
 fn run_probe_env(exe: &Path, args: &[&str], fault: Option<&str>) -> Probe {
+    let mut machine = vec!["--json"];
+    machine.extend_from_slice(args);
+    run_probe_raw(exe, &machine, fault)
+}
+
+fn run_probe_raw(exe: &Path, args: &[&str], fault: Option<&str>) -> Probe {
     let mut cmd = Command::new(exe);
     cmd.args(args).env("NO_COLOR", "1");
     match fault {
@@ -540,19 +553,22 @@ pub fn run() -> (Value, i32) {
 
     // ---- Group 4: successful special surfaces ----
 
-    // H-01: bare invocation. rf requires a subcommand and declares no bare success
-    // surface, so the contract's exit-0 usage case does not apply.
-    s.case(
-        "H-01",
-        &[],
-        "not_applicable",
-        Some("rf-requires-a-subcommand"),
-        None,
-    );
+    // H-01: bare invocation is a successful human surface.
+    {
+        let p = run_probe_human(&exe, &[]);
+        s.exit_codes.insert(p.exit);
+        s.case(
+            "H-01",
+            &[],
+            vd(p.exit == 0 && p.stdout_nonempty),
+            None,
+            None,
+        );
+    }
 
     // H-02: --help and --version -> human text, exit 0.
     for (surface, arg) in [("help", "--help"), ("version", "--version")] {
-        let p = run_probe(&exe, &[arg]);
+        let p = run_probe_human(&exe, &[arg]);
         // human surface: assert exit 0 and non-empty stdout, not JSON shape.
         let pass = p.exit == 0 && p.stdout_nonempty;
         if !p.stdout_nonempty {
@@ -568,15 +584,23 @@ pub fn run() -> (Value, i32) {
         );
     }
 
-    // H-03: help under a machine selector. rf renders help as clap human text with
-    // no envelope form, so a machine help surface does not apply.
-    s.case(
-        "H-03",
-        &[],
-        "not_applicable",
-        Some("help-surface-not-machine-rendered"),
-        None,
-    );
+    // H-03: each help surface under a machine selector is an envelope.
+    for (surface, args) in [
+        ("bare", &[][..]),
+        ("help", &["--help"][..]),
+        ("version", &["--version"][..]),
+    ] {
+        let p = run_probe(&exe, args);
+        s.observe(&p);
+        let pass = p.exit == 0 && p.ok == Some(true) && p.seven;
+        s.case(
+            "H-03",
+            &[("surface", surface)],
+            vd(pass),
+            None,
+            p.request_id.as_deref(),
+        );
+    }
 
     // B-13: a positional whose text is a flag, after `--`, is treated as data.
     {

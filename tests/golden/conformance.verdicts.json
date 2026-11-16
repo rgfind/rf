@@ -57,8 +57,8 @@
     },
     {
       "case_id": "H-01",
-      "reason": "rf-requires-a-subcommand",
-      "verdict": "not_applicable"
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "H-02::surface=help",
@@ -71,9 +71,19 @@
       "verdict": "pass"
     },
     {
-      "case_id": "H-03",
-      "reason": "help-surface-not-machine-rendered",
-      "verdict": "not_applicable"
+      "case_id": "H-03::surface=bare",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-03::surface=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-03::surface=version",
+      "reason": null,
+      "verdict": "pass"
     },
     {
       "case_id": "M-01::shape=envelope::verb=capabilities",
@@ -198,8 +208,8 @@
   ],
   "counts": {
     "fail": 0,
-    "not_applicable": 5,
-    "pass": 34
+    "not_applicable": 3,
+    "pass": 38
   },
   "profile": "release-self-check"
 }

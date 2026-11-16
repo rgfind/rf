@@ -469,7 +469,7 @@ fn error_envelopes_and_global_json_are_total() {
     for args in [
         vec!["--json", "content", TOKEN, "."],
         vec!["content", TOKEN, ".", "--json"],
-        vec!["content", "--", "--json"],
+        vec!["--json", "content", "--", "--json"],
     ] {
         let (code, env, _stdout, _stderr) = rf_with_stderr(&args, cwd, &[]);
         assert_eq!(code, 0, "{args:?}");
@@ -1698,4 +1698,142 @@ fn fault_seam_proves_totality() {
         "X-03 not release posture"
     );
     assert_eq!(e["data"]["counts"]["fail"], Value::from(0));
+}
+
+/// Mode and help surfaces: JSON is selected, never automatic. The help
+/// spellings are one surface, and a closed reader ends the process with 141.
+#[cfg(unix)]
+#[test]
+fn mode_and_help_surfaces_follow_the_selector() {
+    use std::ffi::OsStr;
+    use std::io::Read;
+    use std::os::unix::ffi::OsStrExt;
+    use std::process::Stdio;
+
+    let raw = |args: &[&OsStr]| {
+        let out = Command::new(BIN).args(args).output().expect("spawn rf");
+        (
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stdout).to_string(),
+        )
+    };
+    let text = |args: &[&str]| {
+        let args: Vec<&OsStr> = args.iter().map(OsStr::new).collect();
+        raw(&args)
+    };
+
+    // No selector gives human text, even when stdout is a pipe.
+    let (code, out) = text(&["doctor"]);
+    assert_eq!(code, 0);
+    assert!(serde_json::from_str::<Value>(&out).is_err(), "{out}");
+    let (code, _, _) = rf(&["--human", "doctor", "--json"], None, &[]);
+    assert_eq!(code, 1, "--human is removed");
+
+    // Version: the bare version in human rendering, the floor keys in JSON.
+    for flag in ["--version", "-V"] {
+        assert_eq!(
+            text(&[flag]),
+            (0, format!("{}\n", env!("CARGO_PKG_VERSION")))
+        );
+    }
+    let (code, env, _) = rf(&["--version", "--json"], None, &[]);
+    assert_eq!(code, 0);
+    assert_eq!(env["data"]["contract_version"], "0.1");
+    assert!(env["data"]["build"].is_null());
+    assert!(env["data"].as_object().unwrap().contains_key("build"));
+
+    // Bare invocation and help.
+    let (code, usage) = text(&[]);
+    assert_eq!(code, 0);
+    assert!(usage.contains("Usage: rf"));
+    let (code, env, _) = rf(&["--json"], None, &[]);
+    assert_eq!(code, 0);
+    assert_eq!(env["data"]["usage"], Value::from(usage.clone()));
+    assert!(env["data"]["default_action"].is_null());
+    let (code, env, _) = rf(&["--help", "--json"], None, &[]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        env["data"]["capabilities_command"],
+        "rf capabilities --json"
+    );
+    assert_eq!(env["data"]["usage"], Value::from(usage.clone()));
+
+    // The three help spellings give the same bytes at each node.
+    for node in [&[][..], &["content"][..], &["robot-docs", "guide"][..]] {
+        let mut long = node.to_vec();
+        long.push("--help");
+        let mut short = node.to_vec();
+        short.push("-h");
+        let mut verb = vec!["help"];
+        verb.extend_from_slice(node);
+        let want = text(&long);
+        assert_eq!(want.0, 0);
+        assert_eq!(text(&short), want, "{node:?}");
+        assert_eq!(text(&verb), want, "{node:?}");
+    }
+    let (code, env, _) = rf(&["help", "contnt", "--json"], None, &[]);
+    assert_eq!(code, 1);
+    assert_eq!(env["errors"][0]["code"], "UNKNOWN_COMMAND");
+    assert_eq!(env["errors"][0]["did_you_mean"], "content");
+
+    // A malformed selector still selects machine rendering.
+    for selector in ["--json=false", "--json=1", "--json="] {
+        let (code, env, _) = rf(&[selector, "doctor"], None, &[]);
+        assert_eq!(code, 1, "{selector}");
+        assert_eq!(env["errors"][0]["code"], "INVALID_INPUT");
+        assert_eq!(env["errors"][0]["arg"], "--json");
+    }
+
+    // Undecodable argv: classified by position, bytes reported exactly.
+    let bad = OsStr::from_bytes(b"\xff");
+    let bad_flag = OsStr::from_bytes(b"--b\xffd");
+    let json = OsStr::new("--json");
+    for (args, want, hex) in [
+        (vec![bad, json], "UNKNOWN_COMMAND", "ff"),
+        (vec![json, bad], "UNKNOWN_COMMAND", "ff"),
+        (
+            vec![OsStr::new("content"), bad_flag, json],
+            "UNKNOWN_FLAG",
+            "2d2d62ff64",
+        ),
+        (
+            vec![OsStr::new("content"), bad, json],
+            "INVALID_INPUT",
+            "ff",
+        ),
+    ] {
+        let (code, out) = raw(&args);
+        let env: Value = serde_json::from_str(&out).expect("envelope");
+        assert_eq!(code, 1);
+        assert_eq!(env["errors"][0]["code"], want);
+        assert_eq!(env["errors"][0]["details"]["bytes_hex"], hex);
+        assert!(env["errors"][0]["arg"].as_str().unwrap().contains("\\xff"));
+    }
+    let (code, out) = raw(&[bad]);
+    assert_eq!(
+        (code, out.as_str()),
+        (1, ""),
+        "human refusal is stderr only"
+    );
+
+    // A closed reader: exit 141 and no panic text.
+    for args in [&["capabilities", "--json"][..], &["--help"][..]] {
+        let mut child = Command::new(BIN)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn rf");
+        drop(child.stdout.take());
+        let mut stderr = String::new();
+        child
+            .stderr
+            .take()
+            .unwrap()
+            .read_to_string(&mut stderr)
+            .unwrap();
+        let status = child.wait().unwrap();
+        assert_eq!(status.code(), Some(141), "{args:?}");
+        assert!(!stderr.contains("panicked"), "{stderr}");
+    }
 }
