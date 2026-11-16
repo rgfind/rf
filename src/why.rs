@@ -95,20 +95,6 @@ fn evidence_cfg(class: Option<Class>, query: QueryMode) -> SearchCfg {
     }
 }
 
-fn occurrence_value(value: crate::engine::Occurrence) -> Value {
-    let mut occurrence = Map::new();
-    occurrence.insert("line".into(), Value::from(value.line));
-    occurrence.insert("column_byte".into(), Value::from(value.column_byte));
-    occurrence.insert("text".into(), Value::from(value.text));
-    if value.text_lossy {
-        occurrence.insert("text_lossy".into(), Value::from(true));
-    }
-    if value.text_truncated {
-        occurrence.insert("text_truncated".into(), Value::from(true));
-    }
-    Value::from(occurrence)
-}
-
 fn resolve_root(target: &str, root_arg: Option<&str>) -> Result<(PathBuf, PathBuf), (Value, i32)> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let target_path = Path::new(target);
@@ -216,21 +202,29 @@ pub fn run(
             .map(|value| Value::from(value.name()))
             .unwrap_or(Value::Null),
     );
-    if evidence {
-        let matches = crate::engine::occurrences(
-            &canonical.to_string_lossy(),
-            pattern,
-            &evidence_cfg(class, query),
-            max_matches
-                .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
-                .min(crate::engine::MAX_EVIDENCE_MATCHES),
+    let match_cap = max_matches
+        .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
+        .min(crate::engine::MAX_EVIDENCE_MATCHES);
+    // Every key is in every reply; a key with no value is null.
+    let matches = if evidence {
+        Value::Array(
+            crate::engine::occurrences(
+                &canonical.to_string_lossy(),
+                pattern,
+                &evidence_cfg(class, query),
+                match_cap,
+            )
+            .unwrap_or_default()
+            .into_iter()
+            .map(crate::engine::occurrence_json)
+            .collect(),
         )
-        .unwrap_or_default()
-        .into_iter()
-        .map(occurrence_value)
-        .collect();
-        row.insert("matches".into(), Value::Array(matches));
-    }
+    } else {
+        Value::Null
+    };
+    row.insert("matches".into(), matches);
+    row.insert("ignore_source".into(), Value::Null);
+    row.insert("hiding_filter".into(), Value::Null);
 
     let mut warnings = Vec::new();
     let mut commands = Vec::new();
@@ -285,17 +279,10 @@ pub fn run(
             .map(|value| Value::from(value.name()))
             .unwrap_or(Value::Null),
     );
-    if evidence {
-        meta.insert(
-            "evidence".into(),
-            serde_json::json!({
-                "requested": true,
-            "match_cap": max_matches.unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES).min(crate::engine::MAX_EVIDENCE_MATCHES),
-                "text_bytes_cap": crate::engine::MAX_EVIDENCE_TEXT_BYTES,
-                "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
-            }),
-        );
-    }
+    meta.insert(
+        "evidence".into(),
+        crate::engine::evidence_meta(evidence, match_cap),
+    );
     (
         envelope(true, Value::from(row), meta, warnings, commands, vec![]),
         0,

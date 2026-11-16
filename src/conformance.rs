@@ -220,6 +220,22 @@ fn positional_names(v: &Value) -> BTreeSet<String> {
     from_args.or(from_pos).unwrap_or_default()
 }
 
+/// Put each node of the declared verb tree in `out`, keyed by its full path
+/// (`robot-docs guide`).
+fn flatten(prefix: &str, verbs: &Map<String, Value>, out: &mut Map<String, Value>) {
+    for (name, entry) in verbs {
+        let path = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{prefix} {name}")
+        };
+        if let Some(subs) = entry.get("subcommands").and_then(Value::as_object) {
+            flatten(&path, subs, out);
+        }
+        out.insert(path, entry.clone());
+    }
+}
+
 /// True iff the hand-kept `verbs` surface and the parser-derived manifest agree
 /// on the verb set and, per verb, the long-flag names and positional names.
 fn reconcile(
@@ -228,6 +244,11 @@ fn reconcile(
     hand_globals: &Value,
     derived_globals: &Value,
 ) -> bool {
+    // The manifest is flat, keyed by the full path. The declared surface is
+    // a tree, so flatten it to the same keys before the comparison.
+    let mut flat = Map::new();
+    flatten("", hand, &mut flat);
+    let hand = &flat;
     let hverbs: BTreeSet<&String> = hand.keys().collect();
     let dverbs: BTreeSet<&String> = derived.keys().collect();
     if hverbs != dverbs {

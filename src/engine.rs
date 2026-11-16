@@ -351,3 +351,25 @@ pub fn name_matches(
     }
     out
 }
+
+/// One occurrence as JSON. All five keys are in every occurrence.
+pub fn occurrence_json(value: Occurrence) -> serde_json::Value {
+    serde_json::json!({
+        "line": value.line,
+        "column_byte": value.column_byte,
+        "text": value.text,
+        "text_lossy": value.text_lossy,
+        "text_truncated": value.text_truncated,
+    })
+}
+
+/// `meta.evidence`. It is in every reply; `match_cap` is null when the
+/// request did not ask for occurrences.
+pub fn evidence_meta(requested: bool, match_cap: usize) -> serde_json::Value {
+    serde_json::json!({
+        "requested": requested,
+        "match_cap": requested.then_some(match_cap),
+        "text_bytes_cap": MAX_EVIDENCE_TEXT_BYTES,
+        "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
+    })
+}

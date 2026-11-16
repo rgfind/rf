@@ -954,15 +954,135 @@
         "X-02": "release-build-fault-trigger-unavailable"
       },
       "output_schema": {
-        "data": {
-          "cases": "array[{case_id,verdict,reason,request_id,target}]",
-          "counts": {
-            "fail": "int",
-            "not_applicable": "int",
-            "pass": "int"
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+        "properties": {
+          "data": {
+            "additionalProperties": false,
+            "properties": {
+              "cases": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "case_id": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "verdict": {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "not_applicable"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "case_id",
+                    "reason",
+                    "request_id",
+                    "target",
+                    "verdict"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "counts": {
+                "additionalProperties": false,
+                "properties": {
+                  "fail": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "not_applicable": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "pass": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "fail",
+                  "not_applicable",
+                  "pass"
+                ],
+                "type": "object"
+              },
+              "profile": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "cases",
+              "counts",
+              "profile"
+            ],
+            "type": "object"
           },
-          "profile": "string"
-        }
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "contract_version": {
+                "type": "string"
+              },
+              "data_hash": {
+                "type": "string"
+              },
+              "elapsed_ms": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "headline": {
+                "type": "string"
+              },
+              "profile": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "ts_iso": {
+                "type": "string"
+              },
+              "verb": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contract_version",
+              "data_hash",
+              "elapsed_ms",
+              "headline",
+              "profile",
+              "request_id",
+              "ts_iso",
+              "verb"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
       },
       "profile": "release-self-check"
     },
@@ -1081,36 +1201,291 @@
       "json": true,
       "mutates": false,
       "output_schema": {
-        "data.items[]": {
-          "file": "string",
-          "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}",
-          "selection": "selected when a selected-input mode is used",
-          "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]"
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+        "properties": {
+          "data": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    },
+                    "matches": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "column_byte": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "line": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "text_lossy": {
+                            "type": "boolean"
+                          },
+                          "text_truncated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "column_byte",
+                          "line",
+                          "text",
+                          "text_lossy",
+                          "text_truncated"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 16,
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    },
+                    "selection": {
+                      "enum": [
+                        "selected",
+                        null
+                      ],
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "surfaced_by": {
+                      "enum": [
+                        "default",
+                        "vcs_ignore",
+                        "hidden",
+                        "binary",
+                        "case",
+                        "encoding_utf16"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "file",
+                    "matches",
+                    "selection",
+                    "surfaced_by"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "items",
+              "total"
+            ],
+            "type": "object"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "contract_version": {
+                "type": "string"
+              },
+              "data_hash": {
+                "type": "string"
+              },
+              "default_matched_files": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "elapsed_ms": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "evidence": {
+                "additionalProperties": false,
+                "properties": {
+                  "match_cap": {
+                    "maximum": 16,
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "requested": {
+                    "type": "boolean"
+                  },
+                  "response_bytes_cap": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "text_bytes_cap": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "match_cap",
+                  "requested",
+                  "response_bytes_cap",
+                  "text_bytes_cap"
+                ],
+                "type": "object"
+              },
+              "hidden_by_filters": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "matched_files": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pagination": {
+                "additionalProperties": false,
+                "properties": {
+                  "cursor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "has_more": {
+                    "type": "boolean"
+                  },
+                  "limit": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "returned": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "snapshot_hash": {
+                    "type": "string"
+                  },
+                  "total": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "cursor",
+                  "has_more",
+                  "limit",
+                  "returned",
+                  "snapshot_hash",
+                  "total",
+                  "truncated"
+                ],
+                "type": "object"
+              },
+              "path": {
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "query": {
+                "additionalProperties": false,
+                "properties": {
+                  "case": {
+                    "enum": [
+                      "sensitive",
+                      "insensitive"
+                    ],
+                    "type": "string"
+                  },
+                  "syntax": {
+                    "enum": [
+                      "regex",
+                      "fixed"
+                    ],
+                    "type": "string"
+                  },
+                  "word": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "case",
+                  "syntax",
+                  "word"
+                ],
+                "type": "object"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "selection": {
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "root-walk",
+                      "stdin-nul",
+                      "rf-envelope"
+                    ],
+                    "type": "string"
+                  },
+                  "selected_files": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode",
+                  "selected_files"
+                ],
+                "type": "object"
+              },
+              "ts_iso": {
+                "type": "string"
+              },
+              "verb": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contract_version",
+              "data_hash",
+              "default_matched_files",
+              "elapsed_ms",
+              "evidence",
+              "hidden_by_filters",
+              "matched_files",
+              "pagination",
+              "path",
+              "pattern",
+              "query",
+              "request_id",
+              "selection",
+              "ts_iso",
+              "verb"
+            ],
+            "type": "object"
+          }
         },
-        "meta.evidence": {
-          "match_cap": "int<=16",
-          "requested": "true when --matches",
-          "response_bytes_cap": 32768,
-          "text_bytes_cap": 512
-        },
-        "meta.pagination": {
-          "cursor": "string|null",
-          "has_more": "bool",
-          "limit": "int",
-          "returned": "int",
-          "snapshot_hash": "sha256",
-          "total": "int",
-          "truncated": "bool"
-        },
-        "meta.query": {
-          "case": "enum[sensitive,insensitive]",
-          "syntax": "enum[regex,fixed]",
-          "word": "bool"
-        },
-        "meta.selection": {
-          "mode": "enum[root-walk,stdin-nul,rf-envelope]",
-          "selected_files": "int when selected input is used"
-        }
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
       },
       "selected_input": {
         "classification": "selected files are classified by content layers; they are never marked recovered",
@@ -1139,21 +1514,280 @@
       "json": true,
       "mutates": false,
       "output_schema": {
-        "data": {
-          "external_tools": {
-            "ast-grep": "{status,state,path,version,probe_error}",
-            "git": "{status,state,path,version,probe_error}"
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+        "properties": {
+          "data": {
+            "additionalProperties": false,
+            "properties": {
+              "engine": {
+                "type": "string"
+              },
+              "external_tools": {
+                "additionalProperties": false,
+                "properties": {
+                  "ast-grep": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "probe_error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "state": {
+                        "enum": [
+                          "healthy",
+                          "degraded",
+                          "unhealthy"
+                        ],
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": [
+                          "available",
+                          "missing",
+                          "timed_out",
+                          "unusable"
+                        ],
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "probe_error",
+                      "state",
+                      "status",
+                      "version"
+                    ],
+                    "type": "object"
+                  },
+                  "git": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "probe_error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "state": {
+                        "enum": [
+                          "healthy",
+                          "degraded",
+                          "unhealthy"
+                        ],
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": [
+                          "available",
+                          "missing",
+                          "timed_out",
+                          "unusable"
+                        ],
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "probe_error",
+                      "state",
+                      "status",
+                      "version"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "ast-grep",
+                  "git"
+                ],
+                "type": "object"
+              },
+              "git_repo": {
+                "type": "boolean"
+              },
+              "ignore_mode": {
+                "type": "string"
+              },
+              "overall": {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "unhealthy"
+                ],
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "recommended_action": {
+                "additionalProperties": false,
+                "properties": {
+                  "affected": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "mode": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "verb": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "status",
+                        "verb"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "alternatives": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "command": {
+                          "type": "string"
+                        },
+                        "purpose": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "command",
+                        "purpose"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "command": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "is_destructive": {
+                    "type": "boolean"
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "references": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "purpose": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "purpose",
+                        "url"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "affected",
+                  "alternatives",
+                  "command",
+                  "is_destructive",
+                  "rationale",
+                  "references"
+                ],
+                "type": "object"
+              },
+              "rf_version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "engine",
+              "external_tools",
+              "git_repo",
+              "ignore_mode",
+              "overall",
+              "path",
+              "recommended_action",
+              "rf_version"
+            ],
+            "type": "object"
           },
-          "overall": "enum[healthy,degraded,unhealthy]",
-          "recommended_action": {
-            "affected": "array[{verb,mode,status}]",
-            "alternatives": "array[{command,purpose}]",
-            "command": "string|null",
-            "is_destructive": "false",
-            "rationale": "string",
-            "references": "array[{url,purpose}]"
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "contract_version": {
+                "type": "string"
+              },
+              "data_hash": {
+                "type": "string"
+              },
+              "elapsed_ms": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "ts_iso": {
+                "type": "string"
+              },
+              "verb": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contract_version",
+              "data_hash",
+              "elapsed_ms",
+              "request_id",
+              "ts_iso",
+              "verb"
+            ],
+            "type": "object"
           }
-        }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
       }
     },
     "find": {
@@ -1313,53 +1947,426 @@
       "json": true,
       "mutates": false,
       "output_schema": {
-        "data.items[]": {
-          "file": "string",
-          "fix": "string|null",
-          "matches": "opt-in occurrence[] or null for history-only/structural-only",
-          "matches_unavailable_reason": "history-only|structural-only when matches is null",
-          "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]"
-        },
-        "meta.evidence": {
-          "match_cap": "int<=16",
-          "requested": "true when --matches",
-          "response_bytes_cap": 32768,
-          "text_bytes_cap": 512
-        },
-        "meta.history": {
-          "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]",
-          "budget_ms": 2000,
-          "failed_revisions": "int",
-          "requested_mode": "all-revisions",
-          "served_revisions": "int"
-        },
-        "meta.pagination": {
-          "cursor": "string|null",
-          "has_more": "bool",
-          "limit": "int",
-          "returned": "int",
-          "snapshot_hash": "sha256",
-          "total": "int",
-          "truncated": "bool"
-        },
-        "meta.query": {
-          "case": "enum[sensitive,insensitive]",
-          "stages": "tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep",
-          "syntax": "enum[regex,fixed]",
-          "word": "bool"
-        },
-        "meta.sources": {
-          "history": {
-            "actual": "enum[used,skipped]",
-            "fallback_reason": "null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]",
-            "requested": "bool"
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+        "properties": {
+          "data": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    },
+                    "fix": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "matches": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "column_byte": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "line": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "text_lossy": {
+                            "type": "boolean"
+                          },
+                          "text_truncated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "column_byte",
+                          "line",
+                          "text",
+                          "text_lossy",
+                          "text_truncated"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 16,
+                      "type": [
+                        "array",
+                        "null"
+                      ]
+                    },
+                    "matches_unavailable_reason": {
+                      "enum": [
+                        "history-only",
+                        "structural-only",
+                        null
+                      ],
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "stage": {
+                      "enum": [
+                        "found",
+                        "fd_name",
+                        "fd_hidden",
+                        "fd_ignore",
+                        "fd_filter",
+                        "rg_binary",
+                        "git_deleted",
+                        "ast_structural"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "file",
+                    "fix",
+                    "matches",
+                    "matches_unavailable_reason",
+                    "stage"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "items",
+              "total"
+            ],
+            "type": "object"
           },
-          "structural": {
-            "actual": "enum[used,skipped]",
-            "fallback_reason": "null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]",
-            "requested": "bool"
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "content_total": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "contract_version": {
+                "type": "string"
+              },
+              "data_hash": {
+                "type": "string"
+              },
+              "elapsed_ms": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "evidence": {
+                "additionalProperties": false,
+                "properties": {
+                  "match_cap": {
+                    "maximum": 16,
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "requested": {
+                    "type": "boolean"
+                  },
+                  "response_bytes_cap": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "text_bytes_cap": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "match_cap",
+                  "requested",
+                  "response_bytes_cap",
+                  "text_bytes_cap"
+                ],
+                "type": "object"
+              },
+              "fd_default_files": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "headline": {
+                "type": "string"
+              },
+              "hidden_by_stage": {
+                "additionalProperties": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              "history": {
+                "additionalProperties": false,
+                "properties": {
+                  "actual_mode": {
+                    "enum": [
+                      "available",
+                      "git-absent",
+                      "git-unusable",
+                      "git-timed-out",
+                      "not-work-tree",
+                      "partial",
+                      "history-error"
+                    ],
+                    "type": "string"
+                  },
+                  "budget_ms": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "failed_revisions": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "requested_mode": {
+                    "enum": [
+                      "all-revisions"
+                    ],
+                    "type": "string"
+                  },
+                  "served_revisions": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "actual_mode",
+                  "budget_ms",
+                  "failed_revisions",
+                  "requested_mode",
+                  "served_revisions"
+                ],
+                "type": "object"
+              },
+              "history_matches": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name_filter": {
+                "type": "string"
+              },
+              "pagination": {
+                "additionalProperties": false,
+                "properties": {
+                  "cursor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "has_more": {
+                    "type": "boolean"
+                  },
+                  "limit": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "returned": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "snapshot_hash": {
+                    "type": "string"
+                  },
+                  "total": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "cursor",
+                  "has_more",
+                  "limit",
+                  "returned",
+                  "snapshot_hash",
+                  "total",
+                  "truncated"
+                ],
+                "type": "object"
+              },
+              "path": {
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "pipe_matched": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "query": {
+                "additionalProperties": false,
+                "properties": {
+                  "case": {
+                    "enum": [
+                      "sensitive",
+                      "insensitive"
+                    ],
+                    "type": "string"
+                  },
+                  "syntax": {
+                    "enum": [
+                      "regex",
+                      "fixed"
+                    ],
+                    "type": "string"
+                  },
+                  "word": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "case",
+                  "syntax",
+                  "word"
+                ],
+                "type": "object"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "sources": {
+                "additionalProperties": false,
+                "properties": {
+                  "history": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "actual": {
+                        "enum": [
+                          "used",
+                          "skipped"
+                        ],
+                        "type": "string"
+                      },
+                      "fallback_reason": {
+                        "enum": [
+                          "tool-missing",
+                          "tool-unusable",
+                          "tool-timed-out",
+                          "not-work-tree",
+                          "history-partial",
+                          "history-failed",
+                          null
+                        ],
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "requested": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "actual",
+                      "fallback_reason",
+                      "requested"
+                    ],
+                    "type": "object"
+                  },
+                  "structural": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "actual": {
+                        "enum": [
+                          "used",
+                          "skipped"
+                        ],
+                        "type": "string"
+                      },
+                      "fallback_reason": {
+                        "enum": [
+                          "not-requested",
+                          "tool-missing",
+                          "tool-unusable",
+                          "tool-timed-out",
+                          null
+                        ],
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "requested": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "actual",
+                      "fallback_reason",
+                      "requested"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "history",
+                  "structural"
+                ],
+                "type": "object"
+              },
+              "structural_matches": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ts_iso": {
+                "type": "string"
+              },
+              "verb": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "content_total",
+              "contract_version",
+              "data_hash",
+              "elapsed_ms",
+              "evidence",
+              "fd_default_files",
+              "headline",
+              "hidden_by_stage",
+              "history",
+              "history_matches",
+              "name_filter",
+              "pagination",
+              "path",
+              "pattern",
+              "pipe_matched",
+              "query",
+              "request_id",
+              "sources",
+              "structural_matches",
+              "ts_iso",
+              "verb"
+            ],
+            "type": "object"
           }
-        }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
       }
     },
     "help": {
@@ -1393,6 +2400,7 @@
       "mutates": false,
       "subcommands": {
         "guide": {
+          "aliases": [],
           "args": [],
           "description": "emit agent workflow recipes",
           "exit_codes": [
@@ -1410,44 +2418,109 @@
           "json": true,
           "mutates": false,
           "output_schema": {
-            "data.items[]": {
-              "command": "safe shell command",
-              "expected_branch": "string",
-              "goal": "string",
-              "id": "string",
-              "inputs": "array[string]",
-              "version_range": "string"
-            }
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "command": {
+                          "type": "string"
+                        },
+                        "expected_branch": {
+                          "type": "string"
+                        },
+                        "goal": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "inputs": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "version_range": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "command",
+                        "expected_branch",
+                        "goal",
+                        "id",
+                        "inputs",
+                        "version_range"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "total": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "items",
+                  "total"
+                ],
+                "type": "object"
+              },
+              "meta": {
+                "additionalProperties": false,
+                "properties": {
+                  "contract_version": {
+                    "type": "string"
+                  },
+                  "data_hash": {
+                    "type": "string"
+                  },
+                  "elapsed_ms": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "format": {
+                    "enum": [
+                      "index",
+                      "guide"
+                    ],
+                    "type": "string"
+                  },
+                  "request_id": {
+                    "type": "string"
+                  },
+                  "ts_iso": {
+                    "type": "string"
+                  },
+                  "verb": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contract_version",
+                  "data_hash",
+                  "elapsed_ms",
+                  "format",
+                  "request_id",
+                  "ts_iso",
+                  "verb"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "data",
+              "meta"
+            ],
+            "type": "object"
           }
-        }
-      }
-    },
-    "robot-docs guide": {
-      "aliases": [],
-      "args": [],
-      "description": "emit agent workflow recipes",
-      "exit_codes": [
-        0,
-        1
-      ],
-      "flags": [
-        {
-          "arity": 0,
-          "default": false,
-          "description": "emit short recipes",
-          "name": "--compact"
-        }
-      ],
-      "json": true,
-      "mutates": false,
-      "output_schema": {
-        "data.items[]": {
-          "command": "safe shell command",
-          "expected_branch": "string",
-          "goal": "string",
-          "id": "string",
-          "inputs": "array[string]",
-          "version_range": "string"
         }
       }
     },
@@ -1535,36 +2608,296 @@
       "json": true,
       "mutates": false,
       "output_schema": {
-        "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches",
-        "data": {
-          "file": "root-relative target path",
-          "hidden_from_default": "bool",
-          "hiding_filter": "{code,layer,rg_flags}|absent",
-          "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore",
-          "matched": "bool",
-          "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}",
-          "pattern": "string",
-          "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null"
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+        "properties": {
+          "commands": {
+            "description": "empty unless a hidden filter is corrected; the command reproduces the root-scoped tree search and can include sibling matches",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "data": {
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "hidden_from_default": {
+                "type": "boolean"
+              },
+              "hiding_filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "layer": {
+                    "type": "string"
+                  },
+                  "rg_flags": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "layer",
+                  "rg_flags"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "ignore_source": {
+                "additionalProperties": false,
+                "properties": {
+                  "class": {
+                    "enum": [
+                      "gitignore",
+                      "git_exclude",
+                      "git_global",
+                      "dot_ignore"
+                    ],
+                    "type": "string"
+                  },
+                  "line": {
+                    "minimum": 1,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "pattern": {
+                    "type": "string"
+                  },
+                  "source_file": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "class",
+                  "line",
+                  "pattern",
+                  "source_file"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "matched": {
+                "type": "boolean"
+              },
+              "matches": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "column_byte": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "line": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "text_lossy": {
+                      "type": "boolean"
+                    },
+                    "text_truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "column_byte",
+                    "line",
+                    "text",
+                    "text_lossy",
+                    "text_truncated"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 16,
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "surfaced_by": {
+                "enum": [
+                  "default",
+                  "vcs_ignore",
+                  "hidden",
+                  "binary",
+                  "case",
+                  "encoding_utf16",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "file",
+              "hidden_from_default",
+              "hiding_filter",
+              "ignore_source",
+              "matched",
+              "matches",
+              "pattern",
+              "surfaced_by"
+            ],
+            "type": "object"
+          },
+          "meta": {
+            "additionalProperties": false,
+            "properties": {
+              "contract_version": {
+                "type": "string"
+              },
+              "data_hash": {
+                "type": "string"
+              },
+              "elapsed_ms": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "evidence": {
+                "additionalProperties": false,
+                "properties": {
+                  "match_cap": {
+                    "maximum": 16,
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "requested": {
+                    "type": "boolean"
+                  },
+                  "response_bytes_cap": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "text_bytes_cap": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "match_cap",
+                  "requested",
+                  "response_bytes_cap",
+                  "text_bytes_cap"
+                ],
+                "type": "object"
+              },
+              "file": {
+                "type": "string"
+              },
+              "git_repo": {
+                "type": "boolean"
+              },
+              "ignore_mode": {
+                "type": "string"
+              },
+              "matched": {
+                "type": "boolean"
+              },
+              "pattern": {
+                "type": "string"
+              },
+              "query": {
+                "additionalProperties": false,
+                "properties": {
+                  "case": {
+                    "enum": [
+                      "sensitive",
+                      "insensitive"
+                    ],
+                    "type": "string"
+                  },
+                  "syntax": {
+                    "enum": [
+                      "regex",
+                      "fixed"
+                    ],
+                    "type": "string"
+                  },
+                  "word": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "case",
+                  "syntax",
+                  "word"
+                ],
+                "type": "object"
+              },
+              "request_id": {
+                "type": "string"
+              },
+              "root": {
+                "type": "string"
+              },
+              "surfaced_by": {
+                "enum": [
+                  "default",
+                  "vcs_ignore",
+                  "hidden",
+                  "binary",
+                  "case",
+                  "encoding_utf16",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "ts_iso": {
+                "type": "string"
+              },
+              "verb": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "contract_version",
+              "data_hash",
+              "elapsed_ms",
+              "evidence",
+              "file",
+              "git_repo",
+              "ignore_mode",
+              "matched",
+              "pattern",
+              "query",
+              "request_id",
+              "root",
+              "surfaced_by",
+              "ts_iso",
+              "verb"
+            ],
+            "type": "object"
+          }
         },
-        "meta": {
-          "evidence": {
-            "match_cap": "int<=16",
-            "requested": "true when --matches",
-            "response_bytes_cap": 32768,
-            "text_bytes_cap": 512
-          },
-          "file": "root-relative target path",
-          "git_repo": "bool",
-          "ignore_mode": "string",
-          "matched": "bool",
-          "query": {
-            "case": "enum[sensitive,insensitive]",
-            "syntax": "enum[regex,fixed]",
-            "word": "bool"
-          },
-          "root": "path relative to process working directory",
-          "surfaced_by": "string|null"
-        }
+        "required": [
+          "data",
+          "meta"
+        ],
+        "type": "object"
       }
     }
   },

@@ -327,14 +327,14 @@ fn match_evidence_flags_are_uniform_and_preserve_default_rows() {
             None => vec![response["data"].clone()],
         };
         assert!(!rows.is_empty());
-        assert!(rows.iter().all(|row| row.get("matches").is_some()));
+        assert!(rows.iter().all(|row| row["matches"].is_array()));
     }
     let (_, default, _) = rf(&["content", TOKEN, ".", "--json"], cwd, &[]);
     assert!(default["data"]["items"]
         .as_array()
         .unwrap()
         .iter()
-        .all(|row| row.get("matches").is_none()));
+        .all(|row| row.get("matches").is_some_and(Value::is_null)));
     for args in [
         vec!["content", TOKEN, ".", "--max-matches", "2", "--json"],
         vec![
@@ -518,6 +518,11 @@ fn workflow_guide_is_declared_and_uses_typed_recipes() {
     .all(|key| recipe.get(*key).is_some())));
     let (_, caps, _, _) = rf_with_stderr(&["capabilities", "--json"], None, &[]);
     assert!(caps["data"]["verbs"]["robot-docs"].is_object());
+    // One declaration for the node: nested, with no flat duplicate.
+    assert!(caps["data"]["verbs"].get("robot-docs guide").is_none());
+    let node = &caps["data"]["verbs"]["robot-docs"]["subcommands"]["guide"];
+    assert_eq!(node["exit_codes"], serde_json::json!([0, 1]));
+    assert!(node["output_schema"].is_object());
 }
 
 #[test]
@@ -826,7 +831,10 @@ fn why_reports_ignore_source_and_parent_chain_evidence() {
     std::fs::write(corpus.path.join(".gitignore"), b"*.env\n*.dup\n*.dup\n").unwrap();
     let (_, duplicate, _) = rf(&["why", TOKEN, "duplicate.dup", "--json"], cwd, &[]);
     assert_eq!(duplicate["data"]["ignore_source"]["class"], "gitignore");
-    assert!(duplicate["data"]["ignore_source"].get("line").is_none());
+    assert_eq!(
+        duplicate["data"]["ignore_source"].get("line"),
+        Some(&Value::Null)
+    );
 }
 
 #[test]
@@ -2375,4 +2383,223 @@ fn doctor_reports_faulty_components_with_exit_six() {
     assert_eq!(env["data"]["overall"], "healthy");
     assert_eq!(env["errors"], serde_json::json!([]));
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// The JSON type name of a value, as JSON Schema spells it.
+fn json_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(n) if n.is_i64() || n.is_u64() => "integer",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+/// Check `value` against `schema`. This covers the JSON Schema keywords that
+/// rf's output schemas use; each fault is one line in `faults`.
+fn check_schema(schema: &Value, value: &Value, at: &str, faults: &mut Vec<String>) {
+    let kind = json_kind(value);
+    let allowed: Vec<&str> = match &schema["type"] {
+        Value::String(one) => vec![one.as_str()],
+        Value::Array(many) => many.iter().filter_map(Value::as_str).collect(),
+        _ => vec![],
+    };
+    if !allowed.is_empty() && !allowed.contains(&kind) {
+        faults.push(format!("{at}: type {kind} is not in {allowed:?}"));
+        return;
+    }
+    if let Some(values) = schema["enum"].as_array() {
+        if !values.contains(value) {
+            faults.push(format!("{at}: {value} is not in the enum"));
+        }
+    }
+    if let (Some(minimum), Some(number)) = (schema["minimum"].as_i64(), value.as_i64()) {
+        if number < minimum {
+            faults.push(format!("{at}: {number} is less than {minimum}"));
+        }
+    }
+    if let (Some(maximum), Some(number)) = (schema["maximum"].as_i64(), value.as_i64()) {
+        if number > maximum {
+            faults.push(format!("{at}: {number} is more than {maximum}"));
+        }
+    }
+    if let Some(items) = value.as_array() {
+        if let Some(max) = schema["maxItems"].as_u64() {
+            if items.len() as u64 > max {
+                faults.push(format!("{at}: more than {max} items"));
+            }
+        }
+        if schema["items"].is_object() {
+            for (index, item) in items.iter().enumerate() {
+                check_schema(&schema["items"], item, &format!("{at}[{index}]"), faults);
+            }
+        }
+    }
+    if let Some(object) = value.as_object() {
+        for key in schema["required"].as_array().into_iter().flatten() {
+            let key = key.as_str().unwrap();
+            if !object.contains_key(key) {
+                faults.push(format!("{at}.{key}: absent"));
+            }
+        }
+        for (key, child) in object {
+            let here = format!("{at}.{key}");
+            if let Some(property) = schema["properties"].get(key) {
+                check_schema(property, child, &here, faults);
+            } else if schema["additionalProperties"].is_object() {
+                check_schema(&schema["additionalProperties"], child, &here, faults);
+            } else if schema["additionalProperties"] == false {
+                faults.push(format!("{here}: not declared"));
+            }
+        }
+    }
+}
+
+/// The make-cli X-07 rules on a declared schema: every declared key is in
+/// `required`, and a `line` or column key has minimum 1.
+fn check_declaration(schema: &Value, at: &str, faults: &mut Vec<String>) {
+    if let Some(properties) = schema["properties"].as_object() {
+        let required: BTreeSet<&str> = schema["required"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        for (key, property) in properties {
+            let here = format!("{at}.{key}");
+            // `commands` is an envelope key; the envelope schema requires it.
+            if !required.contains(key.as_str()) && here != "$.commands" {
+                faults.push(format!("{here}: declared and not required"));
+            }
+            if matches!(key.as_str(), "line" | "col" | "column_byte") && property["minimum"] != 1 {
+                faults.push(format!("{here}: minimum is not 1"));
+            }
+            if matches!(key.as_str(), "index" | "offset") && property["minimum"] != 0 {
+                faults.push(format!("{here}: minimum is not 0"));
+            }
+            check_declaration(property, &here, faults);
+        }
+    }
+    for key in ["items", "additionalProperties"] {
+        if schema[key].is_object() {
+            check_declaration(&schema[key], &format!("{at}[]"), faults);
+        }
+    }
+}
+
+#[test]
+fn output_matches_the_declared_schema_with_every_key_present() {
+    let (_, caps, _) = rf(&["capabilities", "--json"], None, &[]);
+    let verbs = &caps["data"]["verbs"];
+    let schema_of = |verb: &str| -> Value {
+        let schema = if verb == "robot-docs guide" {
+            &verbs["robot-docs"]["subcommands"]["guide"]["output_schema"]
+        } else {
+            &verbs[verb]["output_schema"]
+        };
+        assert!(schema.is_object(), "{verb}: no output_schema");
+        schema.clone()
+    };
+
+    let mut faults = Vec::new();
+    for verb in [
+        "content",
+        "find",
+        "why",
+        "doctor",
+        "conformance",
+        "robot-docs guide",
+    ] {
+        check_declaration(&schema_of(verb), "$", &mut faults);
+    }
+    assert!(faults.is_empty(), "schema declarations: {faults:#?}");
+
+    let corpus = Corpus::new();
+    let find_corpus = FindCorpus::new();
+    let tree = Some(corpus.path.as_path());
+    let find_tree = Some(find_corpus.path.as_path());
+    let selected = b"src/app.py\0secrets.env\0";
+    let mut replies: Vec<(&str, String, Value)> = Vec::new();
+    let mut run = |verb: &'static str, args: &[&str], cwd: Option<&Path>, input: Option<&[u8]>| {
+        let (code, reply, raw) = match input {
+            Some(bytes) => rf_with_input(args, cwd, bytes),
+            None => rf(args, cwd, &[]),
+        };
+        assert!(reply["data"].is_object(), "{args:?}: exit {code}: {raw}");
+        replies.push((verb, format!("{args:?}"), reply));
+    };
+    run("content", &["content", TOKEN, ".", "--json"], tree, None);
+    run(
+        "content",
+        &["content", TOKEN, ".", "--matches", "--json"],
+        tree,
+        None,
+    );
+    run(
+        "content",
+        &["content", TOKEN, ".", "--paths-stdin", "--json"],
+        tree,
+        Some(selected),
+    );
+    run(
+        "find",
+        &["find", TOKEN, ".", "--name", "config", "--json"],
+        find_tree,
+        None,
+    );
+    run(
+        "find",
+        &[
+            "find",
+            TOKEN,
+            ".",
+            "--name",
+            "config",
+            "--matches",
+            "--json",
+        ],
+        find_tree,
+        None,
+    );
+    for file in [
+        "src/app.py",
+        "secrets.env",
+        ".hidden.txt",
+        "config_utf16.txt",
+    ] {
+        run("why", &["why", TOKEN, file, "--json"], tree, None);
+        run(
+            "why",
+            &["why", TOKEN, file, "--matches", "--json"],
+            tree,
+            None,
+        );
+    }
+    run(
+        "why",
+        &["why", "NO_SUCH_TOKEN", "src/app.py", "--json"],
+        tree,
+        None,
+    );
+    run("doctor", &["doctor", "--json"], tree, None);
+    run("conformance", &["conformance", "--json"], None, None);
+    run(
+        "robot-docs guide",
+        &["robot-docs", "guide", "--json"],
+        None,
+        None,
+    );
+
+    for (verb, argv, reply) in &replies {
+        check_schema(
+            &schema_of(verb),
+            reply,
+            &format!("{verb} {argv}"),
+            &mut faults,
+        );
+    }
+    assert!(faults.is_empty(), "replies: {faults:#?}");
 }

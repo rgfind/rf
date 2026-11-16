@@ -544,9 +544,11 @@ pub fn run(
         r.insert("file".into(), Value::from(file.to_string()));
         r.insert("stage".into(), Value::from(stage.to_string()));
         r.insert("fix".into(), fix.map(Value::from).unwrap_or(Value::Null));
+        // Every key is in every row; a key with no value is null.
+        r.insert("matches".into(), Value::Null);
+        r.insert("matches_unavailable_reason".into(), Value::Null);
         if evidence {
             if stage == "git_deleted" || stage == "ast_structural" {
-                r.insert("matches".into(), Value::Null);
                 r.insert(
                     "matches_unavailable_reason".into(),
                     Value::from(if stage == "git_deleted" {
@@ -565,19 +567,7 @@ pub fn run(
                     crate::engine::occurrences(&full, pattern, &cfg_all_text(query), match_cap)
                         .unwrap_or_default()
                         .into_iter()
-                        .map(|value| {
-                            let mut occurrence = Map::new();
-                            occurrence.insert("line".into(), Value::from(value.line));
-                            occurrence.insert("column_byte".into(), Value::from(value.column_byte));
-                            occurrence.insert("text".into(), Value::from(value.text));
-                            if value.text_lossy {
-                                occurrence.insert("text_lossy".into(), Value::from(true));
-                            }
-                            if value.text_truncated {
-                                occurrence.insert("text_truncated".into(), Value::from(true));
-                            }
-                            Value::from(occurrence)
-                        })
+                        .map(crate::engine::occurrence_json)
                         .collect();
                 r.insert("matches".into(), Value::Array(occurrences));
             }
@@ -880,17 +870,10 @@ pub fn run(
         .map(|(k, v)| (k, Value::from(v)))
         .collect();
     meta.insert("hidden_by_stage".into(), Value::from(counts));
-    if evidence {
-        meta.insert(
-            "evidence".into(),
-            json!({
-                "requested": true,
-                "match_cap": match_cap,
-                "text_bytes_cap": crate::engine::MAX_EVIDENCE_TEXT_BYTES,
-                "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
-            }),
-        );
-    }
+    meta.insert(
+        "evidence".into(),
+        crate::engine::evidence_meta(evidence, match_cap),
+    );
 
     let mut page_query = json!({
         "verb": "find", "pattern": pattern, "path": path, "name": name,

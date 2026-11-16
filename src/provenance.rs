@@ -169,6 +169,8 @@ fn as_json(root: &Path, rule: Rule) -> Value {
     );
     value.insert("class".into(), Value::from(rule.class));
     value.insert("pattern".into(), Value::from(rule.pattern.clone()));
+    // Null when the rule text is on zero lines or on more than one line.
+    value.insert("line".into(), Value::Null);
     if let Ok(lines) = preprocessed_lines(&rule.source_file) {
         let matches: Vec<u64> = lines
             .into_iter()

@@ -283,20 +283,6 @@ fn evidence_cfg(layer: &str, query: QueryMode) -> SearchCfg {
         .expect("content row has a known classification layer")
 }
 
-fn occurrence_value(value: crate::engine::Occurrence) -> Value {
-    let mut occurrence = Map::new();
-    occurrence.insert("line".into(), Value::from(value.line));
-    occurrence.insert("column_byte".into(), Value::from(value.column_byte));
-    occurrence.insert("text".into(), Value::from(value.text));
-    if value.text_lossy {
-        occurrence.insert("text_lossy".into(), Value::from(true));
-    }
-    if value.text_truncated {
-        occurrence.insert("text_truncated".into(), Value::from(true));
-    }
-    Value::from(occurrence)
-}
-
 fn has_git_component(path: &Path) -> bool {
     path.components().any(|c| c.as_os_str() == ".git")
 }
@@ -644,19 +630,26 @@ pub fn run(
         .map(|(f, layer)| {
             let mut m = Map::new();
             m.insert("file".into(), Value::from(f.clone()));
-            if selection_mode.is_some() {
-                m.insert("selection".into(), Value::from("selected"));
-            }
+            // Every key is in every row; a key with no value is null.
+            m.insert(
+                "selection".into(),
+                selection_mode
+                    .map(|_| Value::from("selected"))
+                    .unwrap_or(Value::Null),
+            );
             m.insert("surfaced_by".into(), Value::from(layer.clone()));
-            if evidence {
-                let matches =
+            let matches = if evidence {
+                Value::Array(
                     crate::engine::occurrences(f, pattern, &evidence_cfg(layer, query), match_cap)
                         .unwrap_or_default()
                         .into_iter()
-                        .map(occurrence_value)
-                        .collect();
-                m.insert("matches".into(), Value::Array(matches));
-            }
+                        .map(crate::engine::occurrence_json)
+                        .collect(),
+                )
+            } else {
+                Value::Null
+            };
+            m.insert("matches".into(), matches);
             Value::from(m)
         })
         .collect();
@@ -673,7 +666,7 @@ pub fn run(
             (Some(mode), Some(files)) => {
                 json!({"mode": mode.name(), "selected_files": files.len()})
             }
-            _ => json!({"mode": "root-walk"}),
+            _ => json!({"mode": "root-walk", "selected_files": null}),
         },
     );
     meta.insert("matched_files".into(), Value::from(total));
@@ -685,17 +678,10 @@ pub fn run(
         "hidden_by_filters".into(),
         Value::from(total - default_files.len()),
     );
-    if evidence {
-        meta.insert(
-            "evidence".into(),
-            json!({
-                "requested": true,
-                "match_cap": match_cap,
-                "text_bytes_cap": crate::engine::MAX_EVIDENCE_TEXT_BYTES,
-                "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
-            }),
-        );
-    }
+    meta.insert(
+        "evidence".into(),
+        crate::engine::evidence_meta(evidence, match_cap),
+    );
 
     let mut page_query = json!({"verb": "content", "pattern": pattern, "path": path, "selection": selection_mode.map(SelectionMode::name)});
     if evidence {

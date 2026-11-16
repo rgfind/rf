@@ -23,6 +23,7 @@ mod paths;
 mod provenance;
 mod query;
 mod registry;
+mod schema;
 mod why;
 
 use clap::{Parser, Subcommand};
@@ -504,7 +505,7 @@ fn render_human(env: &Value) -> String {
                     },
                     query["case"].as_str().unwrap_or("sensitive")
                 ));
-                if let Some(source) = d.get("ignore_source") {
+                if let Some(source) = d.get("ignore_source").filter(|s| !s.is_null()) {
                     out.push(format!(
                         "  ignore rule: {}:{} ({})",
                         source["source_file"].as_str().unwrap_or(""),
