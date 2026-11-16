@@ -21,6 +21,7 @@ mod manifest;
 mod pagination;
 mod provenance;
 mod query;
+mod registry;
 mod why;
 
 use clap::{Parser, Subcommand};
@@ -36,7 +37,7 @@ use std::time::Instant;
     version,
     about = "agent-first forensic search over ripgrep + fd",
     disable_help_subcommand = true,
-    after_help = "Machine contract: rf capabilities --json\nAutomation: read the JSON envelope before you use a follow-up command.\nExit: 0 success; 1 input error; 3 environment error; 5 snapshot conflict; 6 internal error.\nWorkflow guides: rf robot-docs guide emits agent workflow recipes."
+    after_help = "Machine contract: rf capabilities --json\nAutomation: read the JSON envelope before you use a follow-up command.\nExit: 0 success; 1 input error; 3 environment error; 5 snapshot conflict; 6 findings; 7 internal error.\nWorkflow guides: rf robot-docs guide emits agent workflow recipes."
 )]
 struct Cli {
     /// Emit the machine-readable envelope. Accepted before or after a verb.
@@ -284,7 +285,7 @@ fn internal(message: &str, json: bool, started: Instant) -> ! {
         vec![],
         vec![err("INTERNAL", message)],
     );
-    emit(env, 6, json, started)
+    emit(env, registry::INTERNAL_EXIT, json, started)
 }
 
 /// Write to stdout and stderr with checked writes, then exit. A closed stdout
@@ -568,6 +569,16 @@ fn emit(mut env: Value, code: i32, json: bool, started: Instant) -> ! {
         meta.insert("elapsed_ms".into(), Value::from(elapsed));
     }
     if !env["ok"].as_bool().unwrap_or(false) {
+        // One code has one exit. A mismatch is a defect in the caller.
+        debug_assert_eq!(
+            env["errors"][0]["code"]
+                .as_str()
+                .and_then(registry::lookup)
+                .and_then(|c| c.exit),
+            Some(code),
+            "exit does not match the registry for {}",
+            env["errors"][0]["code"]
+        );
         if let Some(errors) = env.get_mut("errors").and_then(Value::as_array_mut) {
             for error in errors {
                 if let Some(object) = error.as_object_mut() {

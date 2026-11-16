@@ -1653,13 +1653,13 @@ fn fault_seam_absent_in_release() {
 #[test]
 fn fault_seam_proves_totality() {
     // Injecting a fault at each stage must yield a TOTAL error envelope: the
-    // catch_unwind wrapper turns the panic into exit 6 + INTERNAL + seven keys,
+    // catch_unwind wrapper turns the panic into exit 7 + INTERNAL + seven keys,
     // never an unmediated crash (which would be exit 101 with no JSON).
     for stage in ["content", "find", "doctor", "engine"] {
         let (code, e, _) = rf(&stage_argv(stage), None, &[("RF_FAULT", stage)]);
         assert_eq!(
-            code, 6,
-            "stage {stage}: fault must exit 6 (internal), not crash"
+            code, 7,
+            "stage {stage}: fault must exit 7 (internal), not crash"
         );
         assert_eq!(
             e["ok"],
@@ -2034,4 +2034,159 @@ fn parser_faults_follow_the_diagnosis_order() {
     let (code, env, _) = rf(&["--json", "content", "--", "--limit", "."], None, &[]);
     assert_eq!(code, 0);
     assert_eq!(env["meta"]["pattern"], "--limit");
+}
+
+#[test]
+fn exit_dictionary_and_code_registry_are_closed() {
+    let (code, env, _) = rf(&["--json", "capabilities"], None, &[]);
+    assert_eq!(code, 0);
+    let caps = &env["data"];
+
+    // The exit dictionary has the conventional values.
+    let exits = caps["exit_codes"].as_object().expect("exit_codes object");
+    let retry = |code: &str| exits[code]["retryable"].clone();
+    for code in ["0", "3", "129", "130", "141", "143"] {
+        assert!(retry(code).is_null(), "exit {code} retryable");
+    }
+    for code in ["1", "2", "5", "6", "7"] {
+        assert_eq!(retry(code), false, "exit {code} retryable");
+    }
+    assert_eq!(retry("4"), true);
+    assert_eq!(exits["6"]["meaning"], "findings-present");
+    assert_eq!(exits["7"]["meaning"], "internal-error");
+
+    // One registry holds errors and warnings. Each entry has the fixed keys
+    // and a reproduction.
+    assert!(caps.get("warning_codes").is_none());
+    assert!(caps.get("warning_details").is_none());
+    let registry = caps["error_codes"].as_object().expect("registry object");
+    for (name, entry) in registry {
+        let appears = entry["appears_in"].as_array().expect("appears_in");
+        assert!(!appears.is_empty(), "{name}");
+        assert!(entry["summary"].is_string(), "{name}");
+        let warning_only = appears.iter().all(|a| a == "warnings");
+        assert_eq!(entry["exit"].is_null(), warning_only, "{name} exit");
+        if let Some(exit) = entry["exit"].as_i64() {
+            assert!(exits.contains_key(&exit.to_string()), "{name} exit {exit}");
+        }
+        assert!(
+            entry["example_invocation"].is_string()
+                || (entry["precondition"].is_string() && entry["fixture"].is_string()),
+            "{name} has no reproduction"
+        );
+    }
+    assert_eq!(registry["INTERNAL"]["exit"], 7);
+    assert_eq!(registry["CONFLICT"]["exit"], 5);
+    assert_eq!(registry["IGNORE_VCS"]["appears_in"][0], "warnings");
+
+    // Closure: each code literal in the source is registered.
+    let known = [
+        "OUT_FILE",
+        "RF_FAULT",
+        "SOURCE_DATE_EPOCH",
+        "NO_COLOR",
+        "CARGO_PKG_VERSION",
+    ];
+    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    for file in std::fs::read_dir(&src).expect("src dir") {
+        let path = file.expect("entry").path();
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        if [
+            "registry.rs",
+            "conformance.rs",
+            "capabilities.rs",
+            "guide.rs",
+        ]
+        .contains(&name.as_str())
+        {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).expect("read source");
+        for piece in text.split('"').skip(1).step_by(2) {
+            let shaped = piece.len() >= 5
+                && piece.contains('_')
+                && piece.chars().all(|c| c.is_ascii_uppercase() || c == '_');
+            if shaped && !known.contains(&piece) {
+                assert!(
+                    registry.contains_key(piece),
+                    "{name}: {piece} is not registered"
+                );
+            }
+        }
+    }
+
+    // An example invocation gives the code and the exit that its entry declares.
+    for (name, entry) in registry {
+        let Some(call) = entry["example_invocation"].as_str() else {
+            continue;
+        };
+        if call.contains('|') {
+            continue;
+        }
+        let args: Vec<&str> = call
+            .split_whitespace()
+            .skip(1)
+            .map(|a| a.trim_matches('\''))
+            .collect();
+        let (code, reply, _) = rf(&args, None, &[]);
+        assert_eq!(reply["errors"][0]["code"], name.as_str(), "{call}");
+        assert_eq!(i64::from(code), entry["exit"].as_i64().unwrap(), "{call}");
+        assert_eq!(reply["errors"][0]["exit_code"], code, "{call}");
+    }
+
+    // Env vars are an object with a description for each.
+    let vars = caps["env_vars"].as_object().expect("env_vars object");
+    for (name, entry) in vars {
+        assert!(entry["description"].is_string(), "{name}");
+    }
+    assert_eq!(
+        vars.contains_key("RF_FAULT"),
+        cfg!(feature = "fault-injection")
+    );
+    if let Some(fault) = vars.get("RF_FAULT") {
+        assert_eq!(fault["test_only"], true);
+    }
+
+    // Each verb declares description, mutates and its own exits.
+    for (name, verb) in caps["verbs"].as_object().expect("verbs") {
+        assert!(verb["description"].is_string(), "{name}");
+        assert!(verb.get("summary").is_none(), "{name}");
+        assert_eq!(verb["mutates"], false, "{name}");
+        assert!(verb["exit_codes"].is_array(), "{name}");
+    }
+    assert_eq!(
+        caps["verbs"]["content"]["exit_codes"],
+        serde_json::json!([0, 1, 5])
+    );
+}
+
+#[test]
+fn stale_cursor_names_its_own_remedy() {
+    let dir = unique_temp("stale-cursor");
+    std::fs::write(dir.join("a.txt"), "needle\n").unwrap();
+    std::fs::write(dir.join("b.txt"), "needle\n").unwrap();
+    let (code, page, _) = rf(
+        &["--json", "content", "--limit", "1", "needle", "."],
+        Some(&dir),
+        &[],
+    );
+    assert_eq!(code, 0);
+    let cursor = page["meta"]["pagination"]["cursor"]
+        .as_str()
+        .expect("cursor")
+        .to_string();
+    std::fs::write(dir.join("c.txt"), "needle\n").unwrap();
+    let (code, stale, _) = rf(
+        &[
+            "--json", "content", "--limit", "1", "--cursor", &cursor, "needle", ".",
+        ],
+        Some(&dir),
+        &[],
+    );
+    assert_eq!(code, 5);
+    assert_eq!(stale["errors"][0]["code"], "CONFLICT");
+    assert_eq!(
+        stale["errors"][0]["remediation"],
+        "Restart the query without --cursor."
+    );
 }

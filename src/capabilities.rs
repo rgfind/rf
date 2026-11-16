@@ -24,31 +24,31 @@ pub fn build() -> Value {
         "release_scope": {"workflow_guides": ["robot-docs guide"], "workflow_guides_status": "released in contract version 0.1"},
         "engine": "in-process (ignore + grep crates); no subprocess",
         "verbs": {
-            "robot-docs": {"summary": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"flags": [], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
-            "robot-docs guide": {"summary": "emit agent workflow recipes", "aliases": [], "flags": [], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
-            "capabilities": {"summary": "emit this machine contract", "aliases": [], "flags": []},
-            "help": {"summary": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "flags": []},
+            "robot-docs": {"description": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"description": "emit agent workflow recipes", "flags": [], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}}}},
+            "robot-docs guide": {"description": "emit agent workflow recipes", "aliases": [], "flags": [], "output_schema": {"data.items[]": {"id":"string", "goal":"string", "inputs":"array[string]", "command":"safe shell command", "expected_branch":"string", "version_range":"string"}}},
+            "capabilities": {"description": "emit this machine contract", "aliases": [], "flags": []},
+            "help": {"description": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "flags": []},
             "content": {
-                "summary": "content search; attributes each match to the filter that would hide it",
+                "description": "content search; attributes each match to the filter that would hide it",
                 "aliases": [],
                 "flags": [],
                 "selected_input": {"validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths", "error_code": "INVALID_SELECTION", "classification": "selected files are classified by content layers; they are never marked recovered"},
                 "output_schema": {"data.items[]": {"file": "string", "selection": "selected when a selected-input mode is used", "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]", "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]"}, "meta.selection": {"mode": "enum[root-walk,stdin-nul,rf-envelope]", "selected_files": "int when selected input is used"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}}
             },
             "find": {
-                "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
+                "description": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
                 "aliases": [],
                 "flags": [],
                 "output_schema": {"data.items[]": {"file": "string", "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]", "fix": "string|null", "matches": "opt-in occurrence[] or null for history-only/structural-only", "matches_unavailable_reason":"history-only|structural-only when matches is null"}, "meta.query": {"syntax":"enum[regex,fixed]", "word":"bool", "case":"enum[sensitive,insensitive]", "stages":"tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep"}, "meta.evidence": {"requested":"true when --matches", "match_cap":"int<=16", "text_bytes_cap":512, "response_bytes_cap":32768}, "meta.pagination": {"limit": "int", "returned": "int", "total": "int", "truncated": "bool", "has_more": "bool", "cursor": "string|null", "snapshot_hash": "sha256"}, "meta.history": {"requested_mode": "all-revisions", "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]", "budget_ms": 2000, "served_revisions": "int", "failed_revisions": "int"}, "meta.sources": {"history": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]"}, "structural": {"requested":"bool", "actual":"enum[used,skipped]", "fallback_reason":"null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]"}}}
             },
             "doctor": {
-                "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
+                "description": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
                 "aliases": [],
                 "flags": [],
                 "output_schema": {"data": {"external_tools": {"git":"{status,path,version,probe_error}", "ast-grep":"{status,path,version,probe_error}"}, "recommended_action": {"command":"string|null", "rationale":"string", "is_destructive":"false", "affected":"array[{verb,mode,status}]", "alternatives":"array[{command,purpose}]", "references":"array[{url,purpose}]"}}}
             },
             "why": {
-                "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
+                "description": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
                 "aliases": [],
                 "flags": [],
                 "output_schema": {
@@ -58,7 +58,7 @@ pub fn build() -> Value {
                 }
             },
             "conformance": {
-                "summary": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)",
+                "description": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)",
                 "aliases": [],
                 "flags": [],
                 "profile": "release-self-check",
@@ -71,33 +71,8 @@ pub fn build() -> Value {
             }
         },
         "global_flags": crate::flags::global_flags_json(),
-        "exit_codes": {
-            "0": {"meaning": "success (includes empty results: data:[]); a self-check with no failures", "retryable": false},
-            "1": {"meaning": "user-input-error (bad flags / missing args), or a failing conformance self-check", "retryable": false},
-            "3": {"meaning": "tool-environment-error", "retryable": false},
-            "5": {"meaning": "conflict: a paged result snapshot changed; restart the query", "retryable": true},
-            "6": {"meaning": "internal defect caught by the totality wrapper", "retryable": false}
-        },
-        "error_codes": {
-            "UNKNOWN_FLAG": "an unrecognized global or verb-local flag",
-            "UNKNOWN_COMMAND": "an unrecognized command path",
-            "INVALID_INPUT": "a supplied value failed validation: type, range, enum, pattern, empty value, flag conflict, or surplus positional",
-            "INVALID_SELECTION": "selected-input bytes or paths failed validation",
-            "INVALID_TARGET": "why target or root failed validation",
-            "MISSING_REQUIRED": "a required positional, flag, flag value, or companion flag is absent",
-            "BAD_PATTERN": "the search regex failed to compile",
-            "CONFLICT": "a cursor snapshot no longer matches the current result set",
-            "HISTORY_ERROR": "Git history could not be scanned; no partial result was returned",
-            "INTERNAL": "internal fault caught by the totality wrapper",
-            "CONFORMANCE_FAIL": "one or more conformance cases returned verdict:fail"
-        },
-        "warning_codes": [
-            "IGNORE_VCS", "HIDDEN_SKIPPED", "BINARY_SKIPPED", "CASE_SENSITIVE",
-            "ENCODING_MISS", "FD_NAME", "FD_HIDDEN", "FD_IGNORE", "RG_BINARY",
-            "GIT_DELETED", "GIT_ABSENT", "GIT_NOT_WORK_TREE", "GIT_HISTORY_PARTIAL",
-            "AST_STRUCTURAL", "STRUCTURAL_UNAVAILABLE", "IGNORE_MODE", "IGNORE_SOURCE_UNRESOLVED", "EXTERNAL_TOOL_MISSING",
-            "GIT_SCRUB_WORD_UNAVAILABLE"
-        ],
+        "exit_codes": crate::registry::exit_codes_json(),
+        "error_codes": crate::registry::error_codes_json(),
         "diagnosis_order": [
             "bootstrap_mode", "global_flag", "command_path", "command_flag",
             "value_validation", "required_argument", "semantic_resolution", "execution"
@@ -109,10 +84,13 @@ pub fn build() -> Value {
             "envelope_and_parser_errors": "tests/conformance.rs::error_envelopes_and_global_json_are_total",
             "content_find_warnings_paging_and_conflicts": "tests/conformance.rs::conformance",
             "history_outcomes": "find::history_tests::history_outcomes_are_distinct_and_coverage_is_counted",
-            "totality_exit_6": "tests/conformance.rs::fault_seam_proves_totality",
+            "totality_exit_7": "tests/conformance.rs::fault_seam_proves_totality",
             "release_self_check_failure": "src/conformance.rs::run"
         },
-        "env_vars": ["SOURCE_DATE_EPOCH", "NO_COLOR"]
+        "env_vars": {
+            "SOURCE_DATE_EPOCH": {"description": "fixed clock for reproducible output: sets meta.ts_iso and makes meta.elapsed_ms 0", "industry_standard": true},
+            "NO_COLOR": {"description": "suppress terminal decoration; rf output has none, so this has no effect", "industry_standard": true}
+        }
     });
     if let Some(object) = v.as_object_mut() {
         object.insert("verb_dependencies".into(), json!({
@@ -130,34 +108,16 @@ pub fn build() -> Value {
             "data_hash": {"algorithm": "sha256", "format": "sha256:<64 hex>", "covers": "data", "canonicalization": "compact JSON, keys sorted, separators (',', ':')"},
             "request_id": {"format": "req_<16 hex>", "unique_per_invocation": true}
         }));
-        object.insert("warning_details".into(), json!({
-            "IGNORE_VCS": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"a VCS-ignore rule hides a match"},
-            "HIDDEN_SKIPPED": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"a hidden path hides a match"},
-            "BINARY_SKIPPED": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"binary detection hides a match"},
-            "CASE_SENSITIVE": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"case-insensitive search recovers a match"},
-            "ENCODING_MISS": {"sites":["content","why"],"detail_shape":"details.files[]","precondition":"UTF-16 decoding recovers a match"},
-            "FD_NAME": {"sites":["find"],"detail_shape":"details.files[]","precondition":"name filter excludes a content match"},
-            "FD_HIDDEN": {"sites":["find"],"detail_shape":"details.files[]","precondition":"hidden path excludes a content match"},
-            "FD_IGNORE": {"sites":["find"],"detail_shape":"details.files[]","precondition":"ignore rule excludes a content match"},
-            "RG_BINARY": {"sites":["find"],"detail_shape":"details.files[]","precondition":"binary detection excludes a content match"},
-            "GIT_DELETED": {"sites":["find"],"detail_shape":"details.files[]","precondition":"history-only match"},
-            "GIT_ABSENT": {"sites":["find"],"detail_shape":"details.files[]","precondition":"Git is unavailable"},
-            "GIT_NOT_WORK_TREE": {"sites":["find"],"detail_shape":"details.files[]","precondition":"root is not a Git work tree"},
-            "GIT_HISTORY_PARTIAL": {"sites":["find"],"detail_shape":"details:null","precondition":"history scan budget expires"},
-            "AST_STRUCTURAL": {"sites":["find"],"detail_shape":"details.files[]","precondition":"structural-only match"},
-            "STRUCTURAL_UNAVAILABLE": {"sites":["find"],"detail_shape":"details:null","precondition":"ast-grep is unavailable"},
-            "IGNORE_MODE": {"sites":["doctor"],"detail_shape":"details:null","precondition":"ignore mode diagnostic"},
-            "IGNORE_SOURCE_UNRESOLVED": {"sites":["why"],"detail_shape":"details.files[]","precondition":"ignore source cannot be reconstructed"},
-            "EXTERNAL_TOOL_MISSING": {"sites":["doctor","find"],"detail_shape":"details:null","precondition":"an optional external tool cannot run"},
-            "GIT_SCRUB_WORD_UNAVAILABLE": {"sites":["find"],"detail_shape":"details.files[]","precondition":"whole-word mode omits Git pickaxe evidence"}
-        }));
     }
     // The release contract lists only the two stable vars above; a fault-injection
     // build additionally reads RF_FAULT, so it discloses that here. This is the one
     // contract difference between the two builds — the release pin stays canonical.
     #[cfg(feature = "fault-injection")]
-    if let Some(a) = v.get_mut("env_vars").and_then(Value::as_array_mut) {
-        a.push(Value::from("RF_FAULT"));
+    if let Some(vars) = v.get_mut("env_vars").and_then(Value::as_object_mut) {
+        vars.insert(
+            "RF_FAULT".into(),
+            json!({"description": "fault trigger: names one diagnosis stage that then panics; present only in a build with the fault-injection cargo feature", "test_only": true}),
+        );
     }
     // Flag and positional declarations come from the one table that the argv
     // validator reads, so declared and checked behavior cannot drift.
@@ -165,9 +125,20 @@ pub fn build() -> Value {
         for node in &crate::flags::NODES {
             let flags = crate::flags::flags_json(node.path);
             let args = crate::flags::args_json(node.path);
+            // The exits that the verb's own logic returns. Exit 3 and exit 7
+            // can come from any verb, so each list implies them.
+            let exits: &[i32] = match node.path.join(" ").as_str() {
+                "robot-docs" => &[1],
+                "content" => &[0, 1, 5],
+                "find" => &[0, 1, 3, 5],
+                _ => &[0, 1],
+            };
             if let Some(flat) = verbs.get_mut(&node.path.join(" ")) {
                 flat["flags"] = flags.clone();
                 flat["args"] = args.clone();
+                flat["mutates"] = json!(false);
+                flat["json"] = json!(true);
+                flat["exit_codes"] = json!(exits);
             }
             let mut entry = verbs.get_mut(node.path[0]);
             for name in &node.path[1..] {
@@ -176,6 +147,9 @@ pub fn build() -> Value {
             if let Some(entry) = entry {
                 entry["flags"] = flags;
                 entry["args"] = args;
+                entry["mutates"] = json!(false);
+                entry["json"] = json!(true);
+                entry["exit_codes"] = json!(exits);
             }
         }
     }

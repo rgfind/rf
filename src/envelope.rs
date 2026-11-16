@@ -168,7 +168,11 @@ pub fn err(code: &str, message: impl Into<String>) -> Value {
     m.insert("path".into(), Value::Null);
     m.insert(
         "remediation".into(),
-        Value::from("Run `rf --help` for command syntax."),
+        Value::from(
+            crate::registry::lookup(code)
+                .and_then(|c| c.remediation)
+                .unwrap_or("Run `rf --help` for command syntax."),
+        ),
     );
     m.insert("did_you_mean".into(), Value::Null);
     m.insert("details".into(), Value::Null);

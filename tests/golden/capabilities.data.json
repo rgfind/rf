@@ -20,10 +20,16 @@
     "execution"
   ],
   "engine": "in-process (ignore + grep crates); no subprocess",
-  "env_vars": [
-    "SOURCE_DATE_EPOCH",
-    "NO_COLOR"
-  ],
+  "env_vars": {
+    "NO_COLOR": {
+      "description": "suppress terminal decoration; rf output has none, so this has no effect",
+      "industry_standard": true
+    },
+    "SOURCE_DATE_EPOCH": {
+      "description": "fixed clock for reproducible output: sets meta.ts_iso and makes meta.elapsed_ms 0",
+      "industry_standard": true
+    }
+  },
   "envelope_meta": {
     "data_hash": {
       "algorithm": "sha256",
@@ -41,37 +47,446 @@
     }
   },
   "error_codes": {
-    "BAD_PATTERN": "the search regex failed to compile",
-    "CONFLICT": "a cursor snapshot no longer matches the current result set",
-    "CONFORMANCE_FAIL": "one or more conformance cases returned verdict:fail",
-    "HISTORY_ERROR": "Git history could not be scanned; no partial result was returned",
-    "INTERNAL": "internal fault caught by the totality wrapper",
-    "INVALID_INPUT": "a supplied value failed validation: type, range, enum, pattern, empty value, flag conflict, or surplus positional",
-    "INVALID_SELECTION": "selected-input bytes or paths failed validation",
-    "INVALID_TARGET": "why target or root failed validation",
-    "MISSING_REQUIRED": "a required positional, flag, flag value, or companion flag is absent",
-    "UNKNOWN_COMMAND": "an unrecognized command path",
-    "UNKNOWN_FLAG": "an unrecognized global or verb-local flag"
+    "AST_STRUCTURAL": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find --structural with a pattern that has no fixed literal form",
+      "precondition": "the match comes only from the structural stage",
+      "sites": [
+        "find"
+      ],
+      "summary": "the match comes only from the structural stage"
+    },
+    "BAD_PATTERN": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "rf --json content '('",
+      "exit": 1,
+      "sites": [
+        "content",
+        "find",
+        "why"
+      ],
+      "summary": "the search pattern failed to compile"
+    },
+    "BINARY_SKIPPED": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "put a match after a NUL byte in a file, then run content",
+      "precondition": "binary detection hides a match from a default search",
+      "sites": [
+        "content",
+        "why"
+      ],
+      "summary": "binary detection hides a match from a default search"
+    },
+    "CASE_SENSITIVE": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "search a lower-case pattern where the file holds the upper-case text",
+      "precondition": "a search without case finds a match that the default search does not",
+      "sites": [
+        "content",
+        "why"
+      ],
+      "summary": "a search without case finds a match that the default search does not"
+    },
+    "CONFLICT": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "exit": 5,
+      "fixture": "read meta.pagination.cursor from a --limit 1 page, add a file that matches, then send the cursor",
+      "precondition": "a cursor from an earlier page, and a result set that changed after that page",
+      "sites": [
+        "content",
+        "find"
+      ],
+      "summary": "a cursor snapshot no longer matches the current result set"
+    },
+    "CONFORMANCE_FAIL": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "exit": 1,
+      "fixture": "none in a correct build; the self-check of a defective build gives it",
+      "precondition": "a build with a contract defect",
+      "sites": [
+        "conformance"
+      ],
+      "summary": "one or more conformance cases have verdict fail"
+    },
+    "ENCODING_MISS": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "put a match in a UTF-16 file with a byte-order mark, then run content",
+      "precondition": "UTF-16 decoding finds a match that the default search does not",
+      "sites": [
+        "content",
+        "why"
+      ],
+      "summary": "UTF-16 decoding finds a match that the default search does not"
+    },
+    "EXTERNAL_TOOL_MISSING": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "null",
+      "exit": null,
+      "fixture": "run doctor with a PATH that has no git or no ast-grep",
+      "precondition": "an optional external tool cannot run",
+      "sites": [
+        "doctor",
+        "find"
+      ],
+      "summary": "an optional external tool cannot run"
+    },
+    "FD_HIDDEN": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find where the match is in a dot-file with the named extension",
+      "precondition": "a hidden path excludes a file whose content matches",
+      "sites": [
+        "find"
+      ],
+      "summary": "a hidden path excludes a file whose content matches"
+    },
+    "FD_IGNORE": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find where the match is in a file that .gitignore names",
+      "precondition": "an ignore rule excludes a file whose content matches",
+      "sites": [
+        "find"
+      ],
+      "summary": "an ignore rule excludes a file whose content matches"
+    },
+    "FD_NAME": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find --name rs where the match is in a .txt file",
+      "precondition": "the name filter excludes a file whose content matches",
+      "sites": [
+        "find"
+      ],
+      "summary": "the name filter excludes a file whose content matches"
+    },
+    "GIT_ABSENT": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find with a PATH that has no git",
+      "precondition": "git is not available, so history was not searched",
+      "sites": [
+        "find"
+      ],
+      "summary": "git is not available, so history was not searched"
+    },
+    "GIT_DELETED": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "commit a file that matches, delete it, commit, then run find",
+      "precondition": "the match exists only in Git history",
+      "sites": [
+        "find"
+      ],
+      "summary": "the match exists only in Git history"
+    },
+    "GIT_HISTORY_PARTIAL": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "null",
+      "exit": null,
+      "fixture": "run find in a repository whose history scan takes more than 2000 ms",
+      "precondition": "the history scan budget ended before all revisions were read",
+      "sites": [
+        "find"
+      ],
+      "summary": "the history scan budget ended before all revisions were read"
+    },
+    "GIT_NOT_WORK_TREE": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find in a directory outside every Git repository",
+      "precondition": "the root is not a Git work tree, so history was not searched",
+      "sites": [
+        "find"
+      ],
+      "summary": "the root is not a Git work tree, so history was not searched"
+    },
+    "GIT_SCRUB_WORD_UNAVAILABLE": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find --word in a repository with a history-only match",
+      "precondition": "whole-word mode omits Git pickaxe evidence",
+      "sites": [
+        "find"
+      ],
+      "summary": "whole-word mode omits Git pickaxe evidence"
+    },
+    "HIDDEN_SKIPPED": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "put a match in a dot-file, then run content",
+      "precondition": "a hidden path hides a match from a default search",
+      "sites": [
+        "content",
+        "why"
+      ],
+      "summary": "a hidden path hides a match from a default search"
+    },
+    "HISTORY_ERROR": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "exit": 3,
+      "fixture": "run find in a work tree with a damaged object store",
+      "precondition": "git runs and the history scan fails",
+      "sites": [
+        "find"
+      ],
+      "summary": "Git history could not be scanned; no partial result was returned"
+    },
+    "IGNORE_MODE": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "null",
+      "exit": null,
+      "fixture": "run doctor on a directory outside every Git repository",
+      "precondition": "doctor reports the active ignore mode for the path",
+      "sites": [
+        "doctor"
+      ],
+      "summary": "doctor reports the active ignore mode for the path"
+    },
+    "IGNORE_SOURCE_UNRESOLVED": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run why on a file hidden by an ignore rule that rf cannot trace to one source line",
+      "precondition": "the ignore rule that hides the file could not be identified",
+      "sites": [
+        "why"
+      ],
+      "summary": "the ignore rule that hides the file could not be identified"
+    },
+    "IGNORE_VCS": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "put a match in a file that .gitignore names, then run content",
+      "precondition": "a VCS-ignore rule hides a match from a default search",
+      "sites": [
+        "content",
+        "why"
+      ],
+      "summary": "a VCS-ignore rule hides a match from a default search"
+    },
+    "INTERNAL": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "exit": 7,
+      "fixture": "test build only (cargo feature fault-injection): RF_FAULT=<diagnosis stage> rf --json content x",
+      "precondition": "an injected fault",
+      "sites": [
+        "*"
+      ],
+      "summary": "defect in rf caught by the totality wrapper"
+    },
+    "INVALID_INPUT": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null, or {bytes_hex} for undecodable argv",
+      "example_invocation": "rf --json content --limit=0 x",
+      "exit": 1,
+      "sites": [
+        "*"
+      ],
+      "summary": "a supplied value failed validation: type, range, enum, pattern, empty value, flag conflict, surplus positional, or malformed cursor"
+    },
+    "INVALID_SELECTION": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "printf 'no-such-file\\0' | rf --json content --paths-stdin x .",
+      "exit": 1,
+      "sites": [
+        "content"
+      ],
+      "summary": "selected-input bytes or paths failed validation"
+    },
+    "INVALID_TARGET": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "rf --json why x no-such-file",
+      "exit": 1,
+      "sites": [
+        "why"
+      ],
+      "summary": "the why target or root failed validation"
+    },
+    "MISSING_REQUIRED": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "rf --json content",
+      "exit": 1,
+      "sites": [
+        "*"
+      ],
+      "summary": "a required positional, flag, flag value, or companion flag is absent"
+    },
+    "RG_BINARY": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "details.files[]",
+      "exit": null,
+      "fixture": "run find where the match follows a NUL byte",
+      "precondition": "binary detection excludes a file whose content matches",
+      "sites": [
+        "find"
+      ],
+      "summary": "binary detection excludes a file whose content matches"
+    },
+    "STRUCTURAL_UNAVAILABLE": {
+      "appears_in": [
+        "warnings"
+      ],
+      "details": "null",
+      "exit": null,
+      "fixture": "run find --structural with a PATH that has no ast-grep",
+      "precondition": "ast-grep is not available, so the structural stage did not run",
+      "sites": [
+        "find"
+      ],
+      "summary": "ast-grep is not available, so the structural stage did not run"
+    },
+    "UNKNOWN_COMMAND": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "rf --json bogus",
+      "exit": 1,
+      "sites": [
+        "*"
+      ],
+      "summary": "command not recognized"
+    },
+    "UNKNOWN_FLAG": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "null",
+      "example_invocation": "rf --json content --bogus x",
+      "exit": 1,
+      "sites": [
+        "*"
+      ],
+      "summary": "flag not recognized"
+    }
   },
   "exit_codes": {
     "0": {
-      "meaning": "success (includes empty results: data:[]); a self-check with no failures",
-      "retryable": false
+      "meaning": "success",
+      "retryable": null
     },
     "1": {
-      "meaning": "user-input-error (bad flags / missing args), or a failing conformance self-check",
+      "meaning": "user-input-error",
+      "retryable": false
+    },
+    "129": {
+      "meaning": "ended-by-sighup",
+      "retryable": null
+    },
+    "130": {
+      "meaning": "ended-by-sigint",
+      "retryable": null
+    },
+    "141": {
+      "meaning": "reader-closed-pipe",
+      "retryable": null
+    },
+    "143": {
+      "meaning": "ended-by-sigterm",
+      "retryable": null
+    },
+    "2": {
+      "meaning": "safety-block",
       "retryable": false
     },
     "3": {
       "meaning": "tool-environment-error",
-      "retryable": false
+      "retryable": null
     },
-    "5": {
-      "meaning": "conflict: a paged result snapshot changed; restart the query",
+    "4": {
+      "meaning": "transient-failure",
       "retryable": true
     },
+    "5": {
+      "meaning": "conflict",
+      "retryable": false
+    },
     "6": {
-      "meaning": "internal defect caught by the totality wrapper",
+      "meaning": "findings-present",
+      "retryable": false
+    },
+    "7": {
+      "meaning": "internal-error",
       "retryable": false
     }
   },
@@ -443,13 +858,26 @@
     "capabilities": {
       "aliases": [],
       "args": [],
+      "description": "emit this machine contract",
+      "exit_codes": [
+        0,
+        1
+      ],
       "flags": [],
-      "summary": "emit this machine contract"
+      "json": true,
+      "mutates": false
     },
     "conformance": {
       "aliases": [],
       "args": [],
+      "description": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)",
+      "exit_codes": [
+        0,
+        1
+      ],
       "flags": [],
+      "json": true,
+      "mutates": false,
       "not_applicable": {
         "S-01": "release-build-fault-trigger-unavailable",
         "S-02": "release-build-fault-trigger-unavailable",
@@ -466,8 +894,7 @@
           "profile": "string"
         }
       },
-      "profile": "release-self-check",
-      "summary": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)"
+      "profile": "release-self-check"
     },
     "content": {
       "aliases": [],
@@ -483,6 +910,12 @@
           "required": false,
           "type": "path"
         }
+      ],
+      "description": "content search; attributes each match to the filter that would hide it",
+      "exit_codes": [
+        0,
+        1,
+        5
       ],
       "flags": [
         {
@@ -574,6 +1007,8 @@
           "value_type": "int"
         }
       ],
+      "json": true,
+      "mutates": false,
       "output_schema": {
         "data.items[]": {
           "file": "string",
@@ -610,8 +1045,7 @@
         "classification": "selected files are classified by content layers; they are never marked recovered",
         "error_code": "INVALID_SELECTION",
         "validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths"
-      },
-      "summary": "content search; attributes each match to the filter that would hide it"
+      }
     },
     "doctor": {
       "aliases": [],
@@ -623,7 +1057,14 @@
           "type": "path"
         }
       ],
+      "description": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
+      "exit_codes": [
+        0,
+        1
+      ],
       "flags": [],
+      "json": true,
+      "mutates": false,
       "output_schema": {
         "data": {
           "external_tools": {
@@ -639,8 +1080,7 @@
             "references": "array[{url,purpose}]"
           }
         }
-      },
-      "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path"
+      }
     },
     "find": {
       "aliases": [],
@@ -656,6 +1096,13 @@
           "required": false,
           "type": "path"
         }
+      ],
+      "description": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
+      "exit_codes": [
+        0,
+        1,
+        3,
+        5
       ],
       "flags": [
         {
@@ -788,6 +1235,8 @@
           "value_type": "int"
         }
       ],
+      "json": true,
+      "mutates": false,
       "output_schema": {
         "data.items[]": {
           "file": "string",
@@ -836,8 +1285,7 @@
             "requested": "bool"
           }
         }
-      },
-      "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural"
+      }
     },
     "help": {
       "aliases": [],
@@ -849,16 +1297,33 @@
           "type": "string"
         }
       ],
+      "description": "show help for rf or for one verb; same bytes as --help at that node",
+      "exit_codes": [
+        0,
+        1
+      ],
       "flags": [],
-      "summary": "show help for rf or for one verb; same bytes as --help at that node"
+      "json": true,
+      "mutates": false
     },
     "robot-docs": {
       "aliases": [],
       "args": [],
+      "description": "agent workflow documents",
+      "exit_codes": [
+        1
+      ],
       "flags": [],
+      "json": true,
+      "mutates": false,
       "subcommands": {
         "guide": {
           "args": [],
+          "description": "emit agent workflow recipes",
+          "exit_codes": [
+            0,
+            1
+          ],
           "flags": [
             {
               "arity": 0,
@@ -867,6 +1332,8 @@
               "name": "--compact"
             }
           ],
+          "json": true,
+          "mutates": false,
           "output_schema": {
             "data.items[]": {
               "command": "safe shell command",
@@ -878,12 +1345,16 @@
             }
           }
         }
-      },
-      "summary": "agent workflow documents"
+      }
     },
     "robot-docs guide": {
       "aliases": [],
       "args": [],
+      "description": "emit agent workflow recipes",
+      "exit_codes": [
+        0,
+        1
+      ],
       "flags": [
         {
           "arity": 0,
@@ -892,6 +1363,8 @@
           "name": "--compact"
         }
       ],
+      "json": true,
+      "mutates": false,
       "output_schema": {
         "data.items[]": {
           "command": "safe shell command",
@@ -901,8 +1374,7 @@
           "inputs": "array[string]",
           "version_range": "string"
         }
-      },
-      "summary": "emit agent workflow recipes"
+      }
     },
     "why": {
       "aliases": [],
@@ -917,6 +1389,11 @@
           "required": true,
           "type": "path"
         }
+      ],
+      "description": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
+      "exit_codes": [
+        0,
+        1
       ],
       "flags": [
         {
@@ -979,6 +1456,8 @@
           "value_type": "int"
         }
       ],
+      "json": true,
+      "mutates": false,
       "output_schema": {
         "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches",
         "data": {
@@ -1010,8 +1489,7 @@
           "root": "path relative to process working directory",
           "surfaced_by": "string|null"
         }
-      },
-      "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it"
+      }
     }
   },
   "verification_fixtures": {
@@ -1019,168 +1497,6 @@
     "envelope_and_parser_errors": "tests/conformance.rs::error_envelopes_and_global_json_are_total",
     "history_outcomes": "find::history_tests::history_outcomes_are_distinct_and_coverage_is_counted",
     "release_self_check_failure": "src/conformance.rs::run",
-    "totality_exit_6": "tests/conformance.rs::fault_seam_proves_totality"
-  },
-  "warning_codes": [
-    "IGNORE_VCS",
-    "HIDDEN_SKIPPED",
-    "BINARY_SKIPPED",
-    "CASE_SENSITIVE",
-    "ENCODING_MISS",
-    "FD_NAME",
-    "FD_HIDDEN",
-    "FD_IGNORE",
-    "RG_BINARY",
-    "GIT_DELETED",
-    "GIT_ABSENT",
-    "GIT_NOT_WORK_TREE",
-    "GIT_HISTORY_PARTIAL",
-    "AST_STRUCTURAL",
-    "STRUCTURAL_UNAVAILABLE",
-    "IGNORE_MODE",
-    "IGNORE_SOURCE_UNRESOLVED",
-    "EXTERNAL_TOOL_MISSING",
-    "GIT_SCRUB_WORD_UNAVAILABLE"
-  ],
-  "warning_details": {
-    "AST_STRUCTURAL": {
-      "detail_shape": "details.files[]",
-      "precondition": "structural-only match",
-      "sites": [
-        "find"
-      ]
-    },
-    "BINARY_SKIPPED": {
-      "detail_shape": "details.files[]",
-      "precondition": "binary detection hides a match",
-      "sites": [
-        "content",
-        "why"
-      ]
-    },
-    "CASE_SENSITIVE": {
-      "detail_shape": "details.files[]",
-      "precondition": "case-insensitive search recovers a match",
-      "sites": [
-        "content",
-        "why"
-      ]
-    },
-    "ENCODING_MISS": {
-      "detail_shape": "details.files[]",
-      "precondition": "UTF-16 decoding recovers a match",
-      "sites": [
-        "content",
-        "why"
-      ]
-    },
-    "EXTERNAL_TOOL_MISSING": {
-      "detail_shape": "details:null",
-      "precondition": "an optional external tool cannot run",
-      "sites": [
-        "doctor",
-        "find"
-      ]
-    },
-    "FD_HIDDEN": {
-      "detail_shape": "details.files[]",
-      "precondition": "hidden path excludes a content match",
-      "sites": [
-        "find"
-      ]
-    },
-    "FD_IGNORE": {
-      "detail_shape": "details.files[]",
-      "precondition": "ignore rule excludes a content match",
-      "sites": [
-        "find"
-      ]
-    },
-    "FD_NAME": {
-      "detail_shape": "details.files[]",
-      "precondition": "name filter excludes a content match",
-      "sites": [
-        "find"
-      ]
-    },
-    "GIT_ABSENT": {
-      "detail_shape": "details.files[]",
-      "precondition": "Git is unavailable",
-      "sites": [
-        "find"
-      ]
-    },
-    "GIT_DELETED": {
-      "detail_shape": "details.files[]",
-      "precondition": "history-only match",
-      "sites": [
-        "find"
-      ]
-    },
-    "GIT_HISTORY_PARTIAL": {
-      "detail_shape": "details:null",
-      "precondition": "history scan budget expires",
-      "sites": [
-        "find"
-      ]
-    },
-    "GIT_NOT_WORK_TREE": {
-      "detail_shape": "details.files[]",
-      "precondition": "root is not a Git work tree",
-      "sites": [
-        "find"
-      ]
-    },
-    "GIT_SCRUB_WORD_UNAVAILABLE": {
-      "detail_shape": "details.files[]",
-      "precondition": "whole-word mode omits Git pickaxe evidence",
-      "sites": [
-        "find"
-      ]
-    },
-    "HIDDEN_SKIPPED": {
-      "detail_shape": "details.files[]",
-      "precondition": "a hidden path hides a match",
-      "sites": [
-        "content",
-        "why"
-      ]
-    },
-    "IGNORE_MODE": {
-      "detail_shape": "details:null",
-      "precondition": "ignore mode diagnostic",
-      "sites": [
-        "doctor"
-      ]
-    },
-    "IGNORE_SOURCE_UNRESOLVED": {
-      "detail_shape": "details.files[]",
-      "precondition": "ignore source cannot be reconstructed",
-      "sites": [
-        "why"
-      ]
-    },
-    "IGNORE_VCS": {
-      "detail_shape": "details.files[]",
-      "precondition": "a VCS-ignore rule hides a match",
-      "sites": [
-        "content",
-        "why"
-      ]
-    },
-    "RG_BINARY": {
-      "detail_shape": "details.files[]",
-      "precondition": "binary detection excludes a content match",
-      "sites": [
-        "find"
-      ]
-    },
-    "STRUCTURAL_UNAVAILABLE": {
-      "detail_shape": "details:null",
-      "precondition": "ast-grep is unavailable",
-      "sites": [
-        "find"
-      ]
-    }
+    "totality_exit_7": "tests/conformance.rs::fault_seam_proves_totality"
   }
 }

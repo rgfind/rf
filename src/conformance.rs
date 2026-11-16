@@ -179,10 +179,13 @@ fn stage_argv(stage: &str) -> Vec<&'static str> {
 }
 
 /// A probe of an injected stage produced a *total* error envelope: the totality
-/// wrapper converted the panic into exit 6 + INTERNAL + the full seven keys,
+/// wrapper converted the panic into exit 7 + INTERNAL + the full seven keys,
 /// rather than letting an unmediated crash escape.
 fn is_total_fault(p: &Probe) -> bool {
-    p.exit == 6 && p.ok == Some(false) && p.err0.as_deref() == Some("INTERNAL") && p.seven
+    p.exit == crate::registry::INTERNAL_EXIT
+        && p.ok == Some(false)
+        && p.err0.as_deref() == Some("INTERNAL")
+        && p.seven
 }
 
 /// Every declared spelling maps to the arity enforced by its source. Comparing
@@ -680,15 +683,10 @@ pub fn run() -> (Value, i32) {
             None,
         );
     } else {
-        let env_vars = caps
+        let declares_trigger = caps
             .get("env_vars")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let declares_trigger = env_vars.iter().filter_map(Value::as_str).any(|v| {
-            let u = v.to_ascii_uppercase();
-            u.contains("FAULT") || u.contains("_TEST") || u.contains("INJECT")
-        });
+            .and_then(Value::as_object)
+            .is_some_and(|vars| vars.values().any(|v| v["test_only"] == true));
         s.case(
             "X-03",
             &[("posture", "compiled-out")],
@@ -712,7 +710,28 @@ pub fn run() -> (Value, i32) {
             .unwrap_or_default();
         let exits_ok = s.exit_codes.iter().all(|c| declared_exit.contains(c));
         let errs_ok = s.err_codes.iter().all(|c| declared_err.contains(c));
-        s.case("X-06", &[], vd(exits_ok && errs_ok), None, None);
+        // Every declared code says how to reproduce it, and its exit is a
+        // key of the exit dictionary.
+        let entries_ok = caps
+            .get("error_codes")
+            .and_then(Value::as_object)
+            .is_some_and(|codes| {
+                codes.values().all(|entry| {
+                    let repro = entry["example_invocation"].is_string()
+                        || (entry["precondition"].is_string() && entry["fixture"].is_string());
+                    let exit = entry["exit"]
+                        .as_i64()
+                        .is_none_or(|c| declared_exit.contains(&(c as i32)));
+                    repro && exit && entry["appears_in"].is_array() && entry["summary"].is_string()
+                })
+            });
+        s.case(
+            "X-06",
+            &[],
+            vd(exits_ok && errs_ok && entries_ok),
+            None,
+            None,
+        );
     }
 
     // X-07: value-domain probes are generated from the hand-declared domain
