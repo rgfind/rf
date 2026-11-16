@@ -45,15 +45,15 @@ what makes a result something an agent can *inspect, explain, and safely continu
 from*:
 
 - **inspect** — `rf capabilities` declares the verbs, flags, exit codes, and
-  warning codes of the running binary. Every response is the same seven-key
+  error and warning codes of the running binary. Every response is the same seven-key
   envelope (`ok`, `data`, `meta`, `warnings`, `errors`, `commands`,
-  `tool_version`). An empty result is `ok: true` with `data: []`, never an error.
+  `tool_version`). An empty result is `ok: true` with `data.items: []`, never an error.
 - **explain** — every recovered file is attributed to the filter or stage that
   hid it, and every miss carries a typed warning code plus the paste-ready `rg`
   command that surfaces it.
 - **safely continue from** — outcomes carry typed exit codes (`0` success, `1`
-  input error, `3` environment error, `5` snapshot changed, `6` internal), not one
-  overloaded status. `content` and `find` page at 100 rows with an opaque cursor,
+  input error, `3` environment error, `5` snapshot changed, `6` findings present,
+  `7` internal), not one overloaded status. `content` and `find` page at 100 rows with an opaque cursor,
   and a prior result's file list can feed the next command via `--paths-envelope`.
   A page whose snapshot changed underneath it returns exit `5` and a safe restart
   command instead of silently skewed rows.
@@ -88,21 +88,25 @@ content 'timeout' in . [regex]: 3 file(s), 1 by default, 2 hidden by filters
 ```
 <!-- END GENERATED:readme-example -->
 
-Piped or with `--json`, the same result is one structured envelope:
+With `--json`, the same result is one structured envelope:
 
 ```json
 {
   "ok": true,
-  "data": [
-    { "file": "config.py",      "surfaced_by": "default" },
-    { "file": ".env.local",     "surfaced_by": "hidden" },
-    { "file": "cache/build.py", "surfaced_by": "vcs_ignore" }
-  ],
+  "data": {
+    "items": [
+      { "file": "config.py",      "surfaced_by": "default" },
+      { "file": ".env.local",     "surfaced_by": "hidden" },
+      { "file": "cache/build.py", "surfaced_by": "vcs_ignore" }
+    ],
+    "total": 3
+  },
   "meta": { "matched_files": 3, "default_matched_files": 1, "hidden_by_filters": 2 }
 }
 ```
 
-The `warnings` array (elided above) carries one entry per miss, each with a
+Other row and `meta` keys are elided. The `warnings` array (also elided)
+carries one entry per miss, each with a
 warning code and the paste-ready `rg` command that surfaces it. The recovery is
 not the product — it is the evidence that the contract holds.
 
@@ -111,7 +115,7 @@ not the product — it is the evidence that the contract holds.
 Use `rf why <pattern> <file>` when you already know the one file that a normal
 tree search appears to have missed. It reads that file, returns one verdict row,
 and names the filter that hid it. Its correction command repeats the tree search
-from the root, so it can include sibling matches; `data[].file` is the target.
+from the root, so it can include sibling matches; `data.file` is the target.
 
 `doctor` answers a different question. `rf doctor <path>` reports the ambient
 ignore regime and does not read a search target. `rf why` reads one named file
@@ -119,7 +123,7 @@ with one pattern and returns that file's verdict.
 
 <!-- BEGIN GENERATED:why-example -->
 ```
-$ rf why timeout cache/build.py --human
+$ rf why timeout cache/build.py
 why 'timeout' cache/build.py [regex any sensitive]: MATCH - hidden by vcs_ignore
   ignore rule: .gitignore:1 (cache/)
   ! IGNORE_VCS: match hidden from a default tree search; add -u (ignore .gitignore/.ignore rules)
@@ -153,6 +157,7 @@ The other verbs share the same envelope:
 - **`rf why <pattern> <file> [--root <dir>]`** — returns one file's match
   verdict and the normal tree-search filter that hid it, if any.
 - **`rf capabilities`** — the machine contract as JSON.
+- **`rf help [verb]`** — the same text as `--help` for rf or for one verb.
 - **`rf conformance`** — runs the release self-check on this binary.
 - **`rf robot-docs guide`** — ready-to-run agent workflow recipes (goal, command,
   expected branch, version range); `--compact` emits a terse form.

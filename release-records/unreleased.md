@@ -1,0 +1,66 @@
+# rf next release: contract classification
+
+Status: breaking, not released. The crate version is not set. Rename this file
+to the release version before release, and set `contract_policy.release_record`
+to the new name.
+
+## Compatibility statement
+
+Contract version `2` ends. The new contract version is `0.1`. A client of
+contract `2` is not compatible with this release. No old spelling stays as a
+deprecated alias. The cause is the move to the make-cli 0.1.0 contract, which
+replaces the envelope, the exit dictionary, and the code registry together.
+
+Changed exit meanings:
+
+| Condition | Contract 2 | Contract 0.1 |
+|---|---|---|
+| Internal defect | 6 | 7 |
+| `conformance` has a failed case | 1 | 6 |
+| `doctor` finds a faulty external tool | 0, with a warning | 6, `ok: false`, `data` kept |
+| A named path exists and rf cannot read it | 1 from `why`; 0 from `content` | 3 |
+
+Exit 6 now means findings present. A client that reads exit 6 as an internal
+defect must change. Exits 0, 1, 3 and 5 keep their meanings for all other
+conditions. Exits 2 and 4 are in the dictionary and rf does not return them.
+Exits 129, 130, 141 and 143 are declared for signals and a closed pipe.
+
+Changed output:
+
+- `contract_version` is the string `"0.1"`, not `"2"`.
+- `data` is an object, not an array. Rows are in `data.items`. The
+  capabilities contract is `data`, not `data[0]`.
+- A failed request can keep its result in `data`.
+- Each error has the keys `arg` and `details`. Each warning has `code`,
+  `message`, `details`. The warning keys `msg` and `files` are removed; the
+  file list is `details.files`.
+- Every declared output key is always present. An absent value is `null`.
+- Output schemas are JSON Schema. The `value_domains` field is removed.
+- `warning_codes` is removed from capabilities. Errors and warnings are in one
+  registry, `error_codes`.
+- `robot-docs guide` is under `verbs["robot-docs"].subcommands`.
+
+Changed input:
+
+- `--human` is removed. It now gives `UNKNOWN_FLAG`, exit 1. Human output is
+  the default, also to a pipe. `--json` is the only machine selector.
+- The `help` verb is new.
+
+Changed codes:
+
+| Contract 2 | Contract 0.1 |
+|---|---|
+| `USAGE` | `INVALID_INPUT`, `MISSING_REQUIRED`, `UNKNOWN_FLAG` or `UNKNOWN_COMMAND` |
+| `MISSING_ARGUMENT` | `MISSING_REQUIRED` |
+| `INVALID_TARGET` | `NOT_FOUND`, `INVALID_INPUT` or `IO_FAILURE` |
+| `CONFORMANCE_FAIL` | `CASE_FAILED`, one error for each failed case |
+
+New codes: `COMPONENT_DEGRADED`, `COMPONENT_UNHEALTHY`, `DEPENDENCY_MISSING`,
+`IO_FAILURE`, `NOT_FOUND`, `PARTIAL_RESULT`.
+
+Cursors: a cursor from an older build is not valid. The snapshot hash changed.
+The request returns `CONFLICT`, exit 5, with a restart command.
+
+## Release evidence
+
+None. The release is not done.

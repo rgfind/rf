@@ -1,1068 +1,2926 @@
 {
   "commands": [],
-  "data": [
-    {
-      "contract_policy": {
-        "policy_version": 2,
-        "release_classification": "additive-pending-release-verification",
-        "release_record": "release-records/0.0.8.md",
-        "supported_contract_versions": [
-          "2"
+  "data": {
+    "contract_policy": {
+      "policy_version": 3,
+      "release_classification": "breaking-pending-release-verification",
+      "release_record": "release-records/unreleased.md",
+      "supported_contract_versions": [
+        "0.1"
+      ],
+      "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-01"
+    },
+    "contract_version": "0.1",
+    "diagnosis_order": [
+      "bootstrap_mode",
+      "global_flag",
+      "command_path",
+      "command_flag",
+      "value_validation",
+      "required_argument",
+      "semantic_resolution",
+      "execution"
+    ],
+    "engine": "in-process (ignore + grep crates); no subprocess",
+    "env_vars": {
+      "NO_COLOR": {
+        "description": "suppress terminal decoration; rf output has none, so this has no effect",
+        "industry_standard": true
+      },
+      "SOURCE_DATE_EPOCH": {
+        "description": "fixed clock for reproducible output: sets meta.ts_iso and makes meta.elapsed_ms 0",
+        "industry_standard": true
+      }
+    },
+    "envelope_meta": {
+      "data_hash": {
+        "algorithm": "sha256",
+        "canonicalization": "compact JSON, keys sorted, separators (',', ':')",
+        "covers": "data",
+        "format": "sha256:<64 hex>"
+      },
+      "request_id": {
+        "format": "req_<16 hex>",
+        "unique_per_invocation": true
+      },
+      "ts_iso": {
+        "format": "RFC 3339 UTC with Z",
+        "precision": "seconds"
+      }
+    },
+    "error_codes": {
+      "AST_STRUCTURAL": {
+        "appears_in": [
+          "warnings"
         ],
-        "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-2"
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find --structural with a pattern that has no fixed literal form",
+        "precondition": "the match comes only from the structural stage",
+        "sites": [
+          "find"
+        ],
+        "summary": "the match comes only from the structural stage"
       },
-      "contract_version": "2",
-      "diagnosis_order": [
-        "bootstrap_mode",
-        "global_flag",
-        "command_path",
-        "command_flag",
-        "value_validation",
-        "required_argument",
-        "semantic_resolution",
-        "execution"
-      ],
-      "engine": "in-process (ignore + grep crates); no subprocess",
-      "env_vars": [
-        "SOURCE_DATE_EPOCH",
-        "NO_COLOR"
-      ],
-      "error_codes": {
-        "BAD_PATTERN": "the search regex failed to compile",
-        "CONFLICT": "a cursor snapshot no longer matches the current result set",
-        "CONFORMANCE_FAIL": "one or more conformance cases returned verdict:fail",
-        "HISTORY_ERROR": "Git history could not be scanned; no partial result was returned",
-        "INTERNAL": "internal fault caught by the totality wrapper",
-        "INVALID_INPUT": "a supplied value failed parser validation",
-        "INVALID_SELECTION": "selected-input bytes or paths failed validation",
-        "INVALID_TARGET": "why target or root failed validation",
-        "MISSING_ARGUMENT": "a required positional or flag value is absent",
-        "UNKNOWN_COMMAND": "an unrecognized command path",
-        "UNKNOWN_FLAG": "an unrecognized global or verb-local flag",
-        "USAGE": "invalid arguments: unknown verb/flag, missing flag value, or --structural without --lang"
+      "BAD_PATTERN": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "example_invocation": "rf --json content '('",
+        "exit": 1,
+        "sites": [
+          "content",
+          "find",
+          "why"
+        ],
+        "summary": "the search pattern failed to compile"
       },
-      "exit_codes": {
-        "0": {
-          "meaning": "success (includes empty results: data:[]); a self-check with no failures",
-          "retryable": false
+      "BINARY_SKIPPED": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "put a match after a NUL byte in a file, then run content",
+        "precondition": "binary detection hides a match from a default search",
+        "sites": [
+          "content",
+          "why"
+        ],
+        "summary": "binary detection hides a match from a default search"
+      },
+      "CASE_FAILED": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "{case_id}",
+        "exit": 6,
+        "fixture": "none in a correct build; the self-check of a defective build gives it",
+        "precondition": "a build with a contract defect",
+        "sites": [
+          "conformance"
+        ],
+        "summary": "one conformance case has verdict fail; one error for each failed case, in case id order"
+      },
+      "CASE_SENSITIVE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "search a lower-case pattern where the file holds the upper-case text",
+        "precondition": "a search without case finds a match that the default search does not",
+        "sites": [
+          "content",
+          "why"
+        ],
+        "summary": "a search without case finds a match that the default search does not"
+      },
+      "COMPONENT_DEGRADED": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "{component, status}",
+        "exit": 6,
+        "fixture": "run doctor with a PATH that has no git or no ast-grep",
+        "precondition": "git or ast-grep is not on PATH",
+        "sites": [
+          "doctor"
+        ],
+        "summary": "doctor found an optional external tool absent; the dependent find source cannot run"
+      },
+      "COMPONENT_UNHEALTHY": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "{component, status}",
+        "exit": 6,
+        "fixture": "put a script named ast-grep that exits 1 first on PATH, then run doctor",
+        "precondition": "git or ast-grep is on PATH and its --version call fails or exceeds the probe limit",
+        "sites": [
+          "doctor"
+        ],
+        "summary": "doctor found an external tool that is present and cannot run"
+      },
+      "CONFLICT": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "exit": 5,
+        "fixture": "read meta.pagination.cursor from a --limit 1 page, add a file that matches, then send the cursor",
+        "precondition": "a cursor from an earlier page, and a result set that changed after that page",
+        "sites": [
+          "content",
+          "find"
+        ],
+        "summary": "a cursor snapshot no longer matches the current result set"
+      },
+      "DEPENDENCY_MISSING": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "{program, child_exit, child_signal}",
+        "exit": 3,
+        "fixture": "run find --structural with a PATH that has no ast-grep",
+        "precondition": "ast-grep is not on PATH",
+        "sites": [
+          "find"
+        ],
+        "summary": "a program that the call needs is not on the search path"
+      },
+      "ENCODING_MISS": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "put a match in a UTF-16 file with a byte-order mark, then run content",
+        "precondition": "UTF-16 decoding finds a match that the default search does not",
+        "sites": [
+          "content",
+          "why"
+        ],
+        "summary": "UTF-16 decoding finds a match that the default search does not"
+      },
+      "EXTERNAL_TOOL_MISSING": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "null",
+        "exit": null,
+        "fixture": "put a script named git that exits 1 first on PATH, then run find",
+        "precondition": "git is present and cannot run, so history was not searched",
+        "sites": [
+          "find"
+        ],
+        "summary": "git is present and cannot run, so history was not searched"
+      },
+      "FD_HIDDEN": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find where the match is in a dot-file with the named extension",
+        "precondition": "a hidden path excludes a file whose content matches",
+        "sites": [
+          "find"
+        ],
+        "summary": "a hidden path excludes a file whose content matches"
+      },
+      "FD_IGNORE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find where the match is in a file that .gitignore names",
+        "precondition": "an ignore rule excludes a file whose content matches",
+        "sites": [
+          "find"
+        ],
+        "summary": "an ignore rule excludes a file whose content matches"
+      },
+      "FD_NAME": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find --name rs where the match is in a .txt file",
+        "precondition": "the name filter excludes a file whose content matches",
+        "sites": [
+          "find"
+        ],
+        "summary": "the name filter excludes a file whose content matches"
+      },
+      "GIT_ABSENT": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find with a PATH that has no git",
+        "precondition": "git is not available, so history was not searched",
+        "sites": [
+          "find"
+        ],
+        "summary": "git is not available, so history was not searched"
+      },
+      "GIT_DELETED": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "commit a file that matches, delete it, commit, then run find",
+        "precondition": "the match exists only in Git history",
+        "sites": [
+          "find"
+        ],
+        "summary": "the match exists only in Git history"
+      },
+      "GIT_HISTORY_PARTIAL": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "null",
+        "exit": null,
+        "fixture": "run find in a repository whose history scan takes more than 2000 ms",
+        "precondition": "the history scan budget ended before all revisions were read",
+        "sites": [
+          "find"
+        ],
+        "summary": "the history scan budget ended before all revisions were read"
+      },
+      "GIT_NOT_WORK_TREE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find in a directory outside every Git repository",
+        "precondition": "the root is not a Git work tree, so history was not searched",
+        "sites": [
+          "find"
+        ],
+        "summary": "the root is not a Git work tree, so history was not searched"
+      },
+      "GIT_SCRUB_WORD_UNAVAILABLE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find --word in a repository with a history-only match",
+        "precondition": "whole-word mode omits Git pickaxe evidence",
+        "sites": [
+          "find"
+        ],
+        "summary": "whole-word mode omits Git pickaxe evidence"
+      },
+      "HIDDEN_SKIPPED": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "put a match in a dot-file, then run content",
+        "precondition": "a hidden path hides a match from a default search",
+        "sites": [
+          "content",
+          "why"
+        ],
+        "summary": "a hidden path hides a match from a default search"
+      },
+      "HISTORY_ERROR": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "exit": 3,
+        "fixture": "run find in a work tree with a damaged object store",
+        "precondition": "git runs and the history scan fails",
+        "sites": [
+          "find"
+        ],
+        "summary": "Git history could not be scanned; no partial result was returned"
+      },
+      "IGNORE_MODE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "null",
+        "exit": null,
+        "fixture": "run doctor on a directory outside every Git repository",
+        "precondition": "doctor reports the active ignore mode for the path",
+        "sites": [
+          "doctor"
+        ],
+        "summary": "doctor reports the active ignore mode for the path"
+      },
+      "IGNORE_SOURCE_UNRESOLVED": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run why on a file hidden by an ignore rule that rf cannot trace to one source line",
+        "precondition": "the ignore rule that hides the file could not be identified",
+        "sites": [
+          "why"
+        ],
+        "summary": "the ignore rule that hides the file could not be identified"
+      },
+      "IGNORE_VCS": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "put a match in a file that .gitignore names, then run content",
+        "precondition": "a VCS-ignore rule hides a match from a default search",
+        "sites": [
+          "content",
+          "why"
+        ],
+        "summary": "a VCS-ignore rule hides a match from a default search"
+      },
+      "INTERNAL": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "exit": 7,
+        "fixture": "test build only (cargo feature fault-injection): RF_FAULT=<diagnosis stage> rf --json content x",
+        "precondition": "an injected fault",
+        "sites": [
+          "*"
+        ],
+        "summary": "defect in rf caught by the totality wrapper"
+      },
+      "INVALID_INPUT": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null, or {bytes_hex} for undecodable argv",
+        "example_invocation": "rf --json content --limit=0 x",
+        "exit": 1,
+        "sites": [
+          "*"
+        ],
+        "summary": "a supplied value failed validation: type, range, enum, pattern, empty value, flag conflict, surplus positional, or malformed cursor"
+      },
+      "INVALID_SELECTION": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "example_invocation": "printf 'no-such-file\\0' | rf --json content --paths-stdin x .",
+        "exit": 1,
+        "sites": [
+          "content"
+        ],
+        "summary": "selected-input bytes or paths failed validation"
+      },
+      "IO_FAILURE": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "{op, file, os_error}; files[] also, when more than one path failed",
+        "exit": 3,
+        "fixture": "chmod 000 a file, then run why or content on it",
+        "precondition": "a file that exists and has no read permission",
+        "sites": [
+          "content",
+          "find",
+          "why"
+        ],
+        "summary": "a path that the caller named exists and rf cannot read it"
+      },
+      "MISSING_REQUIRED": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "example_invocation": "rf --json content",
+        "exit": 1,
+        "sites": [
+          "*"
+        ],
+        "summary": "a required positional, flag, flag value, or companion flag is absent"
+      },
+      "NOT_FOUND": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "example_invocation": "rf --json why x no-such-file",
+        "exit": 1,
+        "sites": [
+          "content",
+          "doctor",
+          "find",
+          "why"
+        ],
+        "summary": "a path that the caller named does not exist"
+      },
+      "PARTIAL_RESULT": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "chmod 000 one file in a tree that has other readable files, then run content",
+        "precondition": "one or more paths under the root could not be read; the result covers the other paths",
+        "sites": [
+          "content",
+          "find"
+        ],
+        "summary": "one or more paths under the root could not be read; the result covers the other paths"
+      },
+      "RG_BINARY": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "run find where the match follows a NUL byte",
+        "precondition": "binary detection excludes a file whose content matches",
+        "sites": [
+          "find"
+        ],
+        "summary": "binary detection excludes a file whose content matches"
+      },
+      "STRUCTURAL_UNAVAILABLE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "null",
+        "exit": null,
+        "fixture": "put a script named ast-grep that exits 1 first on PATH, then run find --structural",
+        "precondition": "ast-grep is present and failed or exceeded its time limit, so the structural stage did not run",
+        "sites": [
+          "find"
+        ],
+        "summary": "ast-grep is present and failed or exceeded its time limit, so the structural stage did not run"
+      },
+      "UNKNOWN_COMMAND": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "example_invocation": "rf --json bogus",
+        "exit": 1,
+        "sites": [
+          "*"
+        ],
+        "summary": "command not recognized"
+      },
+      "UNKNOWN_FLAG": {
+        "appears_in": [
+          "errors"
+        ],
+        "details": "null",
+        "example_invocation": "rf --json content --bogus x",
+        "exit": 1,
+        "sites": [
+          "*"
+        ],
+        "summary": "flag not recognized"
+      }
+    },
+    "exit_codes": {
+      "0": {
+        "meaning": "success",
+        "retryable": null
+      },
+      "1": {
+        "meaning": "user-input-error",
+        "retryable": false
+      },
+      "129": {
+        "meaning": "ended-by-sighup",
+        "retryable": null
+      },
+      "130": {
+        "meaning": "ended-by-sigint",
+        "retryable": null
+      },
+      "141": {
+        "meaning": "reader-closed-pipe",
+        "retryable": null
+      },
+      "143": {
+        "meaning": "ended-by-sigterm",
+        "retryable": null
+      },
+      "2": {
+        "meaning": "safety-block",
+        "retryable": false
+      },
+      "3": {
+        "meaning": "tool-environment-error",
+        "retryable": null
+      },
+      "4": {
+        "meaning": "transient-failure",
+        "retryable": true
+      },
+      "5": {
+        "meaning": "conflict",
+        "retryable": false
+      },
+      "6": {
+        "meaning": "findings-present",
+        "retryable": false
+      },
+      "7": {
+        "meaning": "internal-error",
+        "retryable": false
+      }
+    },
+    "global_flags": [
+      {
+        "arity": 0,
+        "default": false,
+        "description": "machine envelope",
+        "name": "--json",
+        "position": "anywhere"
+      },
+      {
+        "arity": 0,
+        "default": false,
+        "description": "disable terminal decoration",
+        "name": "--no-color",
+        "position": "anywhere"
+      },
+      {
+        "aliases": [
+          "-h"
+        ],
+        "arity": 0,
+        "default": false,
+        "description": "usage text; exit 0",
+        "name": "--help",
+        "position": "anywhere"
+      },
+      {
+        "aliases": [
+          "-V"
+        ],
+        "arity": 0,
+        "default": false,
+        "description": "version string; exit 0",
+        "name": "--version",
+        "position": "anywhere"
+      }
+    ],
+    "limits": {
+      "evidence": {
+        "max_occurrences_per_row": 16,
+        "response_data_bytes": 32768,
+        "text_bytes": 512
+      },
+      "external_tool_probe": {
+        "captured_output_bytes": 8192,
+        "probe_error_bytes": 512,
+        "timeout_ms": 2000
+      },
+      "pagination": {
+        "default_limit": 100,
+        "max_limit": 1000
+      },
+      "structural_search": {
+        "captured_output_bytes": 65536,
+        "timeout_ms": 5000
+      }
+    },
+    "parser_manifest": {
+      "commands": {
+        "capabilities": {
+          "aliases": [],
+          "flags": [],
+          "path": [
+            "capabilities"
+          ],
+          "positionals": []
         },
-        "1": {
-          "meaning": "user-input-error (bad flags / missing args), or a failing conformance self-check",
-          "retryable": false
+        "conformance": {
+          "aliases": [],
+          "flags": [],
+          "path": [
+            "conformance"
+          ],
+          "positionals": []
         },
-        "3": {
-          "meaning": "tool-environment-error",
-          "retryable": false
+        "content": {
+          "aliases": [],
+          "flags": [
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--case-sensitive"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--cursor"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--fixed-strings"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--ignore-case"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--limit"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--matches"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--max-matches"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--paths-envelope"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--paths-stdin"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--word"
+            }
+          ],
+          "path": [
+            "content"
+          ],
+          "positionals": [
+            "path",
+            "pattern"
+          ]
         },
-        "5": {
-          "meaning": "conflict: a paged result snapshot changed; restart the query",
-          "retryable": true
+        "doctor": {
+          "aliases": [],
+          "flags": [],
+          "path": [
+            "doctor"
+          ],
+          "positionals": [
+            "path"
+          ]
         },
-        "6": {
-          "meaning": "internal defect caught by the totality wrapper",
-          "retryable": false
+        "find": {
+          "aliases": [],
+          "flags": [
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--case-sensitive"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--cursor"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--fixed-strings"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--ignore-case"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--lang"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--limit"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--matches"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--max-matches"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--name"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--structural"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--word"
+            }
+          ],
+          "path": [
+            "find"
+          ],
+          "positionals": [
+            "path",
+            "pattern"
+          ]
+        },
+        "help": {
+          "aliases": [],
+          "flags": [],
+          "path": [
+            "help"
+          ],
+          "positionals": [
+            "verb_path"
+          ]
+        },
+        "robot-docs": {
+          "aliases": [],
+          "flags": [],
+          "path": [
+            "robot-docs"
+          ],
+          "positionals": []
+        },
+        "robot-docs guide": {
+          "aliases": [],
+          "flags": [
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--compact"
+            }
+          ],
+          "path": [
+            "robot-docs",
+            "guide"
+          ],
+          "positionals": []
+        },
+        "why": {
+          "aliases": [],
+          "flags": [
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--case-sensitive"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--fixed-strings"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--ignore-case"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--matches"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--max-matches"
+            },
+            {
+              "aliases": [],
+              "arity": 1,
+              "name": "--root"
+            },
+            {
+              "aliases": [],
+              "arity": 0,
+              "name": "--word"
+            }
+          ],
+          "path": [
+            "why"
+          ],
+          "positionals": [
+            "file",
+            "pattern"
+          ]
         }
       },
       "global_flags": [
-        {
-          "aliases": [],
-          "arity": 0,
-          "name": "--json",
-          "positions": "before or after a verb",
-          "summary": "machine envelope",
-          "type": "bool"
-        },
-        {
-          "aliases": [],
-          "arity": 0,
-          "name": "--no-color",
-          "positions": "before or after a verb",
-          "summary": "disable terminal decoration",
-          "type": "bool"
-        },
-        {
-          "aliases": [],
-          "arity": 0,
-          "name": "--human",
-          "positions": "before or after a verb",
-          "summary": "force the human render even when stdout is not a terminal; --json wins if both are given",
-          "type": "bool"
-        },
         {
           "aliases": [
             "-h"
           ],
           "arity": 0,
-          "name": "--help",
-          "summary": "usage text; exit 0",
-          "type": "bool"
+          "name": "--help"
+        },
+        {
+          "aliases": [],
+          "arity": 0,
+          "name": "--json"
+        },
+        {
+          "aliases": [],
+          "arity": 0,
+          "name": "--no-color"
         },
         {
           "aliases": [
             "-V"
           ],
           "arity": 0,
-          "name": "--version",
-          "summary": "version string; exit 0",
-          "type": "bool"
+          "name": "--version"
         }
       ],
-      "limits": {
-        "evidence": {
-          "max_occurrences_per_row": 16,
-          "response_data_bytes": 32768,
-          "text_bytes": 512
+      "source": "clap command registry"
+    },
+    "release_scope": {
+      "workflow_guides": [
+        "robot-docs guide"
+      ],
+      "workflow_guides_status": "released in contract version 0.1"
+    },
+    "schema_versions": {
+      "capabilities": 2,
+      "conformance": 2,
+      "content": 2,
+      "doctor": 2,
+      "envelope": 2,
+      "find": 2,
+      "robot-docs": 2,
+      "why": 2
+    },
+    "tool_version": "0.0.8",
+    "verb_dependencies": {
+      "ast-grep": [
+        {
+          "behavior": "degrades with typed use-time provenance",
+          "mode": "structural",
+          "verb": "find"
+        }
+      ],
+      "git": [
+        {
+          "behavior": "degrades with typed use-time provenance",
+          "mode": "history",
+          "verb": "find"
+        }
+      ]
+    },
+    "verbs": {
+      "capabilities": {
+        "aliases": [],
+        "args": [],
+        "description": "emit this machine contract",
+        "exit_codes": [
+          0,
+          1
+        ],
+        "flags": [],
+        "json": true,
+        "mutates": false
+      },
+      "conformance": {
+        "aliases": [],
+        "args": [],
+        "description": "run the conformance profile of this build against this binary and emit one verdict for each case instance",
+        "exit_codes": [
+          0,
+          1,
+          6
+        ],
+        "flags": [],
+        "json": true,
+        "mutates": false,
+        "not_applicable": {
+          "L-01": "no-name-on-ladder",
+          "L-02": "no-name-on-ladder",
+          "L-03": "no-name-on-ladder",
+          "L-04": "no-name-on-ladder",
+          "L-05": "no-name-on-ladder",
+          "L-06": "no-name-on-ladder",
+          "L-07": "no-name-on-ladder",
+          "L-08": "no-name-on-ladder",
+          "L-09": "no-name-on-ladder",
+          "L-10": "no-name-on-ladder",
+          "L-11": "no-name-on-ladder",
+          "S-01": "release-build-fault-trigger-unavailable",
+          "S-02": "release-build-fault-trigger-unavailable",
+          "X-02": "release-build-fault-trigger-unavailable"
         },
-        "external_tool_probe": {
-          "captured_output_bytes": 8192,
-          "probe_error_bytes": 512,
-          "timeout_ms": 2000
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "cases": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "case_id": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "request_id": {
+                        "type": "string"
+                      },
+                      "target": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "type": "object"
+                      },
+                      "verdict": {
+                        "enum": [
+                          "pass",
+                          "fail",
+                          "not_applicable"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "case_id",
+                      "reason",
+                      "request_id",
+                      "target",
+                      "verdict"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "counts": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fail": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "not_applicable": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "pass": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "fail",
+                    "not_applicable",
+                    "pass"
+                  ],
+                  "type": "object"
+                },
+                "profile": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cases",
+                "counts",
+                "profile"
+              ],
+              "type": "object"
+            },
+            "meta": {
+              "additionalProperties": false,
+              "properties": {
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "headline": {
+                  "type": "string"
+                },
+                "profile": {
+                  "type": "string"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contract_version",
+                "data_hash",
+                "elapsed_ms",
+                "headline",
+                "profile",
+                "request_id",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "data",
+            "meta"
+          ],
+          "type": "object"
         },
-        "pagination": {
-          "default_limit": 100,
-          "max_limit": 1000
+        "profile": "release-self-check"
+      },
+      "content": {
+        "aliases": [],
+        "args": [
+          {
+            "name": "pattern",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "default": ".",
+            "must_exist": true,
+            "name": "path",
+            "required": false,
+            "type": "path"
+          }
+        ],
+        "description": "content search; attributes each match to the filter that would hide it",
+        "exit_codes": [
+          0,
+          1,
+          5
+        ],
+        "flags": [
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--paths-envelope"
+            ],
+            "default": false,
+            "description": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path",
+            "name": "--paths-stdin"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--paths-stdin"
+            ],
+            "default": false,
+            "description": "stdin rf JSON envelope; each data.items[] row must contain file:string",
+            "name": "--paths-envelope"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "default": 100,
+            "description": "maximum result rows in one page",
+            "maximum": 1000,
+            "minimum": 1,
+            "name": "--limit",
+            "required": false,
+            "value_type": "int"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "description": "opaque cursor from meta.pagination.cursor",
+            "name": "--cursor",
+            "required": false,
+            "value_pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "value_type": "string"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "read the pattern as a literal string",
+            "name": "--fixed-strings"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "match whole words only",
+            "name": "--word"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--case-sensitive"
+            ],
+            "default": false,
+            "description": "match without case",
+            "name": "--ignore-case"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--ignore-case"
+            ],
+            "default": false,
+            "description": "match with case; no case-recovery layer",
+            "name": "--case-sensitive"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "opt-in occurrence evidence in each result row",
+            "name": "--matches"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "default": 16,
+            "description": "maximum occurrences per result file; values above 16 are capped at 16",
+            "maximum": 1000,
+            "minimum": 1,
+            "name": "--max-matches",
+            "required": false,
+            "requires": [
+              "--matches"
+            ],
+            "value_type": "int"
+          }
+        ],
+        "json": true,
+        "mutates": false,
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "matches": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "column_byte": {
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "line": {
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "text_lossy": {
+                              "type": "boolean"
+                            },
+                            "text_truncated": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "column_byte",
+                            "line",
+                            "text",
+                            "text_lossy",
+                            "text_truncated"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 16,
+                        "type": [
+                          "array",
+                          "null"
+                        ]
+                      },
+                      "selection": {
+                        "enum": [
+                          "selected",
+                          null
+                        ],
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "surfaced_by": {
+                        "enum": [
+                          "default",
+                          "vcs_ignore",
+                          "hidden",
+                          "binary",
+                          "case",
+                          "encoding_utf16"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "file",
+                      "matches",
+                      "selection",
+                      "surfaced_by"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "total": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "items",
+                "total"
+              ],
+              "type": "object"
+            },
+            "meta": {
+              "additionalProperties": false,
+              "properties": {
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "default_matched_files": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "evidence": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "match_cap": {
+                      "maximum": 16,
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "requested": {
+                      "type": "boolean"
+                    },
+                    "response_bytes_cap": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text_bytes_cap": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "match_cap",
+                    "requested",
+                    "response_bytes_cap",
+                    "text_bytes_cap"
+                  ],
+                  "type": "object"
+                },
+                "hidden_by_filters": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "matched_files": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "pagination": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "limit": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "returned": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "snapshot_hash": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "cursor",
+                    "has_more",
+                    "limit",
+                    "returned",
+                    "snapshot_hash",
+                    "total",
+                    "truncated"
+                  ],
+                  "type": "object"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "pattern": {
+                  "type": "string"
+                },
+                "query": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "case": {
+                      "enum": [
+                        "sensitive",
+                        "insensitive"
+                      ],
+                      "type": "string"
+                    },
+                    "syntax": {
+                      "enum": [
+                        "regex",
+                        "fixed"
+                      ],
+                      "type": "string"
+                    },
+                    "word": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "case",
+                    "syntax",
+                    "word"
+                  ],
+                  "type": "object"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "selection": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "mode": {
+                      "enum": [
+                        "root-walk",
+                        "stdin-nul",
+                        "rf-envelope"
+                      ],
+                      "type": "string"
+                    },
+                    "selected_files": {
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "selected_files"
+                  ],
+                  "type": "object"
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contract_version",
+                "data_hash",
+                "default_matched_files",
+                "elapsed_ms",
+                "evidence",
+                "hidden_by_filters",
+                "matched_files",
+                "pagination",
+                "path",
+                "pattern",
+                "query",
+                "request_id",
+                "selection",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "data",
+            "meta"
+          ],
+          "type": "object"
         },
-        "structural_search": {
-          "captured_output_bytes": 65536,
-          "timeout_ms": 5000
+        "selected_input": {
+          "classification": "selected files are classified by content layers; they are never marked recovered",
+          "error_code": "INVALID_SELECTION",
+          "validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths"
         }
       },
-      "parser_manifest": {
-        "commands": {
-          "capabilities": {
-            "aliases": [],
-            "flags": [],
-            "path": [
-              "capabilities"
-            ],
-            "positionals": []
+      "doctor": {
+        "aliases": [],
+        "args": [
+          {
+            "default": ".",
+            "must_exist": true,
+            "name": "path",
+            "required": false,
+            "type": "path"
+          }
+        ],
+        "description": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path",
+        "exit_codes": [
+          0,
+          1,
+          6
+        ],
+        "flags": [],
+        "json": true,
+        "mutates": false,
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "engine": {
+                  "type": "string"
+                },
+                "external_tools": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ast-grep": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "path": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "probe_error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "state": {
+                          "enum": [
+                            "healthy",
+                            "degraded",
+                            "unhealthy"
+                          ],
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "available",
+                            "missing",
+                            "timed_out",
+                            "unusable"
+                          ],
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "probe_error",
+                        "state",
+                        "status",
+                        "version"
+                      ],
+                      "type": "object"
+                    },
+                    "git": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "path": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "probe_error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "state": {
+                          "enum": [
+                            "healthy",
+                            "degraded",
+                            "unhealthy"
+                          ],
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "available",
+                            "missing",
+                            "timed_out",
+                            "unusable"
+                          ],
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "probe_error",
+                        "state",
+                        "status",
+                        "version"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "ast-grep",
+                    "git"
+                  ],
+                  "type": "object"
+                },
+                "git_repo": {
+                  "type": "boolean"
+                },
+                "ignore_mode": {
+                  "type": "string"
+                },
+                "overall": {
+                  "enum": [
+                    "healthy",
+                    "degraded",
+                    "unhealthy"
+                  ],
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "recommended_action": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "affected": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "mode": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "verb": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "mode",
+                          "status",
+                          "verb"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "alternatives": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "command": {
+                            "type": "string"
+                          },
+                          "purpose": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "command",
+                          "purpose"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "command": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "is_destructive": {
+                      "type": "boolean"
+                    },
+                    "rationale": {
+                      "type": "string"
+                    },
+                    "references": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "purpose": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "purpose",
+                          "url"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "affected",
+                    "alternatives",
+                    "command",
+                    "is_destructive",
+                    "rationale",
+                    "references"
+                  ],
+                  "type": "object"
+                },
+                "rf_version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "engine",
+                "external_tools",
+                "git_repo",
+                "ignore_mode",
+                "overall",
+                "path",
+                "recommended_action",
+                "rf_version"
+              ],
+              "type": "object"
+            },
+            "meta": {
+              "additionalProperties": false,
+              "properties": {
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contract_version",
+                "data_hash",
+                "elapsed_ms",
+                "request_id",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
+            }
           },
-          "conformance": {
-            "aliases": [],
-            "flags": [],
-            "path": [
-              "conformance"
-            ],
-            "positionals": []
+          "required": [
+            "data",
+            "meta"
+          ],
+          "type": "object"
+        }
+      },
+      "find": {
+        "aliases": [],
+        "args": [
+          {
+            "name": "pattern",
+            "required": true,
+            "type": "string"
           },
-          "content": {
+          {
+            "default": ".",
+            "must_exist": true,
+            "name": "path",
+            "required": false,
+            "type": "path"
+          }
+        ],
+        "description": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural",
+        "exit_codes": [
+          0,
+          1,
+          3,
+          5
+        ],
+        "flags": [
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "description": "file extension without dot or path separator",
+            "name": "--name",
+            "required": true,
+            "value_pattern": "^[^-./\\\\\\s][^./\\\\\\s]*$",
+            "value_type": "string"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "description": "ast-grep pattern; a construct with no fixed literal form",
+            "name": "--structural",
+            "required": false,
+            "requires": [
+              "--lang"
+            ],
+            "value_type": "string"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "description": "ast-grep language id",
+            "enum": [
+              "bash",
+              "c",
+              "cpp",
+              "csharp",
+              "css",
+              "elixir",
+              "go",
+              "haskell",
+              "hcl",
+              "html",
+              "java",
+              "javascript",
+              "json",
+              "kotlin",
+              "lua",
+              "nix",
+              "php",
+              "python",
+              "ruby",
+              "rust",
+              "scala",
+              "solidity",
+              "swift",
+              "tsx",
+              "typescript",
+              "yaml"
+            ],
+            "name": "--lang",
+            "required": false,
+            "requires": [
+              "--structural"
+            ],
+            "value_type": "string"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "default": 100,
+            "description": "maximum result rows in one page",
+            "maximum": 1000,
+            "minimum": 1,
+            "name": "--limit",
+            "required": false,
+            "value_type": "int"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "description": "opaque cursor from meta.pagination.cursor",
+            "name": "--cursor",
+            "required": false,
+            "value_pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "value_type": "string"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "read the pattern as a literal string",
+            "name": "--fixed-strings"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "match whole words only",
+            "name": "--word"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--case-sensitive"
+            ],
+            "default": false,
+            "description": "match without case",
+            "name": "--ignore-case"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--ignore-case"
+            ],
+            "default": false,
+            "description": "match with case; no case-recovery layer",
+            "name": "--case-sensitive"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "opt-in occurrence evidence in each result row",
+            "name": "--matches"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "default": 16,
+            "description": "maximum occurrences per result file; values above 16 are capped at 16",
+            "maximum": 1000,
+            "minimum": 1,
+            "name": "--max-matches",
+            "required": false,
+            "requires": [
+              "--matches"
+            ],
+            "value_type": "int"
+          }
+        ],
+        "json": true,
+        "mutates": false,
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "items": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "fix": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "matches": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "column_byte": {
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "line": {
+                              "minimum": 1,
+                              "type": "integer"
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "text_lossy": {
+                              "type": "boolean"
+                            },
+                            "text_truncated": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "column_byte",
+                            "line",
+                            "text",
+                            "text_lossy",
+                            "text_truncated"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 16,
+                        "type": [
+                          "array",
+                          "null"
+                        ]
+                      },
+                      "matches_unavailable_reason": {
+                        "enum": [
+                          "history-only",
+                          "structural-only",
+                          null
+                        ],
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "stage": {
+                        "enum": [
+                          "found",
+                          "fd_name",
+                          "fd_hidden",
+                          "fd_ignore",
+                          "fd_filter",
+                          "rg_binary",
+                          "git_deleted",
+                          "ast_structural"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "file",
+                      "fix",
+                      "matches",
+                      "matches_unavailable_reason",
+                      "stage"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "total": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "items",
+                "total"
+              ],
+              "type": "object"
+            },
+            "meta": {
+              "additionalProperties": false,
+              "properties": {
+                "content_total": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "evidence": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "match_cap": {
+                      "maximum": 16,
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "requested": {
+                      "type": "boolean"
+                    },
+                    "response_bytes_cap": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text_bytes_cap": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "match_cap",
+                    "requested",
+                    "response_bytes_cap",
+                    "text_bytes_cap"
+                  ],
+                  "type": "object"
+                },
+                "fd_default_files": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "headline": {
+                  "type": "string"
+                },
+                "hidden_by_stage": {
+                  "additionalProperties": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "object"
+                },
+                "history": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actual_mode": {
+                      "enum": [
+                        "available",
+                        "git-absent",
+                        "git-unusable",
+                        "git-timed-out",
+                        "not-work-tree",
+                        "partial",
+                        "history-error"
+                      ],
+                      "type": "string"
+                    },
+                    "budget_ms": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "failed_revisions": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "requested_mode": {
+                      "enum": [
+                        "all-revisions"
+                      ],
+                      "type": "string"
+                    },
+                    "served_revisions": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "actual_mode",
+                    "budget_ms",
+                    "failed_revisions",
+                    "requested_mode",
+                    "served_revisions"
+                  ],
+                  "type": "object"
+                },
+                "history_matches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name_filter": {
+                  "type": "string"
+                },
+                "pagination": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "limit": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "returned": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "snapshot_hash": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "cursor",
+                    "has_more",
+                    "limit",
+                    "returned",
+                    "snapshot_hash",
+                    "total",
+                    "truncated"
+                  ],
+                  "type": "object"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "pattern": {
+                  "type": "string"
+                },
+                "pipe_matched": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "query": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "case": {
+                      "enum": [
+                        "sensitive",
+                        "insensitive"
+                      ],
+                      "type": "string"
+                    },
+                    "syntax": {
+                      "enum": [
+                        "regex",
+                        "fixed"
+                      ],
+                      "type": "string"
+                    },
+                    "word": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "case",
+                    "syntax",
+                    "word"
+                  ],
+                  "type": "object"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "sources": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "history": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "enum": [
+                            "used",
+                            "skipped"
+                          ],
+                          "type": "string"
+                        },
+                        "fallback_reason": {
+                          "enum": [
+                            "tool-missing",
+                            "tool-unusable",
+                            "tool-timed-out",
+                            "not-work-tree",
+                            "history-partial",
+                            "history-failed",
+                            null
+                          ],
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "requested": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "actual",
+                        "fallback_reason",
+                        "requested"
+                      ],
+                      "type": "object"
+                    },
+                    "structural": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "enum": [
+                            "used",
+                            "skipped"
+                          ],
+                          "type": "string"
+                        },
+                        "fallback_reason": {
+                          "enum": [
+                            "not-requested",
+                            "tool-missing",
+                            "tool-unusable",
+                            "tool-timed-out",
+                            null
+                          ],
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "requested": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "actual",
+                        "fallback_reason",
+                        "requested"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "history",
+                    "structural"
+                  ],
+                  "type": "object"
+                },
+                "structural_matches": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "content_total",
+                "contract_version",
+                "data_hash",
+                "elapsed_ms",
+                "evidence",
+                "fd_default_files",
+                "headline",
+                "hidden_by_stage",
+                "history",
+                "history_matches",
+                "name_filter",
+                "pagination",
+                "path",
+                "pattern",
+                "pipe_matched",
+                "query",
+                "request_id",
+                "sources",
+                "structural_matches",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "data",
+            "meta"
+          ],
+          "type": "object"
+        }
+      },
+      "help": {
+        "aliases": [],
+        "args": [
+          {
+            "name": "verb_path",
+            "repeatable": true,
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "description": "show help for rf or for one verb; same bytes as --help at that node",
+        "exit_codes": [
+          0,
+          1
+        ],
+        "flags": [],
+        "json": true,
+        "mutates": false
+      },
+      "robot-docs": {
+        "aliases": [],
+        "args": [],
+        "description": "agent workflow documents",
+        "exit_codes": [
+          1
+        ],
+        "flags": [],
+        "json": true,
+        "mutates": false,
+        "subcommands": {
+          "guide": {
             "aliases": [],
+            "args": [],
+            "description": "emit agent workflow recipes",
+            "exit_codes": [
+              0,
+              1
+            ],
             "flags": [
               {
-                "aliases": [],
                 "arity": 0,
-                "name": "--case-sensitive"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--cursor"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--fixed-strings"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--ignore-case"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--limit"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--matches"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--max-matches"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--paths-envelope"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--paths-stdin"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--word"
-              }
-            ],
-            "path": [
-              "content"
-            ],
-            "positionals": [
-              "path",
-              "pattern"
-            ]
-          },
-          "doctor": {
-            "aliases": [],
-            "flags": [],
-            "path": [
-              "doctor"
-            ],
-            "positionals": [
-              "path"
-            ]
-          },
-          "find": {
-            "aliases": [],
-            "flags": [
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--case-sensitive"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--cursor"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--fixed-strings"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--ignore-case"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--lang"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--limit"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--matches"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--max-matches"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--name"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--structural"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--word"
-              }
-            ],
-            "path": [
-              "find"
-            ],
-            "positionals": [
-              "path",
-              "pattern"
-            ]
-          },
-          "robot-docs": {
-            "aliases": [],
-            "flags": [],
-            "path": [
-              "robot-docs"
-            ],
-            "positionals": []
-          },
-          "robot-docs guide": {
-            "aliases": [],
-            "flags": [
-              {
-                "aliases": [],
-                "arity": 0,
+                "default": false,
+                "description": "emit short recipes",
                 "name": "--compact"
               }
             ],
-            "path": [
-              "robot-docs",
-              "guide"
-            ],
-            "positionals": []
-          },
-          "why": {
-            "aliases": [],
-            "flags": [
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--case-sensitive"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--fixed-strings"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--ignore-case"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--matches"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--max-matches"
-              },
-              {
-                "aliases": [],
-                "arity": 1,
-                "name": "--root"
-              },
-              {
-                "aliases": [],
-                "arity": 0,
-                "name": "--word"
-              }
-            ],
-            "path": [
-              "why"
-            ],
-            "positionals": [
-              "file",
-              "pattern"
-            ]
-          }
-        },
-        "global_flags": [
-          {
-            "aliases": [
-              "-h"
-            ],
-            "arity": 0,
-            "name": "--help"
-          },
-          {
-            "aliases": [],
-            "arity": 0,
-            "name": "--human"
-          },
-          {
-            "aliases": [],
-            "arity": 0,
-            "name": "--json"
-          },
-          {
-            "aliases": [],
-            "arity": 0,
-            "name": "--no-color"
-          },
-          {
-            "aliases": [
-              "-V"
-            ],
-            "arity": 0,
-            "name": "--version"
-          }
-        ],
-        "source": "clap command registry"
-      },
-      "release_scope": {
-        "workflow_guides": [
-          "robot-docs guide"
-        ],
-        "workflow_guides_status": "released in contract version 2"
-      },
-      "schema_versions": {
-        "capabilities": 2,
-        "conformance": 2,
-        "content": 2,
-        "doctor": 2,
-        "envelope": 2,
-        "find": 2,
-        "robot-docs": 2,
-        "why": 2
-      },
-      "tool_version": "0.0.8",
-      "value_domains": [
-        {
-          "accepted": "config",
-          "command": "find",
-          "error_code": "INVALID_INPUT",
-          "flag": "--name",
-          "rejected": ".config"
-        }
-      ],
-      "verb_dependencies": {
-        "ast-grep": [
-          {
-            "behavior": "degrades with typed use-time provenance",
-            "mode": "structural",
-            "verb": "find"
-          }
-        ],
-        "git": [
-          {
-            "behavior": "degrades with typed use-time provenance",
-            "mode": "history",
-            "verb": "find"
-          }
-        ]
-      },
-      "verbs": {
-        "capabilities": {
-          "aliases": [],
-          "flags": [],
-          "summary": "emit this machine contract"
-        },
-        "conformance": {
-          "aliases": [],
-          "flags": [],
-          "not_applicable": {
-            "S-01": "release-build-fault-trigger-unavailable",
-            "S-02": "release-build-fault-trigger-unavailable",
-            "X-02": "release-build-fault-trigger-unavailable"
-          },
-          "output_schema": {
-            "data[0]": {
-              "cases": "array[{case_id,verdict,reason,request_id,target}]",
-              "counts": {
-                "fail": "int",
-                "not_applicable": "int",
-                "pass": "int"
-              },
-              "profile": "string"
-            }
-          },
-          "profile": "release-self-check",
-          "summary": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)"
-        },
-        "content": {
-          "aliases": [],
-          "args": [
-            {
-              "arity": 1,
-              "name": "pattern",
-              "type": "string"
-            },
-            {
-              "arity": 1,
-              "default": ".",
-              "name": "path",
-              "type": "path"
-            }
-          ],
-          "flags": [
-            {
-              "arity": 0,
-              "conflicts_with": "--paths-envelope",
-              "input": "stdin NUL-delimited UTF-8 paths; relative paths resolve under path",
-              "name": "--paths-stdin",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--paths-stdin",
-              "input": "stdin rf JSON envelope; each data[] row must contain file:string",
-              "name": "--paths-envelope",
-              "type": "bool"
-            },
-            {
-              "arity": 1,
-              "default": 100,
-              "name": "--limit",
-              "range": "1..=1000",
-              "type": "int"
-            },
-            {
-              "arity": 1,
-              "domain": "opaque cursor from meta.pagination.cursor",
-              "name": "--cursor",
-              "type": "string"
-            },
-            {
-              "arity": 0,
-              "name": "--fixed-strings",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "name": "--word",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--case-sensitive",
-              "name": "--ignore-case",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--ignore-case",
-              "name": "--case-sensitive",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "name": "--matches",
-              "output": "opt-in occurrence evidence",
-              "type": "bool"
-            },
-            {
-              "arity": 1,
-              "default": 16,
-              "effective_max": 16,
-              "name": "--max-matches",
-              "range": "1..=1000",
-              "requires": "--matches",
-              "type": "int"
-            }
-          ],
-          "output_schema": {
-            "data[]": {
-              "file": "string",
-              "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}",
-              "selection": "selected when a selected-input mode is used",
-              "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]"
-            },
-            "meta.evidence": {
-              "match_cap": "int<=16",
-              "requested": "true when --matches",
-              "response_bytes_cap": 32768,
-              "text_bytes_cap": 512
-            },
-            "meta.pagination": {
-              "cursor": "string|null",
-              "has_more": "bool",
-              "limit": "int",
-              "returned": "int",
-              "snapshot_hash": "sha256",
-              "total": "int",
-              "truncated": "bool"
-            },
-            "meta.query": {
-              "case": "enum[sensitive,insensitive]",
-              "syntax": "enum[regex,fixed]",
-              "word": "bool"
-            },
-            "meta.selection": {
-              "mode": "enum[root-walk,stdin-nul,rf-envelope]",
-              "selected_files": "int when selected input is used"
-            }
-          },
-          "selected_input": {
-            "classification": "selected files are classified by content layers; they are never marked recovered",
-            "error_code": "INVALID_SELECTION",
-            "validation": "reject empty, malformed UTF-8/JSON, duplicate, out-of-root, missing, non-file, .git, and unreadable paths"
-          },
-          "summary": "content search; attributes each match to the filter that would hide it"
-        },
-        "doctor": {
-          "aliases": [],
-          "args": [
-            {
-              "arity": 1,
-              "default": ".",
-              "name": "path",
-              "type": "path"
-            }
-          ],
-          "flags": [],
-          "output_schema": {
-            "data[0]": {
-              "external_tools": {
-                "ast-grep": "{status,path,version,probe_error}",
-                "git": "{status,path,version,probe_error}"
-              },
-              "recommended_action": {
-                "affected": "array[{verb,mode,status}]",
-                "alternatives": "array[{command,purpose}]",
-                "command": "string|null",
-                "is_destructive": "false",
-                "rationale": "string",
-                "references": "array[{url,purpose}]"
-              }
-            }
-          },
-          "summary": "environment DIAGNOSE: engine build, regex features, and the active ignore mode for a path"
-        },
-        "find": {
-          "aliases": [],
-          "args": [
-            {
-              "arity": 1,
-              "name": "pattern",
-              "type": "string"
-            },
-            {
-              "arity": 1,
-              "default": ".",
-              "name": "path",
-              "type": "path"
-            }
-          ],
-          "flags": [
-            {
-              "arity": 1,
-              "name": "--name",
-              "required": true,
-              "type": "string",
-              "value_pattern": "non-empty file extension without dot or path separator"
-            },
-            {
-              "arity": 1,
-              "domain": "ast-grep pattern; a construct with no fixed literal form",
-              "name": "--structural",
-              "type": "string"
-            },
-            {
-              "arity": 1,
-              "domain": "ast-grep language id; required with --structural",
-              "name": "--lang",
-              "type": "string"
-            },
-            {
-              "arity": 1,
-              "default": 100,
-              "name": "--limit",
-              "range": "1..=1000",
-              "type": "int"
-            },
-            {
-              "arity": 1,
-              "domain": "opaque cursor from meta.pagination.cursor",
-              "name": "--cursor",
-              "type": "string"
-            },
-            {
-              "arity": 0,
-              "name": "--fixed-strings",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "name": "--word",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--case-sensitive",
-              "name": "--ignore-case",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--ignore-case",
-              "name": "--case-sensitive",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "name": "--matches",
-              "output": "opt-in occurrence evidence",
-              "type": "bool"
-            },
-            {
-              "arity": 1,
-              "default": 16,
-              "effective_max": 16,
-              "name": "--max-matches",
-              "range": "1..=1000",
-              "requires": "--matches",
-              "type": "int"
-            }
-          ],
-          "output_schema": {
-            "data[]": {
-              "file": "string",
-              "fix": "string|null",
-              "matches": "opt-in occurrence[] or null for history-only/structural-only",
-              "matches_unavailable_reason": "history-only|structural-only when matches is null",
-              "stage": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]"
-            },
-            "meta.evidence": {
-              "match_cap": "int<=16",
-              "requested": "true when --matches",
-              "response_bytes_cap": 32768,
-              "text_bytes_cap": 512
-            },
-            "meta.history": {
-              "actual_mode": "enum[available,git-absent,git-unusable,git-timed-out,not-work-tree,partial,history-error]",
-              "budget_ms": 2000,
-              "failed_revisions": "int",
-              "requested_mode": "all-revisions",
-              "served_revisions": "int"
-            },
-            "meta.pagination": {
-              "cursor": "string|null",
-              "has_more": "bool",
-              "limit": "int",
-              "returned": "int",
-              "snapshot_hash": "sha256",
-              "total": "int",
-              "truncated": "bool"
-            },
-            "meta.query": {
-              "case": "enum[sensitive,insensitive]",
-              "stages": "tree: Rust regex; history grep: Git BRE; pickaxe: literal; structural: ast-grep",
-              "syntax": "enum[regex,fixed]",
-              "word": "bool"
-            },
-            "meta.sources": {
-              "history": {
-                "actual": "enum[used,skipped]",
-                "fallback_reason": "null|enum[tool-missing,tool-unusable,tool-timed-out,not-work-tree,history-partial,history-failed]",
-                "requested": "bool"
-              },
-              "structural": {
-                "actual": "enum[used,skipped]",
-                "fallback_reason": "null|enum[not-requested,tool-missing,tool-unusable,tool-timed-out]",
-                "requested": "bool"
-              }
-            }
-          },
-          "summary": "staged fd|rg pipe (in-process) + typed Git history coverage + ast-grep structural; attributes each miss to fd_name/fd_hidden/fd_ignore/rg_binary/git_deleted/ast_structural"
-        },
-        "robot-docs": {
-          "aliases": [],
-          "flags": [],
-          "subcommands": {
-            "guide": {
-              "flags": [
-                {
-                  "arity": 0,
-                  "name": "--compact",
-                  "type": "bool"
+            "json": true,
+            "mutates": false,
+            "output_schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+              "properties": {
+                "data": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "command": {
+                            "type": "string"
+                          },
+                          "expected_branch": {
+                            "type": "string"
+                          },
+                          "goal": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "inputs": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "version_range": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "command",
+                          "expected_branch",
+                          "goal",
+                          "id",
+                          "inputs",
+                          "version_range"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "type": "object"
+                },
+                "meta": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contract_version": {
+                      "type": "string"
+                    },
+                    "data_hash": {
+                      "type": "string"
+                    },
+                    "elapsed_ms": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "format": {
+                      "enum": [
+                        "index",
+                        "guide"
+                      ],
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "ts_iso": {
+                      "type": "string"
+                    },
+                    "verb": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "contract_version",
+                    "data_hash",
+                    "elapsed_ms",
+                    "format",
+                    "request_id",
+                    "ts_iso",
+                    "verb"
+                  ],
+                  "type": "object"
                 }
+              },
+              "required": [
+                "data",
+                "meta"
               ],
-              "output_schema": {
-                "data[]": {
-                  "command": "safe shell command",
-                  "expected_branch": "string",
-                  "goal": "string",
-                  "id": "string",
-                  "inputs": "array[string]",
-                  "version_range": "string"
+              "type": "object"
+            }
+          }
+        }
+      },
+      "why": {
+        "aliases": [],
+        "args": [
+          {
+            "name": "pattern",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "must_exist": true,
+            "name": "file",
+            "required": true,
+            "type": "path"
+          }
+        ],
+        "description": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it",
+        "exit_codes": [
+          0,
+          1
+        ],
+        "flags": [
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "description": "directory that supplies target validation and ignore context",
+            "must_exist": true,
+            "name": "--root",
+            "required": false,
+            "value_type": "path"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "read the pattern as a literal string",
+            "name": "--fixed-strings"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "match whole words only",
+            "name": "--word"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--case-sensitive"
+            ],
+            "default": false,
+            "description": "match without case",
+            "name": "--ignore-case"
+          },
+          {
+            "arity": 0,
+            "conflicts_with": [
+              "--ignore-case"
+            ],
+            "default": false,
+            "description": "match with case; no case-recovery layer",
+            "name": "--case-sensitive"
+          },
+          {
+            "arity": 0,
+            "default": false,
+            "description": "opt-in occurrence evidence in each result row",
+            "name": "--matches"
+          },
+          {
+            "allow_empty": false,
+            "arity": 1,
+            "default": 16,
+            "description": "maximum occurrences per result file; values above 16 are capped at 16",
+            "maximum": 1000,
+            "minimum": 1,
+            "name": "--max-matches",
+            "required": false,
+            "requires": [
+              "--matches"
+            ],
+            "value_type": "int"
+          }
+        ],
+        "json": true,
+        "mutates": false,
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "commands": {
+              "description": "empty unless a hidden filter is corrected; the command reproduces the root-scoped tree search and can include sibling matches",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "hidden_from_default": {
+                  "type": "boolean"
+                },
+                "hiding_filter": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "layer": {
+                      "type": "string"
+                    },
+                    "rg_flags": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "layer",
+                    "rg_flags"
+                  ],
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "ignore_source": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "class": {
+                      "enum": [
+                        "gitignore",
+                        "git_exclude",
+                        "git_global",
+                        "dot_ignore"
+                      ],
+                      "type": "string"
+                    },
+                    "line": {
+                      "minimum": 1,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "pattern": {
+                      "type": "string"
+                    },
+                    "source_file": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "class",
+                    "line",
+                    "pattern",
+                    "source_file"
+                  ],
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "matched": {
+                  "type": "boolean"
+                },
+                "matches": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "column_byte": {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "line": {
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "text_lossy": {
+                        "type": "boolean"
+                      },
+                      "text_truncated": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "column_byte",
+                      "line",
+                      "text",
+                      "text_lossy",
+                      "text_truncated"
+                    ],
+                    "type": "object"
+                  },
+                  "maxItems": 16,
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "pattern": {
+                  "type": "string"
+                },
+                "surfaced_by": {
+                  "enum": [
+                    "default",
+                    "vcs_ignore",
+                    "hidden",
+                    "binary",
+                    "case",
+                    "encoding_utf16",
+                    null
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
-              }
-            }
-          },
-          "summary": "agent workflow documents"
-        },
-        "robot-docs guide": {
-          "aliases": [],
-          "flags": [
-            {
-              "arity": 0,
-              "name": "--compact",
-              "type": "bool"
-            }
-          ],
-          "output_schema": {
-            "data[]": {
-              "command": "safe shell command",
-              "expected_branch": "string",
-              "goal": "string",
-              "id": "string",
-              "inputs": "array[string]",
-              "version_range": "string"
-            }
-          },
-          "summary": "emit agent workflow recipes"
-        },
-        "why": {
-          "aliases": [],
-          "args": [
-            {
-              "arity": 1,
-              "name": "pattern",
-              "type": "string"
-            },
-            {
-              "arity": 1,
-              "name": "file",
-              "type": "path"
-            }
-          ],
-          "flags": [
-            {
-              "arity": 1,
-              "input": "directory that supplies target validation and ignore context",
-              "name": "--root",
-              "required": false,
-              "type": "path"
-            },
-            {
-              "arity": 0,
-              "name": "--fixed-strings",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "name": "--word",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--case-sensitive",
-              "name": "--ignore-case",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "conflicts_with": "--ignore-case",
-              "name": "--case-sensitive",
-              "type": "bool"
-            },
-            {
-              "arity": 0,
-              "name": "--matches",
-              "output": "opt-in occurrence evidence",
-              "type": "bool"
-            },
-            {
-              "arity": 1,
-              "default": 16,
-              "effective_max": 16,
-              "name": "--max-matches",
-              "range": "1..=1000",
-              "requires": "--matches",
-              "type": "int"
-            }
-          ],
-          "output_schema": {
-            "commands": "empty unless a hidden filter is corrected; emitted command reproduces the root-scoped tree search and can include sibling matches",
-            "data[]": {
-              "file": "root-relative target path",
-              "hidden_from_default": "bool",
-              "hiding_filter": "{code,layer,rg_flags}|absent",
-              "ignore_source": "optional {source_file:string,class:enum[gitignore,git_exclude,git_global,dot_ignore],pattern:string,line?:positive-int}; only vcs_ignore",
-              "matched": "bool",
-              "matches": "opt-in occurrence[]: {line:positive-int,column_byte:positive-int,text:string,text_lossy?:true,text_truncated?:true}",
-              "pattern": "string",
-              "surfaced_by": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]|null"
+              },
+              "required": [
+                "file",
+                "hidden_from_default",
+                "hiding_filter",
+                "ignore_source",
+                "matched",
+                "matches",
+                "pattern",
+                "surfaced_by"
+              ],
+              "type": "object"
             },
             "meta": {
-              "evidence": {
-                "match_cap": "int<=16",
-                "requested": "true when --matches",
-                "response_bytes_cap": 32768,
-                "text_bytes_cap": 512
+              "additionalProperties": false,
+              "properties": {
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "evidence": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "match_cap": {
+                      "maximum": 16,
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "requested": {
+                      "type": "boolean"
+                    },
+                    "response_bytes_cap": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "text_bytes_cap": {
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "match_cap",
+                    "requested",
+                    "response_bytes_cap",
+                    "text_bytes_cap"
+                  ],
+                  "type": "object"
+                },
+                "file": {
+                  "type": "string"
+                },
+                "git_repo": {
+                  "type": "boolean"
+                },
+                "ignore_mode": {
+                  "type": "string"
+                },
+                "matched": {
+                  "type": "boolean"
+                },
+                "pattern": {
+                  "type": "string"
+                },
+                "query": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "case": {
+                      "enum": [
+                        "sensitive",
+                        "insensitive"
+                      ],
+                      "type": "string"
+                    },
+                    "syntax": {
+                      "enum": [
+                        "regex",
+                        "fixed"
+                      ],
+                      "type": "string"
+                    },
+                    "word": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "case",
+                    "syntax",
+                    "word"
+                  ],
+                  "type": "object"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "root": {
+                  "type": "string"
+                },
+                "surfaced_by": {
+                  "enum": [
+                    "default",
+                    "vcs_ignore",
+                    "hidden",
+                    "binary",
+                    "case",
+                    "encoding_utf16",
+                    null
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string"
+                }
               },
-              "file": "root-relative target path",
-              "git_repo": "bool",
-              "ignore_mode": "string",
-              "matched": "bool",
-              "query": {
-                "case": "enum[sensitive,insensitive]",
-                "syntax": "enum[regex,fixed]",
-                "word": "bool"
-              },
-              "root": "path relative to process working directory",
-              "surfaced_by": "string|null"
+              "required": [
+                "contract_version",
+                "data_hash",
+                "elapsed_ms",
+                "evidence",
+                "file",
+                "git_repo",
+                "ignore_mode",
+                "matched",
+                "pattern",
+                "query",
+                "request_id",
+                "root",
+                "surfaced_by",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
             }
           },
-          "summary": "per-file verdict: whether one readable regular file matches and which normal tree-search filter hid it"
-        }
-      },
-      "verification_fixtures": {
-        "content_find_warnings_paging_and_conflicts": "tests/conformance.rs::conformance",
-        "envelope_and_parser_errors": "tests/conformance.rs::error_envelopes_and_global_json_are_total",
-        "history_outcomes": "find::history_tests::history_outcomes_are_distinct_and_coverage_is_counted",
-        "release_self_check_failure": "src/conformance.rs::run",
-        "totality_exit_6": "tests/conformance.rs::fault_seam_proves_totality"
-      },
-      "warning_codes": [
-        "IGNORE_VCS",
-        "HIDDEN_SKIPPED",
-        "BINARY_SKIPPED",
-        "CASE_SENSITIVE",
-        "ENCODING_MISS",
-        "FD_NAME",
-        "FD_HIDDEN",
-        "FD_IGNORE",
-        "RG_BINARY",
-        "GIT_DELETED",
-        "GIT_ABSENT",
-        "GIT_NOT_WORK_TREE",
-        "GIT_HISTORY_PARTIAL",
-        "AST_STRUCTURAL",
-        "STRUCTURAL_UNAVAILABLE",
-        "IGNORE_MODE",
-        "IGNORE_SOURCE_UNRESOLVED",
-        "EXTERNAL_TOOL_MISSING",
-        "GIT_SCRUB_WORD_UNAVAILABLE"
-      ],
-      "warning_details": {
-        "AST_STRUCTURAL": {
-          "detail_shape": "paths[]",
-          "precondition": "structural-only match",
-          "sites": [
-            "find"
-          ]
-        },
-        "BINARY_SKIPPED": {
-          "detail_shape": "paths[]",
-          "precondition": "binary detection hides a match",
-          "sites": [
-            "content",
-            "why"
-          ]
-        },
-        "CASE_SENSITIVE": {
-          "detail_shape": "paths[]",
-          "precondition": "case-insensitive search recovers a match",
-          "sites": [
-            "content",
-            "why"
-          ]
-        },
-        "ENCODING_MISS": {
-          "detail_shape": "paths[]",
-          "precondition": "UTF-16 decoding recovers a match",
-          "sites": [
-            "content",
-            "why"
-          ]
-        },
-        "EXTERNAL_TOOL_MISSING": {
-          "detail_shape": "none",
-          "precondition": "an optional external tool cannot run",
-          "sites": [
-            "doctor",
-            "find"
-          ]
-        },
-        "FD_HIDDEN": {
-          "detail_shape": "paths[]",
-          "precondition": "hidden path excludes a content match",
-          "sites": [
-            "find"
-          ]
-        },
-        "FD_IGNORE": {
-          "detail_shape": "paths[]",
-          "precondition": "ignore rule excludes a content match",
-          "sites": [
-            "find"
-          ]
-        },
-        "FD_NAME": {
-          "detail_shape": "paths[]",
-          "precondition": "name filter excludes a content match",
-          "sites": [
-            "find"
-          ]
-        },
-        "GIT_ABSENT": {
-          "detail_shape": "paths[]",
-          "precondition": "Git is unavailable",
-          "sites": [
-            "find"
-          ]
-        },
-        "GIT_DELETED": {
-          "detail_shape": "paths[]",
-          "precondition": "history-only match",
-          "sites": [
-            "find"
-          ]
-        },
-        "GIT_HISTORY_PARTIAL": {
-          "detail_shape": "none",
-          "precondition": "history scan budget expires",
-          "sites": [
-            "find"
-          ]
-        },
-        "GIT_NOT_WORK_TREE": {
-          "detail_shape": "paths[]",
-          "precondition": "root is not a Git work tree",
-          "sites": [
-            "find"
-          ]
-        },
-        "GIT_SCRUB_WORD_UNAVAILABLE": {
-          "detail_shape": "paths[]",
-          "precondition": "whole-word mode omits Git pickaxe evidence",
-          "sites": [
-            "find"
-          ]
-        },
-        "HIDDEN_SKIPPED": {
-          "detail_shape": "paths[]",
-          "precondition": "a hidden path hides a match",
-          "sites": [
-            "content",
-            "why"
-          ]
-        },
-        "IGNORE_MODE": {
-          "detail_shape": "none",
-          "precondition": "ignore mode diagnostic",
-          "sites": [
-            "doctor"
-          ]
-        },
-        "IGNORE_SOURCE_UNRESOLVED": {
-          "detail_shape": "paths[]",
-          "precondition": "ignore source cannot be reconstructed",
-          "sites": [
-            "why"
-          ]
-        },
-        "IGNORE_VCS": {
-          "detail_shape": "paths[]",
-          "precondition": "a VCS-ignore rule hides a match",
-          "sites": [
-            "content",
-            "why"
-          ]
-        },
-        "RG_BINARY": {
-          "detail_shape": "paths[]",
-          "precondition": "binary detection excludes a content match",
-          "sites": [
-            "find"
-          ]
-        },
-        "STRUCTURAL_UNAVAILABLE": {
-          "detail_shape": "none",
-          "precondition": "ast-grep is unavailable",
-          "sites": [
-            "find"
-          ]
+          "required": [
+            "data",
+            "meta",
+            "commands"
+          ],
+          "type": "object"
         }
       }
+    },
+    "verification_fixtures": {
+      "content_find_warnings_paging_and_conflicts": "tests/conformance.rs::conformance",
+      "envelope_and_parser_errors": "tests/conformance.rs::error_envelopes_and_global_json_are_total",
+      "history_outcomes": "find::history_tests::history_outcomes_are_distinct_and_coverage_is_counted",
+      "release_self_check_failure": "src/conformance.rs::run",
+      "totality_exit_7": "tests/conformance.rs::fault_seam_proves_totality"
     }
-  ],
+  },
   "errors": [],
   "meta": {
-    "contract_version": "2",
-    "data_hash": "999d6d9b8fd1",
+    "contract_version": "0.1",
+    "data_hash": "sha256:a631911a0b95b7886d7ebed499af7ca798759ebffaa3f55ab15b50b44e87237d",
     "elapsed_ms": 0,
-    "request_id": "76f9619390d727ae",
+    "request_id": "req_2f810e6061ff3f01",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

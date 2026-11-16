@@ -70,7 +70,7 @@ The command updates `Cargo.toml` and `CHANGELOG.md`, captures the contract
 fixture, and **fails loudly if the `plumbline.json` claims drift from the fresh
 fixture** — the exact gap that reddened the first 0.0.8 attempt. When the claims
 drift, update `plumbline.json` (for example the `tool_version` and
-`warning_code_set` claims) and rerun. It then runs the local release checks,
+`code_set` claims) and rerun. It then runs the local release checks,
 commits, and pushes the preparation. It does **not** tag or publish.
 
 Check the planned action without changing files or remote state:

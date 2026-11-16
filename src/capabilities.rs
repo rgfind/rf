@@ -11,11 +11,11 @@ pub fn build() -> Value {
         "contract_version": CONTRACT_VERSION,
         "tool_version": TOOL_VERSION,
         "contract_policy": {
-            "policy_version": 2,
-            "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-2",
+            "policy_version": 3,
+            "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-01",
             "supported_contract_versions": [CONTRACT_VERSION],
-            "release_record": "release-records/0.0.8.md",
-            "release_classification": "additive-pending-release-verification"
+            "release_record": "release-records/unreleased.md",
+            "release_classification": "breaking-pending-release-verification"
         },
         "schema_versions": {
             "envelope": 2, "capabilities": 2, "content": 2, "find": 2,

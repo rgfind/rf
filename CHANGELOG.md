@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **Breaking: contract version `0.1`.** rf now follows the make-cli 0.1.0
+  contract. Contract version `2` ends, and no old spelling stays as an alias.
+  The full compatibility statement is in `release-records/unreleased.md`.
+  - Version scheme: `contract_version` is a `major.minor` string. Before `1.0`
+    a minor bump may break.
+  - Envelope: `data` is an object. Rows are in `data.items`; the capabilities
+    contract is `data`, not `data[0]`. A failed request can keep its result.
+    Errors gain `arg` and `details`. Warnings are `code`, `message`, `details`
+    (`msg` and `files` are removed; files are in `details.files`). Every
+    declared key is always present.
+  - Exits: an internal defect is exit 7, not 6. Exit 6 means findings present:
+    `doctor` with a faulty external tool, `conformance` with a failed case. An
+    unreadable named path is exit 3 (`why` gave 1, `content` gave 0). Signal and closed-pipe exits are declared.
+  - Flags: `--human` is removed. Human output is the default, also to a pipe.
+    `--json` is the only machine selector. The `help` verb is new.
+  - Codes: errors and warnings are in one registry, `error_codes`.
+    `INVALID_TARGET` is now `NOT_FOUND`, `INVALID_INPUT` or `IO_FAILURE`.
+    `CONFORMANCE_FAIL` is now `CASE_FAILED`. `MISSING_ARGUMENT` is now
+    `MISSING_REQUIRED`. `USAGE` is removed.
+  - Capabilities: output schemas are JSON Schema. `value_domains` and
+    `warning_codes` are removed. `robot-docs guide` is a subcommand entry.
+  - Cursors from older builds return `CONFLICT` with a restart command.
+
 - Set the crate `homepage` to <https://rgfind.dev/>, so the crates.io listing
   links to the documentation site.
 - The README now links the documentation site — quickstart, JSON contract, and

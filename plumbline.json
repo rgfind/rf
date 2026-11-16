@@ -54,8 +54,7 @@
         "rf",
         "content",
         "timeout",
-        ".",
-        "--human"
+        "."
       ],
       "env": {
         "SOURCE_DATE_EPOCH": "0",
@@ -79,14 +78,13 @@
         "rf",
         "why",
         "timeout",
-        "cache/build.py",
-        "--human"
+        "cache/build.py"
       ],
       "env": {
         "SOURCE_DATE_EPOCH": "0",
         "NO_COLOR": "1"
       },
-      "prompt": "$ rf why timeout cache/build.py --human",
+      "prompt": "$ rf why timeout cache/build.py",
       "tree": {
         "git_init": true,
         "files": {
@@ -100,10 +98,10 @@
   "claims": [
     {
       "id": "contract_version",
-      "fact": "contract_version = 2 (a JSON string in both meta and data[0])",
-      "fixture_path": "data.0.contract_version",
+      "fact": "contract_version = 0.1 (a JSON string in meta and in data)",
+      "fixture_path": "data.contract_version",
       "mode": "value",
-      "expected": "2",
+      "expected": "0.1",
       "surface": "README.md",
       "section": "Status / The control surface",
       "tier": "P"
@@ -138,8 +136,8 @@
     },
     {
       "id": "verb_set",
-      "fact": "eight released verbs",
-      "fixture_path": "data.0.verbs",
+      "fact": "eight top-level verbs; robot-docs guide is nested under robot-docs",
+      "fixture_path": "data.verbs",
       "mode": "keys",
       "expected": [
         "capabilities",
@@ -147,8 +145,8 @@
         "content",
         "doctor",
         "find",
+        "help",
         "robot-docs",
-        "robot-docs guide",
         "why"
       ],
       "surface": "README.md",
@@ -156,63 +154,95 @@
       "tier": "P"
     },
     {
+      "id": "guide_subcommand",
+      "fact": "robot-docs has one subcommand, guide",
+      "fixture_path": "data.verbs.robot-docs.subcommands",
+      "mode": "keys",
+      "expected": [
+        "guide"
+      ],
+      "surface": "README.md",
+      "section": "The pipeline case / control surface",
+      "tier": "P"
+    },
+    {
       "id": "exit_code_set",
-      "fact": "five exit codes 0,1,3,5,6",
-      "fixture_path": "data.0.exit_codes",
+      "fact": "the make-cli exit dictionary: 0-7 and four signal exits",
+      "fixture_path": "data.exit_codes",
       "mode": "keys",
       "expected": [
         "0",
         "1",
+        "129",
+        "130",
+        "141",
+        "143",
+        "2",
         "3",
+        "4",
         "5",
-        "6"
+        "6",
+        "7"
       ],
       "surface": "README.md",
       "section": "The control surface",
       "tier": "P"
     },
     {
-      "id": "exit5_retryable",
-      "fact": "exit 5 (snapshot conflict) is the only retryable code",
-      "fixture_path": "data.0.exit_codes.5.retryable",
+      "id": "exit5_meaning",
+      "fact": "exit 5 means conflict",
+      "fixture_path": "data.exit_codes.5.meaning",
       "mode": "value",
-      "expected": true,
+      "expected": "conflict",
       "surface": "README.md",
       "section": "The control surface",
       "tier": "P"
     },
     {
-      "id": "error_code_set",
-      "fact": "twelve stable error codes",
-      "fixture_path": "data.0.error_codes",
+      "id": "exit5_not_retryable",
+      "fact": "exit 5 is not retryable as sent; the caller restarts with the emitted command",
+      "fixture_path": "data.exit_codes.5.retryable",
+      "mode": "value",
+      "expected": false,
+      "surface": "README.md",
+      "section": "The control surface",
+      "tier": "P"
+    },
+    {
+      "id": "exit6_meaning",
+      "fact": "exit 6 means findings present",
+      "fixture_path": "data.exit_codes.6.meaning",
+      "mode": "value",
+      "expected": "findings-present",
+      "surface": "README.md",
+      "section": "The control surface",
+      "tier": "P"
+    },
+    {
+      "id": "exit7_meaning",
+      "fact": "exit 7 means internal error",
+      "fixture_path": "data.exit_codes.7.meaning",
+      "mode": "value",
+      "expected": "internal-error",
+      "surface": "README.md",
+      "section": "The control surface",
+      "tier": "P"
+    },
+    {
+      "id": "code_set",
+      "fact": "one registry of thirty-five codes, errors and warnings together",
+      "fixture_path": "data.error_codes",
       "mode": "keys",
       "expected": [
-        "BAD_PATTERN",
-        "CONFLICT",
-        "CONFORMANCE_FAIL",
-        "HISTORY_ERROR",
-        "INTERNAL",
-        "INVALID_INPUT",
-        "INVALID_SELECTION",
-        "INVALID_TARGET",
-        "MISSING_ARGUMENT",
-        "UNKNOWN_COMMAND",
-        "UNKNOWN_FLAG",
-        "USAGE"
-      ],
-      "surface": "README.md",
-      "section": "control surface (defers to capabilities)",
-      "tier": "P"
-    },
-    {
-      "id": "warning_code_set",
-      "fact": "nineteen warning codes",
-      "fixture_path": "data.0.warning_codes",
-      "mode": "set",
-      "expected": [
         "AST_STRUCTURAL",
+        "BAD_PATTERN",
         "BINARY_SKIPPED",
+        "CASE_FAILED",
         "CASE_SENSITIVE",
+        "COMPONENT_DEGRADED",
+        "COMPONENT_UNHEALTHY",
+        "CONFLICT",
+        "DEPENDENCY_MISSING",
         "ENCODING_MISS",
         "EXTERNAL_TOOL_MISSING",
         "FD_HIDDEN",
@@ -224,11 +254,21 @@
         "GIT_NOT_WORK_TREE",
         "GIT_SCRUB_WORD_UNAVAILABLE",
         "HIDDEN_SKIPPED",
+        "HISTORY_ERROR",
         "IGNORE_MODE",
         "IGNORE_SOURCE_UNRESOLVED",
         "IGNORE_VCS",
+        "INTERNAL",
+        "INVALID_INPUT",
+        "INVALID_SELECTION",
+        "IO_FAILURE",
+        "MISSING_REQUIRED",
+        "NOT_FOUND",
+        "PARTIAL_RESULT",
         "RG_BINARY",
-        "STRUCTURAL_UNAVAILABLE"
+        "STRUCTURAL_UNAVAILABLE",
+        "UNKNOWN_COMMAND",
+        "UNKNOWN_FLAG"
       ],
       "surface": "README.md",
       "section": "control surface (defers to capabilities)",
@@ -237,9 +277,18 @@
     {
       "id": "find_stage_enum",
       "fact": "find.stage has eight values",
-      "fixture_path": "data.0.verbs.find.output_schema.data[].stage",
+      "fixture_path": "data.verbs.find.output_schema.properties.data.properties.items.items.properties.stage.enum",
       "mode": "value",
-      "expected": "enum[found,fd_name,fd_hidden,fd_ignore,fd_filter,rg_binary,git_deleted,ast_structural]",
+      "expected": [
+        "found",
+        "fd_name",
+        "fd_hidden",
+        "fd_ignore",
+        "fd_filter",
+        "rg_binary",
+        "git_deleted",
+        "ast_structural"
+      ],
       "surface": "README.md",
       "section": "The pipeline case: find",
       "tier": "P"
@@ -247,9 +296,16 @@
     {
       "id": "content_surfaced_by_enum",
       "fact": "content.surfaced_by layers",
-      "fixture_path": "data.0.verbs.content.output_schema.data[].surfaced_by",
+      "fixture_path": "data.verbs.content.output_schema.properties.data.properties.items.items.properties.surfaced_by.enum",
       "mode": "value",
-      "expected": "enum[default,vcs_ignore,hidden,binary,case,encoding_utf16]",
+      "expected": [
+        "default",
+        "vcs_ignore",
+        "hidden",
+        "binary",
+        "case",
+        "encoding_utf16"
+      ],
       "surface": "README.md",
       "section": "The pipeline case: find (content bullet)",
       "tier": "P"
@@ -257,7 +313,7 @@
     {
       "id": "content_limit_name_guard",
       "fact": "content pagination flag is --limit at its fixture position",
-      "fixture_path": "data.0.verbs.content.flags.2.name",
+      "fixture_path": "data.verbs.content.flags.2.name",
       "mode": "value",
       "expected": "--limit",
       "surface": "README.md",
@@ -267,7 +323,7 @@
     {
       "id": "content_limit_default",
       "fact": "content --limit default is 100",
-      "fixture_path": "data.0.verbs.content.flags.2.default",
+      "fixture_path": "data.verbs.content.flags.2.default",
       "mode": "value",
       "expected": 100,
       "surface": "README.md",
@@ -275,11 +331,21 @@
       "tier": "P"
     },
     {
-      "id": "content_limit_range",
-      "fact": "content --limit range is 1..=1000",
-      "fixture_path": "data.0.verbs.content.flags.2.range",
+      "id": "content_limit_minimum",
+      "fact": "content --limit minimum is 1",
+      "fixture_path": "data.verbs.content.flags.2.minimum",
       "mode": "value",
-      "expected": "1..=1000",
+      "expected": 1,
+      "surface": "README.md",
+      "section": "The control surface (pagination)",
+      "tier": "P"
+    },
+    {
+      "id": "content_limit_maximum",
+      "fact": "content --limit maximum is 1000",
+      "fixture_path": "data.verbs.content.flags.2.maximum",
+      "mode": "value",
+      "expected": 1000,
       "surface": "README.md",
       "section": "The control surface (pagination)",
       "tier": "P"

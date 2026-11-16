@@ -1,12 +1,12 @@
 {
   "contract_policy": {
-    "policy_version": 2,
-    "release_classification": "additive-pending-release-verification",
-    "release_record": "release-records/0.0.8.md",
+    "policy_version": 3,
+    "release_classification": "breaking-pending-release-verification",
+    "release_record": "release-records/unreleased.md",
     "supported_contract_versions": [
       "0.1"
     ],
-    "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-2"
+    "url": "https://github.com/rgfind/rf/blob/main/CONTRACT.md#contract-version-01"
   },
   "contract_version": "0.1",
   "diagnosis_order": [
