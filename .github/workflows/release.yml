@@ -76,28 +76,49 @@ jobs:
           release_prefix="$(mktemp -d)"
           install -m 755 target/release/rf "$release_prefix/rf"
           expected_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "rf") | .version')"
-          test "$("$release_prefix/rf" --version)" = "rf $expected_version"
+          # Human --version prints the bare version, with no program name.
+          test "$("$release_prefix/rf" --version)" = "$expected_version"
           test "$(sha256sum target/release/rf | cut -d' ' -f1)" = "$(sha256sum "$release_prefix/rf" | cut -d' ' -f1)"
-          "$release_prefix/rf" conformance --json > "$release_prefix/conformance.json"
-          python3 - "$release_prefix/conformance.json" <<'PY'
+          # The verdict pin is the one source of truth for the release posture:
+          # every case id, verdict and reason must equal the committed pin.
+          conformance_exit=0
+          "$release_prefix/rf" conformance --json > "$release_prefix/conformance.json" || conformance_exit=$?
+          python3 - "$release_prefix/conformance.json" tests/golden/conformance.verdicts.json "$conformance_exit" <<'PY'
           import json
           import sys
 
           report = json.load(open(sys.argv[1], encoding="utf-8"))
-          cases = report["data"][0]["cases"]
-          allowed_na = {
-              "H-01": "rf-requires-a-subcommand",
-              "H-03": "help-surface-not-machine-rendered",
-              "S-01": "release-build-fault-trigger-unavailable",
-              "S-02": "release-build-fault-trigger-unavailable",
-              "X-02": "release-build-fault-trigger-unavailable",
-          }
-          failures = [case for case in cases if case["verdict"] == "fail"]
-          observed_na = {case["case_id"]: case["reason"] for case in cases if case["verdict"] == "not_applicable"}
-          if failures or observed_na != allowed_na:
-              raise SystemExit(f"conformance failure={failures!r}; unexpected not-applicable={observed_na!r}")
+          pin = json.load(open(sys.argv[2], encoding="utf-8"))
+          exit_code = int(sys.argv[3])
+
+          def rows(cases):
+              return {case["case_id"]: (case["verdict"], case["reason"]) for case in cases}
+
+          data = report["data"]
+          observed = rows(data["cases"])
+          pinned = rows(pin["cases"])
+          problems = []
+          if exit_code != 0:
+              problems.append(f"conformance exit {exit_code}")
+          if not observed:
+              problems.append("no cases in the report")
+          if len(observed) != len(data["cases"]):
+              problems.append("duplicate case ids in the report")
+          if data["profile"] != pin["profile"]:
+              problems.append(f"profile {data['profile']!r}, pin has {pin['profile']!r}")
+          if data["counts"] != pin["counts"]:
+              problems.append(f"counts {data['counts']!r}, pin has {pin['counts']!r}")
+          for case_id in sorted(set(observed) | set(pinned)):
+              if observed.get(case_id) != pinned.get(case_id):
+                  problems.append(f"{case_id}: observed {observed.get(case_id)!r}, pin has {pinned.get(case_id)!r}")
+          failures = sorted(case_id for case_id, (verdict, _) in observed.items() if verdict == "fail")
+          if failures:
+              problems.append(f"failed cases: {failures!r}")
+          if problems:
+              raise SystemExit("conformance does not match the verdict pin:\n" + "\n".join(problems))
+          print(f"conformance matches the verdict pin: {data['counts']!r}")
           PY
-      - name: Validate the 0.0.8 K-record
+      - name: Validate the committed K-record (0.0.8 benchmark)
         run: python3 benchmarks/0.0.8-real-repo/validate.py
       - name: Full preflight stop-sign (local gates + CI proof for this commit)
         env:
