@@ -19,6 +19,7 @@ readme = "README.md"
 # Anchor every entry to ship only the root product surface.
 include = [
     "/src/**/*.rs",
+    "/tests/golden/conformance.verdicts*.json",
     "/README.md",
     "/CHANGELOG.md",
     "/CONTRACT.md",

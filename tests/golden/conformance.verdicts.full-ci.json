@@ -1,0 +1,1455 @@
+{
+  "cases": [
+    {
+      "case_id": "B-01::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-01::node=robot-docs",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=robot-docs",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-02::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-03::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-04::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-05",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-06::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-06::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-06::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-06::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-07::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-08::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-09::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-10::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-11::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-11::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-11::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-12::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-13::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-13::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-13::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-14",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--case-sensitive::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--case-sensitive::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--case-sensitive::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--compact::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--fixed-strings::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--fixed-strings::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--fixed-strings::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--help::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--ignore-case::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--ignore-case::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--ignore-case::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--json::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--no-color::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--paths-envelope::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--paths-stdin::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--version::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--word::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--word::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-16::flag=--word::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=robot-docs",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-17::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-18::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-18::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-18::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-18::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-18::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-19::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-20::flag=--case-sensitive::peer=--ignore-case::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-20::flag=--case-sensitive::peer=--ignore-case::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-20::flag=--case-sensitive::peer=--ignore-case::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-20::flag=--paths-envelope::peer=--paths-stdin::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-23::arg=file::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-23::arg=path::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-23::arg=path::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-23::arg=path::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-23::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-24::arg=file::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-24::arg=path::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-24::arg=path::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-24::arg=path::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-24::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-27::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-27::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-27::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-27::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-27::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-28::flag=-V::node=rf::peer=-h",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=envelope::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-29::shape=human::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-32::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "B-36::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-01",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-02::flag=--help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-02::flag=--version",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-03::surface=bare",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-03::surface=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-03::surface=version",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-04::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-04::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-04::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=robot-docs",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-05::node=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-06",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "H-07",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "L-01",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-02",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-03",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-04",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-05",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-06",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-07",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-08",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-09",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-10",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-11",
+      "reason": "no-name-on-ladder",
+      "verdict": "not_applicable"
+    },
+    {
+      "case_id": "L-12",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-01::shape=envelope::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-02::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-03::flag=--json=",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-03::flag=--json=1",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-03::flag=--json=false",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-04::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-04::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-04::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--cursor::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--cursor::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--lang::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--limit::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--limit::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--max-matches::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--max-matches::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--max-matches::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--name::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--root::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-05::flag=--structural::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "M-08",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=bootstrap_mode",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=command_flag",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=command_path",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=execution",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=global_flag",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=required_argument",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=semantic_resolution",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-01::stage=value_validation",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-02::stage=bootstrap_mode",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-03",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "S-04",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=rf",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=robot-docs",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-01::node=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=bootstrap_mode",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=command_flag",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=command_path",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=execution",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=global_flag",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=required_argument",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=semantic_resolution",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-02::stage=value_validation",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-04::profile=full-ci",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-05",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-06",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=conformance",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=content",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=doctor",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=help",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=robot-docs",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=robot-docs.guide",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-08::verb=why",
+      "reason": null,
+      "verdict": "pass"
+    }
+  ],
+  "counts": {
+    "fail": 0,
+    "not_applicable": 11,
+    "pass": 278
+  },
+  "profile": "full-ci"
+}

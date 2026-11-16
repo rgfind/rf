@@ -251,6 +251,7 @@ pub fn why() -> Value {
             "evidence": evidence(),
         }),
     );
+    schema["required"] = json!(["data", "meta", "commands"]);
     schema["properties"]["commands"] = json!({
         "type": "array",
         "items": {"type": "string"},

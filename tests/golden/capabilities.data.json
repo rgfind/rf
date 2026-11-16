@@ -88,6 +88,19 @@
       ],
       "summary": "binary detection hides a match from a default search"
     },
+    "CASE_FAILED": {
+      "appears_in": [
+        "errors"
+      ],
+      "details": "{case_id}",
+      "exit": 6,
+      "fixture": "none in a correct build; the self-check of a defective build gives it",
+      "precondition": "a build with a contract defect",
+      "sites": [
+        "conformance"
+      ],
+      "summary": "one conformance case has verdict fail; one error for each failed case, in case id order"
+    },
     "CASE_SENSITIVE": {
       "appears_in": [
         "warnings"
@@ -141,19 +154,6 @@
         "find"
       ],
       "summary": "a cursor snapshot no longer matches the current result set"
-    },
-    "CONFORMANCE_FAIL": {
-      "appears_in": [
-        "errors"
-      ],
-      "details": "null",
-      "exit": 1,
-      "fixture": "none in a correct build; the self-check of a defective build gives it",
-      "precondition": "a build with a contract defect",
-      "sites": [
-        "conformance"
-      ],
-      "summary": "one or more conformance cases have verdict fail"
     },
     "DEPENDENCY_MISSING": {
       "appears_in": [
@@ -899,15 +899,6 @@
     "why": 2
   },
   "tool_version": "PINNED",
-  "value_domains": [
-    {
-      "accepted": "config",
-      "command": "find",
-      "error_code": "INVALID_INPUT",
-      "flag": "--name",
-      "rejected": ".config"
-    }
-  ],
   "verb_dependencies": {
     "ast-grep": [
       {
@@ -940,15 +931,27 @@
     "conformance": {
       "aliases": [],
       "args": [],
-      "description": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)",
+      "description": "run the conformance profile of this build against this binary and emit one verdict for each case instance",
       "exit_codes": [
         0,
-        1
+        1,
+        6
       ],
       "flags": [],
       "json": true,
       "mutates": false,
       "not_applicable": {
+        "L-01": "no-name-on-ladder",
+        "L-02": "no-name-on-ladder",
+        "L-03": "no-name-on-ladder",
+        "L-04": "no-name-on-ladder",
+        "L-05": "no-name-on-ladder",
+        "L-06": "no-name-on-ladder",
+        "L-07": "no-name-on-ladder",
+        "L-08": "no-name-on-ladder",
+        "L-09": "no-name-on-ladder",
+        "L-10": "no-name-on-ladder",
+        "L-11": "no-name-on-ladder",
         "S-01": "release-build-fault-trigger-unavailable",
         "S-02": "release-build-fault-trigger-unavailable",
         "X-02": "release-build-fault-trigger-unavailable"
@@ -2895,7 +2898,8 @@
         },
         "required": [
           "data",
-          "meta"
+          "meta",
+          "commands"
         ],
         "type": "object"
       }

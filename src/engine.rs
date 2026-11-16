@@ -133,7 +133,6 @@ pub fn content_matches(
     pattern: &str,
     cfg: &SearchCfg,
 ) -> Result<BTreeSet<String>, String> {
-    crate::fault::maybe_fault("engine");
     let matcher = RegexMatcherBuilder::new()
         .fixed_strings(cfg.query.fixed_strings)
         .word(cfg.query.word)
@@ -198,7 +197,6 @@ pub fn content_matches_selected(
     cfg: &SearchCfg,
     files: &BTreeMap<String, PathBuf>,
 ) -> Result<BTreeSet<String>, String> {
-    crate::fault::maybe_fault("engine");
     let matcher = RegexMatcherBuilder::new()
         .fixed_strings(cfg.query.fixed_strings)
         .word(cfg.query.word)

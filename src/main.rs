@@ -333,6 +333,7 @@ fn refuse(problem: Value, json: bool, started: Instant) -> ! {
 }
 
 fn dispatch(v: &Verb) -> (Value, i32) {
+    fault::maybe_fault("execution");
     match v {
         Verb::RobotDocs {
             command: RobotDocs::Guide { compact },
@@ -542,7 +543,45 @@ fn render_human(env: &Value) -> String {
                 ));
             }
         }
-        _ => return serde_json::to_string_pretty(env).unwrap_or_default(),
+        "capabilities" => {
+            let d = &env["data"];
+            out.push(format!(
+                "rf {} (contract {})",
+                d["tool_version"].as_str().unwrap_or(""),
+                d["contract_version"].as_str().unwrap_or("")
+            ));
+            out.push("verbs:".into());
+            if let Some(verbs) = d["verbs"].as_object() {
+                for (name, entry) in verbs {
+                    out.push(format!(
+                        "  {:<13} {}",
+                        name,
+                        entry["description"].as_str().unwrap_or("")
+                    ));
+                }
+            }
+            out.push("machine contract: rf capabilities --json".into());
+        }
+        "robot-docs guide" => {
+            for item in env["data"]["items"].as_array().unwrap_or(&vec![]) {
+                out.push(format!(
+                    "{}: {}",
+                    item["id"].as_str().unwrap_or(""),
+                    item["goal"].as_str().unwrap_or("")
+                ));
+                out.push(format!("  $ {}", item["command"].as_str().unwrap_or("")));
+            }
+        }
+        // Human rendering is text for every verb; it never falls back to JSON.
+        _ => out.push(format!(
+            "{}: {}",
+            if verb.is_empty() { "rf" } else { verb },
+            if env["ok"].as_bool().unwrap_or(false) {
+                "done"
+            } else {
+                "failed"
+            }
+        )),
     }
     for w in env["warnings"].as_array().unwrap_or(&vec![]) {
         out.push(format!(
@@ -630,7 +669,17 @@ fn main() {
     let started = Instant::now();
     let raw: Vec<OsString> = std::env::args_os().skip(1).collect();
     let json = bootstrap_json(&raw);
-    if let Some(problem) = undecodable(&raw) {
+    // Totality: a panic in any stage becomes an INTERNAL envelope, exit 7.
+    // `run` exits the process itself, so control returns here only on unwind.
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run(&raw, json, started);
+    }));
+    internal("internal error (panic caught)", json, started)
+}
+
+fn run(raw: &[OsString], json: bool, started: Instant) -> ! {
+    fault::maybe_fault("bootstrap_mode");
+    if let Some(problem) = undecodable(raw) {
         refuse(problem, json, started);
     }
     let selector_end = raw
@@ -648,7 +697,7 @@ fn main() {
             .insert("arg".into(), Value::from("--json"));
         refuse(problem, json, started);
     }
-    if is_bare(&raw) {
+    if is_bare(raw) {
         let usage = usage_text();
         surface(
             &usage,
@@ -696,11 +745,7 @@ fn main() {
             started,
         ),
     };
-
-    // Totality: no backend panic reaches the user as an unmediated crash.
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| dispatch(&cli.verb)));
-    match result {
-        Ok((env, code)) => emit(env, code, json, started),
-        Err(_) => internal("internal error (panic caught)", json, started),
-    }
+    fault::maybe_fault("semantic_resolution");
+    let (env, code) = dispatch(&cli.verb);
+    emit(env, code, json, started)
 }

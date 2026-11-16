@@ -53,15 +53,11 @@ pub fn build() -> Value {
                 "output_schema": crate::schema::why()
             },
             "conformance": {
-                "description": "run the release self-check profile against this binary and emit the verdict set (probeability rule P-f)",
+                "description": "run the conformance profile of this build against this binary and emit one verdict for each case instance",
                 "aliases": [],
                 "flags": [],
-                "profile": "release-self-check",
-                "not_applicable": {
-                    "S-01": "release-build-fault-trigger-unavailable",
-                    "S-02": "release-build-fault-trigger-unavailable",
-                    "X-02": "release-build-fault-trigger-unavailable"
-                },
+                "profile": crate::conformance::PROFILE,
+                "not_applicable": crate::conformance::not_applicable_json(),
                 "output_schema": crate::schema::conformance()
             }
         },
@@ -71,9 +67,6 @@ pub fn build() -> Value {
         "diagnosis_order": [
             "bootstrap_mode", "global_flag", "command_path", "command_flag",
             "value_validation", "required_argument", "semantic_resolution", "execution"
-        ],
-        "value_domains": [
-            {"command": "find", "flag": "--name", "accepted": "config", "rejected": ".config", "error_code": "INVALID_INPUT"}
         ],
         "verification_fixtures": {
             "envelope_and_parser_errors": "tests/conformance.rs::error_envelopes_and_global_json_are_total",
@@ -127,7 +120,7 @@ pub fn build() -> Value {
                 "robot-docs" => &[1],
                 "content" => &[0, 1, 5],
                 "find" => &[0, 1, 3, 5],
-                "doctor" => &[0, 1, 6],
+                "doctor" | "conformance" => &[0, 1, 6],
                 _ => &[0, 1],
             };
             let mut entry = verbs.get_mut(node.path[0]);

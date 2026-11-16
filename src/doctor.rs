@@ -55,9 +55,23 @@ fn state(health: &Value) -> &'static str {
 }
 
 pub fn run(path: &str) -> (Value, i32) {
-    crate::fault::maybe_fault("doctor");
     if let Err(failure) = crate::paths::must_exist("doctor", "path", path) {
         return failure;
+    }
+    // doctor reads the path: a path that exists and cannot be read is an
+    // environment fault, as the flag table declares for a must_exist path.
+    let readable = if Path::new(path).is_dir() {
+        std::fs::read_dir(path).map(|_| ())
+    } else {
+        std::fs::File::open(path).map(|_| ())
+    };
+    if let Err(error) = readable {
+        return crate::paths::io_failure(
+            "doctor",
+            Path::new(path),
+            &crate::paths::errno_name(&error),
+            &[],
+        );
     }
     let context = git_context(path);
     let in_repo = context.in_repo;

@@ -1208,8 +1208,13 @@ fn conformance() {
         format!("code={code}"),
     );
     check(
-        "conformance: profile is release-self-check",
-        d["profile"] == "release-self-check",
+        "conformance: profile is the profile of this build",
+        d["profile"]
+            == if cfg!(feature = "fault-injection") {
+                "full-ci"
+            } else {
+                "release-self-check"
+            },
         String::new(),
     );
     check(
@@ -1515,6 +1520,8 @@ fn conformance() {
 const CAPS_GOLDEN: &str = include_str!("golden/capabilities.data.json");
 #[cfg(not(feature = "fault-injection"))]
 const VERDICTS_GOLDEN: &str = include_str!("golden/conformance.verdicts.json");
+#[cfg(feature = "fault-injection")]
+const VERDICTS_GOLDEN: &str = include_str!("golden/conformance.verdicts.full-ci.json");
 
 /// tool_version tracks CARGO_PKG_VERSION and bumps every release; the pin guards
 /// the *contract*, so normalize it out. contract_version stays real — it is the
@@ -1552,7 +1559,6 @@ print(json.dumps(d,indent=2,sort_keys=True))\" > tests/golden/capabilities.data.
     );
 }
 
-#[cfg(not(feature = "fault-injection"))]
 #[test]
 fn golden_conformance_verdicts() {
     let want: Value = serde_json::from_str(VERDICTS_GOLDEN).expect("golden parses");
@@ -1604,19 +1610,28 @@ indent=2,sort_keys=True))\" > tests/golden/conformance.verdicts.json\n\n\
 // Exactly one runs per `cargo test` invocation, chosen by the feature flag.
 
 /// argv that reaches each stage's seam with otherwise-valid input.
-fn stage_argv<'a>(stage: &str, empty: &'a str) -> Vec<&'a str> {
-    match stage {
-        "content" | "engine" => vec!["content", "zzq_no_such_token", empty, "--json"],
-        "find" => vec![
-            "find",
-            "zzq_no_such_token",
-            empty,
-            "--name",
-            "conf",
-            "--json",
-        ],
-        _ => vec!["doctor", ".", "--json"],
-    }
+/// The eight diagnosis stages, in the declared order.
+const STAGES: [&str; 8] = [
+    "bootstrap_mode",
+    "global_flag",
+    "command_path",
+    "command_flag",
+    "value_validation",
+    "required_argument",
+    "semantic_resolution",
+    "execution",
+];
+
+/// Valid argv that goes through each diagnosis stage.
+fn stage_argv(empty: &str) -> Vec<&str> {
+    vec![
+        "find",
+        "zzq_no_such_token",
+        empty,
+        "--name",
+        "conf",
+        "--json",
+    ]
 }
 
 /// Verdict of a single conformance case_id (exact match), or "<absent>".
@@ -1635,27 +1650,31 @@ fn fault_seam_absent_in_release() {
     // RF_FAULT must be inert: the seam is not compiled in, so a normal search runs.
     let empty_dir = unique_temp("fault-empty");
     let empty = empty_dir.to_string_lossy().into_owned();
-    for stage in ["content", "find", "doctor", "engine"] {
-        let (code, e, _) = rf(&stage_argv(stage, &empty), None, &[("RF_FAULT", stage)]);
-        // doctor is a report: exit 6 where a tool is absent is a normal run.
-        let normal = (code == 0 && e["ok"] == true)
-            || (stage == "doctor" && code == 6 && e["data"]["overall"].is_string());
+    for stage in STAGES {
+        let (code, e, _) = rf(&stage_argv(&empty), None, &[("RF_FAULT", stage)]);
         assert!(
-            normal,
+            code == 0 && e["ok"] == true,
             "RF_FAULT={stage} should be inert in a release build: code={code} {e}"
         );
     }
     let _ = std::fs::remove_dir(&empty_dir);
     // And the self-check reports the totality cases not-applicable, not pass.
     let (_, e, _) = rf(&["conformance", "--json"], None, &[]);
-    for id in ["S-01", "S-02"] {
-        assert_eq!(
-            verdict_of(&e, id),
-            "not_applicable",
-            "{id} in release build"
-        );
+    for stage in STAGES {
+        for label in ["S-01", "X-02"] {
+            let id = format!("{label}::stage={stage}");
+            assert_eq!(
+                verdict_of(&e, &id),
+                "not_applicable",
+                "{id} in release build"
+            );
+        }
     }
-    assert_eq!(verdict_of(&e, "X-03::posture=compiled-out"), "pass");
+    assert_eq!(
+        verdict_of(&e, "S-02::stage=bootstrap_mode"),
+        "not_applicable"
+    );
+    assert_eq!(verdict_of(&e, "X-03"), "pass");
 }
 
 #[cfg(feature = "fault-injection")]
@@ -1666,8 +1685,8 @@ fn fault_seam_proves_totality() {
     // never an unmediated crash (which would be exit 101 with no JSON).
     let empty_dir = unique_temp("fault-empty");
     let empty = empty_dir.to_string_lossy().into_owned();
-    for stage in ["content", "find", "doctor", "engine"] {
-        let (code, e, _) = rf(&stage_argv(stage, &empty), None, &[("RF_FAULT", stage)]);
+    for stage in STAGES {
+        let (code, e, _) = rf(&stage_argv(&empty), None, &[("RF_FAULT", stage)]);
         assert_eq!(
             code, 7,
             "stage {stage}: fault must exit 7 (internal), not crash"
@@ -1693,22 +1712,19 @@ fn fault_seam_proves_totality() {
         code, 0,
         "self-check must still be all-pass under the seam build"
     );
-    for id in [
-        "S-01::stage=content",
-        "S-02::stage=find",
-        "X-02::stages=all",
-    ] {
-        assert_eq!(
-            verdict_of(&e, id),
-            "pass",
-            "{id} should pass with the seam in"
-        );
+    for stage in STAGES {
+        for label in ["S-01", "X-02"] {
+            let id = format!("{label}::stage={stage}");
+            assert_eq!(
+                verdict_of(&e, &id),
+                "pass",
+                "{id} should pass with the seam in"
+            );
+        }
     }
-    assert_eq!(
-        verdict_of(&e, "X-03"),
-        "not_applicable",
-        "X-03 not release posture"
-    );
+    assert_eq!(verdict_of(&e, "S-02::stage=bootstrap_mode"), "pass");
+    // A test build gives no X-03 instance: that case is for the release artifact.
+    assert_eq!(verdict_of(&e, "X-03"), "<absent>");
     assert_eq!(e["data"]["counts"]["fail"], Value::from(0));
 }
 
@@ -2602,4 +2618,19 @@ fn output_matches_the_declared_schema_with_every_key_present() {
         );
     }
     assert!(faults.is_empty(), "replies: {faults:#?}");
+}
+
+/// A pattern that does not compile is refused by each search verb. This was
+/// case R-01 of the old self-check; it is not a make-cli case.
+#[test]
+fn bad_pattern_is_refused_by_each_search_verb() {
+    for argv in [
+        vec!["content", "[", ".", "--json"],
+        vec!["find", "[", ".", "--name", "rs", "--json"],
+    ] {
+        let (code, e, _) = rf(&argv, None, &[]);
+        assert_eq!(code, 1, "{argv:?}");
+        assert_eq!(e["ok"], false, "{argv:?}");
+        assert_eq!(e["errors"][0]["code"], "BAD_PATTERN", "{argv:?}");
+    }
 }

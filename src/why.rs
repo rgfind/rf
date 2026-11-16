@@ -144,7 +144,6 @@ pub fn run(
     evidence: bool,
     max_matches: Option<usize>,
 ) -> (Value, i32) {
-    crate::fault::maybe_fault("why");
     if max_matches.is_some() && !evidence {
         let mut meta = Map::new();
         meta.insert("verb".into(), Value::from("why"));

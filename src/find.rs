@@ -397,7 +397,6 @@ pub fn run(
             1,
         );
     }
-    crate::fault::maybe_fault("find");
     if let Err(failure) = crate::paths::must_exist("find", "path", path) {
         return failure;
     }

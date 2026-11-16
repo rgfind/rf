@@ -461,7 +461,7 @@ pub fn global_flags_json() -> Value {
 
 /// Optimal string alignment distance of at most one: one insert, delete,
 /// substitution, or swap of two adjacent characters.
-fn near(a: &str, b: &str) -> bool {
+pub(crate) fn near(a: &str, b: &str) -> bool {
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
     if a == b || a.len().abs_diff(b.len()) > 1 {
@@ -826,11 +826,18 @@ pub fn validate(tokens: &[String]) -> Outcome {
         );
     }
 
+    crate::fault::maybe_fault("global_flag");
+    crate::fault::maybe_fault("command_path");
+    crate::fault::maybe_fault("command_flag");
+
     let wants_help = globals.contains(&"--help") || help_verb;
     let wants_version = globals.contains(&"--version");
     let mut help_path: Vec<&'static str> = if help_verb { Vec::new() } else { path.clone() };
 
-    if !lost && help_verb {
+    if !lost && help_verb && positionals.is_empty() && globals.contains(&"--help") {
+        // `rf help --help` is the help of the `help` node, as `rf help help` is.
+        help_path = path.clone();
+    } else if !lost && help_verb {
         for (index, token) in &positionals {
             match children(&help_path).into_iter().find(|c| c == token) {
                 Some(name) => help_path.push(name),
@@ -859,6 +866,7 @@ pub fn validate(tokens: &[String]) -> Outcome {
                 corrected: None,
             });
         } else if let Some(node) = node(&path) {
+            crate::fault::maybe_fault("value_validation");
             for item in &seen {
                 faults.extend(check_value(tokens, item));
             }
@@ -903,6 +911,7 @@ pub fn validate(tokens: &[String]) -> Outcome {
                     corrected: None,
                 });
             }
+            crate::fault::maybe_fault("required_argument");
             for item in &seen {
                 for companion in item.flag.requires {
                     if seen.iter().any(|other| other.flag.name == *companion) {

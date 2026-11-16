@@ -195,16 +195,16 @@ pub const CODES: &[Code] = &[
         NONE,
     ),
     error(
-        "CONFORMANCE_FAIL",
-        1,
-        "one or more conformance cases have verdict fail",
-        "Read data.cases; each failed row names its case_id.",
+        "CASE_FAILED",
+        6,
+        "one conformance case has verdict fail; one error for each failed case, in case id order",
+        "Read the row of data.cases that details.case_id names.",
         Repro::Fixture {
             precondition: "a build with a contract defect",
             fixture: "none in a correct build; the self-check of a defective build gives it",
         },
         &["conformance"],
-        NONE,
+        "{case_id}",
     ),
     error(
         "COMPONENT_UNHEALTHY",
