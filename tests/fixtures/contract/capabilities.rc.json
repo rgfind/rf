@@ -288,6 +288,19 @@
         ],
         "summary": "the root is not a Git work tree, so history was not searched"
       },
+      "GIT_SCRUB_UNAVAILABLE": {
+        "appears_in": [
+          "warnings"
+        ],
+        "details": "details.files[]",
+        "exit": null,
+        "fixture": "put a script named git that exits 2 for log and runs the real git for all else first on PATH, then run find in a repository with a history-only match",
+        "precondition": "git log failed, so the scrub commit of a history-only match is unknown",
+        "sites": [
+          "find"
+        ],
+        "summary": "git log failed, so the scrub commit of a history-only match is unknown"
+      },
       "GIT_SCRUB_WORD_UNAVAILABLE": {
         "appears_in": [
           "warnings"
@@ -2919,9 +2932,9 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:435923bcc7b91fbd5c98d54cc2d7a34bda29fcfb7c166a72699c7fdc12a38467",
+    "data_hash": "sha256:0c1a7f4070c85e801b2e5c897fc30d8065b08f0af3b04bd3933cce0a24fb957c",
     "elapsed_ms": 0,
-    "request_id": "req_861f3aa34782329b",
+    "request_id": "req_5162e8207c161192",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

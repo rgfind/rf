@@ -35,10 +35,11 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
 
 ## Capture after the release
 
-- Re-captured after commit `a50de03` (unreleased) with plumbline 0.0.4.
-  That commit registers `PARTIAL_RESULT` for `why` and changes its summary.
-  The fixture differs from the 0.1.0 capture in that registry entry and in
-  the per-run fields. The hashes in "Current capture" are for the 0.1.0
+- Re-captured with plumbline 0.0.4 after two unreleased registry changes:
+  `a50de03` registers `PARTIAL_RESULT` for `why` and changes its summary;
+  the next commit adds the warning code `GIT_SCRUB_UNAVAILABLE`. The
+  fixture differs from the 0.1.0 capture in those two registry entries and
+  in the per-run fields. The hashes in "Current capture" are for the 0.1.0
   release capture, not for this file.
 
 ## Validity

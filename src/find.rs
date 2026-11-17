@@ -241,12 +241,24 @@ fn git_scrub_commits(
     root: &str,
     ext: &str,
     query: QueryMode,
-) -> BTreeMap<String, String> {
+) -> Option<BTreeMap<String, String>> {
+    git_scrub_commits_with(Path::new("git"), pattern, root, ext, query)
+}
+
+/// None when `git log` did not run or did not exit 0: the scrub commits are
+/// then not known, which is different from "no scrub commit".
+fn git_scrub_commits_with(
+    git: &Path,
+    pattern: &str,
+    root: &str,
+    ext: &str,
+    query: QueryMode,
+) -> Option<BTreeMap<String, String>> {
     if query.word {
-        return BTreeMap::new();
+        return Some(BTreeMap::new());
     }
     let glob = format!("*.{ext}");
-    let out = Command::new("git")
+    let out = Command::new(git)
         .args({
             let mut args = vec!["-C".into(), root.into(), "log".into()];
             if query.case_insensitive {
@@ -265,10 +277,8 @@ fn git_scrub_commits(
             args
         })
         .output();
-    let Ok(out) = out else {
-        return BTreeMap::new();
-    };
-    parse_scrub_log(&String::from_utf8_lossy(&out.stdout))
+    let out = out.ok().filter(|out| out.status.success())?;
+    Some(parse_scrub_log(&String::from_utf8_lossy(&out.stdout)))
 }
 
 /// Parse `git log -z --format=%x01%h --name-only`. Each record ends with NUL.
@@ -632,7 +642,14 @@ pub fn run(
     // --- source 3: Git history matches (scrubbed from the tree) ---
     let ever = history.matches();
     let git_deleted: Vec<String> = ever.difference(&content_all).cloned().collect(); // BTreeSet -> sorted
-    let scrub_commits = git_scrub_commits(pattern, root, ext, query);
+                                                                                     // The log is read only when a history-only match needs a scrub commit.
+    let scrub_lookup = if git_deleted.is_empty() {
+        Some(BTreeMap::new())
+    } else {
+        git_scrub_commits(pattern, root, ext, query)
+    };
+    let scrub_failed = scrub_lookup.is_none();
+    let scrub_commits = scrub_lookup.unwrap_or_default();
     for f in &git_deleted {
         data.push(row(
             f,
@@ -740,6 +757,13 @@ pub fn run(
         warnings.push(warn(
             "GIT_SCRUB_WORD_UNAVAILABLE",
             "whole-word mode omits scrub-commit evidence because Git pickaxe is not whole-word",
+            git_deleted.clone(),
+        ));
+    }
+    if scrub_failed {
+        warnings.push(warn(
+            "GIT_SCRUB_UNAVAILABLE",
+            "git log failed, so the scrub commit of each history-only match is unknown",
             git_deleted.clone(),
         ));
     }
@@ -1008,7 +1032,9 @@ pub fn run(
 
 #[cfg(test)]
 mod history_tests {
-    use super::{git_ever_matched_with, git_scrub_commits, parse_scrub_log, History};
+    use super::{
+        git_ever_matched_with, git_scrub_commits, git_scrub_commits_with, parse_scrub_log, History,
+    };
     use crate::query::QueryMode;
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -1097,6 +1123,24 @@ mod history_tests {
     }
 
     #[test]
+    fn a_failed_scrub_log_is_unknown_not_empty() {
+        let mode = QueryMode::default();
+        let failing = fake_git(
+            "scrub-fail",
+            "#!/bin/sh\nprintf '\\001abc1234\\0\\nold.rs\\0'\nexit 2\n",
+        );
+        assert!(git_scrub_commits_with(&failing, "needle", ".", "rs", mode).is_none());
+        let absent = std::path::Path::new("/rf-no-such-git");
+        assert!(git_scrub_commits_with(absent, "needle", ".", "rs", mode).is_none());
+        let empty = fake_git("scrub-empty", "#!/bin/sh\nexit 0\n");
+        let known = git_scrub_commits_with(&empty, "needle", ".", "rs", mode);
+        assert_eq!(known.map(|map| map.len()), Some(0));
+        // Whole-word mode does not run the log; that is not a failure.
+        let word = QueryMode::new(false, true, false);
+        assert!(git_scrub_commits_with(absent, "needle", ".", "rs", word).is_some());
+    }
+
+    #[test]
     fn history_paths_are_raw_in_a_real_repository() {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1153,7 +1197,8 @@ mod history_tests {
             }
             _ => panic!("expected available history"),
         }
-        let scrubs = git_scrub_commits("needle", root, "rs", QueryMode::default());
+        let scrubs =
+            git_scrub_commits("needle", root, "rs", QueryMode::default()).expect("git log runs");
         assert_eq!(scrubs.keys().map(String::as_str).collect::<Vec<_>>(), want);
         assert!(scrubs.values().all(|hash| hash.len() == 12), "{scrubs:?}");
         fs::remove_dir_all(dir).unwrap();

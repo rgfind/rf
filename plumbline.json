@@ -252,6 +252,7 @@
         "GIT_DELETED",
         "GIT_HISTORY_PARTIAL",
         "GIT_NOT_WORK_TREE",
+        "GIT_SCRUB_UNAVAILABLE",
         "GIT_SCRUB_WORD_UNAVAILABLE",
         "HIDDEN_SKIPPED",
         "HISTORY_ERROR",

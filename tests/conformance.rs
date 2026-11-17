@@ -919,6 +919,60 @@ fn find_word_mode_omits_non_whole_word_scrub_evidence() {
         .all(|command| !command.as_str().unwrap_or("").contains("'-S'")));
 }
 
+#[cfg(unix)]
+#[test]
+fn find_reports_a_failed_scrub_log() {
+    let corpus = FindCorpus::new();
+    let cwd = Some(corpus.path.as_path());
+    let args = ["find", TOKEN, ".", "--name", "config", "--json"];
+    let scrub_of = |env: &Value| -> (bool, String) {
+        let warnings = env["warnings"].as_array().unwrap();
+        let unavailable = warnings
+            .iter()
+            .find(|w| w["code"] == "GIT_SCRUB_UNAVAILABLE");
+        if let Some(warning) = unavailable {
+            assert_eq!(warning["details"]["files"][0], "history.config", "{env}");
+        }
+        let deleted = warnings
+            .iter()
+            .find(|w| w["code"] == "GIT_DELETED")
+            .unwrap_or_else(|| panic!("no GIT_DELETED: {env}"));
+        (
+            unavailable.is_some(),
+            deleted["message"].as_str().unwrap_or("").to_string(),
+        )
+    };
+
+    let (code, env, _) = rf(&args, cwd, &[]);
+    assert_eq!(code, 0);
+    let (unavailable, message) = scrub_of(&env);
+    assert!(!unavailable, "{env}");
+    assert!(!message.contains("scrubbed in unknown"), "{message}");
+
+    // A git that fails only for `log`: the history scan still finds the file.
+    let path = std::env::var("PATH").unwrap();
+    let real = std::env::split_paths(&path)
+        .map(|dir| dir.join("git"))
+        .find(|candidate| candidate.is_file())
+        .expect("git on PATH");
+    let bin = unique_temp("scrub-log-bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    executable(
+        &bin.join("git"),
+        &format!(
+            "#!/bin/sh\nfor a in \"$@\"; do [ \"$a\" = log ] && exit 2; done\nexec '{}' \"$@\"\n",
+            real.display()
+        ),
+    );
+    let fake_path = format!("{}:{path}", bin.display());
+    let (code, env, _) = rf(&args, cwd, &[("PATH", &fake_path)]);
+    assert_eq!(code, 0, "{env}");
+    let (unavailable, message) = scrub_of(&env);
+    assert!(unavailable, "{env}");
+    assert!(message.contains("scrubbed in unknown"), "{message}");
+    let _ = std::fs::remove_dir_all(bin);
+}
+
 #[test]
 fn conformance() {
     let corpus = Corpus::new();

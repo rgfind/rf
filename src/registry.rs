@@ -376,6 +376,13 @@ pub const CODES: &[Code] = &[
         NONE,
     ),
     warning(
+        "GIT_SCRUB_UNAVAILABLE",
+        "git log failed, so the scrub commit of a history-only match is unknown",
+        "put a script named git that exits 2 for log and runs the real git for all else first on PATH, then run find in a repository with a history-only match",
+        &["find"],
+        FILES,
+    ),
+    warning(
         "GIT_SCRUB_WORD_UNAVAILABLE",
         "whole-word mode omits Git pickaxe evidence",
         "run find --word in a repository with a history-only match",
