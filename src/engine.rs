@@ -222,17 +222,30 @@ pub fn content_matches_selected(
         .collect();
     // The walker supplies the same ignore and hidden classification as normal
     // content search. It never opens or searches a non-selected file.
+    // A walk or canonicalize error is recorded only when it can hide a
+    // selected file. An error in a subtree that holds no selected file does
+    // not change the result, so it gives no warning.
     for dent in walk(root, cfg.use_ignore, cfg.skip_hidden) {
         let dent = match dent {
             Ok(d) => d,
-            Err(_) => continue,
+            Err(e) => {
+                if error_path(&e).is_some_and(|p| can_hide_selected(root, p, files)) {
+                    record_walk_error(&e);
+                }
+                continue;
+            }
         };
         if has_git_component(&dent) || !is_file(&dent) {
             continue;
         }
         let canonical = match std::fs::canonicalize(dent.path()) {
             Ok(path) => path,
-            Err(_) => continue,
+            Err(e) => {
+                if can_hide_selected(root, dent.path(), files) {
+                    record_skip(dent.path(), &e);
+                }
+                continue;
+            }
         };
         let Some(display) = selected_by_path.get(&canonical) else {
             continue;
@@ -254,6 +267,21 @@ pub fn content_matches_selected(
         }
     }
     Ok(out)
+}
+
+/// True when `path` is a selected file or a directory above one. The check
+/// uses the canonical form when `path` resolves, and the root-relative form
+/// when it does not (the path can be gone or unreachable).
+fn can_hide_selected(root: &str, path: &Path, files: &BTreeMap<String, PathBuf>) -> bool {
+    if let Ok(canonical) = std::fs::canonicalize(path) {
+        if files.values().any(|file| file.starts_with(&canonical)) {
+            return true;
+        }
+    }
+    let relative = rel(root, &path.to_string_lossy());
+    files
+        .keys()
+        .any(|display| Path::new(display).starts_with(&relative))
 }
 
 fn cap_text(text: String) -> (String, bool) {
@@ -461,5 +489,70 @@ mod evidence_tests {
         assert_eq!(warning["code"], "PARTIAL_RESULT");
         assert_eq!(warning["details"]["files"][0], "gone.txt");
         let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod selected_walk_tests {
+    use super::{content_matches_selected, take_skips, SearchCfg};
+    use crate::query::QueryMode;
+    use std::collections::BTreeMap;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn cfg() -> SearchCfg {
+        SearchCfg {
+            use_ignore: false,
+            skip_hidden: false,
+            binary_as_text: true,
+            query: QueryMode::default(),
+            encoding: None,
+        }
+    }
+
+    fn lock(dir: &std::path::Path, mode: u32) {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    #[test]
+    fn a_walk_error_above_a_selected_file_is_recorded_and_others_are_not() {
+        let base = std::env::temp_dir().join(format!("rf-selected-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join("tree");
+        let held = root.join("held");
+        let other = root.join("other");
+        std::fs::create_dir_all(&held).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(root.join("open.txt"), "needle\n").unwrap();
+        std::fs::write(held.join("a.txt"), "needle\n").unwrap();
+        std::fs::write(other.join("b.txt"), "needle\n").unwrap();
+        let canonical_root = std::fs::canonicalize(&root).unwrap();
+        let root_arg = root.to_string_lossy().to_string();
+
+        // The selection was valid; the directory became unreadable after it.
+        let mut files = BTreeMap::new();
+        files.insert("open.txt".to_string(), canonical_root.join("open.txt"));
+        files.insert("held/a.txt".to_string(), canonical_root.join("held/a.txt"));
+        lock(&held, 0o000);
+        lock(&other, 0o000);
+        if std::fs::read_dir(&held).is_ok() {
+            // Running as root: permissions do not block the walk.
+            lock(&held, 0o755);
+            lock(&other, 0o755);
+            let _ = std::fs::remove_dir_all(&base);
+            return;
+        }
+
+        take_skips();
+        let found = content_matches_selected(&root_arg, "needle", &cfg(), &files).unwrap();
+        let skips = take_skips();
+        lock(&held, 0o755);
+        lock(&other, 0o755);
+        let _ = std::fs::remove_dir_all(&base);
+
+        assert_eq!(found.into_iter().collect::<Vec<_>>(), ["open.txt"]);
+        assert!(skips.read_ok);
+        let unreadable: Vec<&String> = skips.unreadable.keys().collect();
+        assert_eq!(unreadable.len(), 1, "{unreadable:?}");
+        assert!(unreadable[0].ends_with("held"), "{unreadable:?}");
     }
 }
