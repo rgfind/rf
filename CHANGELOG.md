@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.1.1 — defect fixes after 0.1.0
+
+Contract version stays `0.1`. All changes are additive or defect fixes. The
+classification is in `release-records/0.1.1.md`.
+
+- `find` reads Git history paths NUL-delimited (`git grep -z`,
+  `git log -z`). A history path that Git quotes (a non-ASCII byte, a control
+  character, a quote, a backslash) is reported with its real name. Before,
+  rf reported the quoted form: `café.rs` came out as `"caf\303\251.rs"`.
+- `find` reads a scrub hash of any length. Before, a hash longer than 7
+  characters gave "scrubbed in unknown" in `GIT_DELETED`.
+- `find`: when the scrub `git log` cannot start or exits non-zero, rf gives
+  the new warning `GIT_SCRUB_UNAVAILABLE`. It names the history-only matches.
+  Before, `GIT_DELETED` said "scrubbed in unknown" with no cause. The log
+  now runs only when there is a history-only match.
+- `--matches`: a matched file that cannot be read for its occurrences has
+  `matches: null` and a `PARTIAL_RESULT` warning that names it (`content`,
+  `find`, `why`). Before, it had an empty list. `PARTIAL_RESULT` is now
+  registered for `why`.
+- `find --structural`: ast-grep output that is not a JSON list gives
+  `STRUCTURAL_UNAVAILABLE` (`tool-unusable`). Before, rf read it as zero
+  files. Empty output and `[]` still mean zero files.
+- Selected-path mode (`--paths-stdin`, `--paths-envelope`) records a walk or
+  canonicalize error that can hide a selected file. The result has a
+  `PARTIAL_RESULT` warning, or `IO_FAILURE` (exit 3) when no file was read,
+  as in normal mode. Before, the error was dropped.
+- A declared value flag with undecodable bytes in its value
+  (`--cursor=<bytes>`, `--json=<bytes>`) gives `INVALID_INPUT` with `arg` set
+  to the flag name and `details.bytes_hex`. Before, it gave `UNKNOWN_FLAG`.
+  Both exit 1.
+
 ## 0.1.0 — make-cli 0.1 contract
 
 - **Breaking: contract version `0.1`.** rf now follows the make-cli 0.1.0

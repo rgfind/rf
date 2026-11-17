@@ -3,8 +3,8 @@
   "data": {
     "contract_policy": {
       "policy_version": 3,
-      "release_classification": "breaking-pending-release-verification",
-      "release_record": "release-records/0.1.0.md",
+      "release_classification": "additive-pending-release-verification",
+      "release_record": "release-records/0.1.1.md",
       "supported_contract_versions": [
         "0.1"
       ],
@@ -914,7 +914,7 @@
       "robot-docs": 2,
       "why": 2
     },
-    "tool_version": "0.1.0",
+    "tool_version": "0.1.1",
     "verb_dependencies": {
       "ast-grep": [
         {
@@ -2932,13 +2932,13 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:0c1a7f4070c85e801b2e5c897fc30d8065b08f0af3b04bd3933cce0a24fb957c",
+    "data_hash": "sha256:a3ae650c5b45b49af6d7a3c9ec3a0ac6994733e0834361f3ebf24b8daf0482c6",
     "elapsed_ms": 0,
-    "request_id": "req_5162e8207c161192",
+    "request_id": "req_0ee07e449d4e6715",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },
   "ok": true,
-  "tool_version": "0.1.0",
+  "tool_version": "0.1.1",
   "warnings": []
 }

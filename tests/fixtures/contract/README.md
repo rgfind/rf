@@ -41,6 +41,10 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
   fixture differs from the 0.1.0 capture in those two registry entries and
   in the per-run fields. The hashes in "Current capture" are for the 0.1.0
   release capture, not for this file.
+- Re-captured for the 0.1.1 release preparation. Added differences:
+  `tool_version` `0.1.1`, `release_record` `release-records/0.1.1.md`,
+  `release_classification` `additive-pending-release-verification`. Replace
+  "Current capture" with the 0.1.1 release evidence after the release.
 
 ## Validity
 
