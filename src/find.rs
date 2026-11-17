@@ -146,8 +146,11 @@ fn git_ever_matched_with(
         }
         let mut args = vec!["-C".into(), root.into(), "grep".into()];
         args.extend(query.git_grep_args(explicit_case_sensitive));
+        // `-z`: Git writes each path raw and ends it with NUL. Without it, Git
+        // quotes and escapes a path that has a non-ASCII byte.
         args.extend([
             "-l".into(),
+            "-z".into(),
             "-e".into(),
             pattern.into(),
             rev.clone(),
@@ -168,9 +171,9 @@ fn git_ever_matched_with(
             continue;
         }
         served += 1;
-        for ln in String::from_utf8_lossy(&g.stdout).lines() {
+        for record in String::from_utf8_lossy(&g.stdout).split('\0') {
             // "<rev>:<path>"
-            if let Some((_, path)) = ln.split_once(':') {
+            if let Some((_, path)) = record.split_once(':') {
                 out.insert(path.to_string());
             }
         }
@@ -251,7 +254,8 @@ fn git_scrub_commits(
             }
             args.extend([
                 "--all".into(),
-                "--format=%h".into(),
+                "-z".into(),
+                "--format=%x01%h".into(),
                 "--name-only".into(),
                 "-S".into(),
                 pattern.into(),
@@ -261,19 +265,27 @@ fn git_scrub_commits(
             args
         })
         .output();
-    let mut result = BTreeMap::new();
     let Ok(out) = out else {
-        return result;
+        return BTreeMap::new();
     };
+    parse_scrub_log(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Parse `git log -z --format=%x01%h --name-only`. Each record ends with NUL.
+/// A commit record is `\x01<hash>`; the hash has any length. A path record
+/// follows its commit and can start with the newline that ends the format.
+/// The first commit seen for a path is the most recent one.
+fn parse_scrub_log(text: &str) -> BTreeMap<String, String> {
+    let mut result = BTreeMap::new();
     let mut commit = String::new();
-    for line in String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .filter(|line| !line.is_empty())
-    {
-        if line.len() == 7 && line.bytes().all(|b| b.is_ascii_hexdigit()) {
-            commit = line.into();
-        } else if !commit.is_empty() {
-            result.entry(line.into()).or_insert_with(|| commit.clone());
+    for record in text.split('\0') {
+        let record = record.strip_prefix('\n').unwrap_or(record);
+        if let Some(hash) = record.strip_prefix('\x01') {
+            commit = hash.into();
+        } else if !record.is_empty() && !commit.is_empty() {
+            result
+                .entry(record.into())
+                .or_insert_with(|| commit.clone());
         }
     }
     result
@@ -988,7 +1000,7 @@ pub fn run(
 
 #[cfg(test)]
 mod history_tests {
-    use super::{git_ever_matched_with, History};
+    use super::{git_ever_matched_with, git_scrub_commits, parse_scrub_log, History};
     use crate::query::QueryMode;
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
@@ -1035,7 +1047,7 @@ mod history_tests {
 
         let partial = fake_git(
             "partial",
-            "#!/bin/sh\ncase \"$*\" in\n  *rev-parse*) printf 'true\\n' ;;\n  *rev-list*) printf 'good\\nbad\\n' ;;\n  *grep*good*) printf 'good:old.config\\n' ;;\n  *grep*) exit 2 ;;\nesac\n",
+            "#!/bin/sh\ncase \"$*\" in\n  *rev-parse*) printf 'true\\n' ;;\n  *rev-list*) printf 'good\\nbad\\n' ;;\n  *grep*good*) printf 'good:old.config\\0' ;;\n  *grep*) exit 2 ;;\nesac\n",
         );
         let state = git_ever_matched_with(
             &partial,
@@ -1064,5 +1076,78 @@ mod history_tests {
         let state =
             git_ever_matched_with(&error, "needle", ".", "config", QueryMode::default(), false);
         assert!(matches!(state, History::Error));
+    }
+
+    #[test]
+    fn scrub_log_accepts_any_hash_length_and_raw_paths() {
+        let log = "\x01abcdef012\0\ncaf\u{e9}.rs\0sub/sp ace.rs\0\x01abc1234\0\ncaf\u{e9}.rs\0";
+        let parsed = parse_scrub_log(log);
+        assert_eq!(parsed["caf\u{e9}.rs"], "abcdef012");
+        assert_eq!(parsed["sub/sp ace.rs"], "abcdef012");
+        assert_eq!(parsed.len(), 2);
+        assert!(parse_scrub_log("").is_empty());
+    }
+
+    #[test]
+    fn history_paths_are_raw_in_a_real_repository() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("rf-history-real-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        let root = dir.to_str().unwrap();
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .args([
+                    "-C",
+                    root,
+                    "-c",
+                    "user.email=t@example.invalid",
+                    "-c",
+                    "user.name=t",
+                ])
+                .args(args)
+                .status()
+                .unwrap();
+            assert!(status.success(), "git {args:?}");
+        };
+        let names = ["caf\u{e9}.rs", "sub/sp ace.rs", "co:lon.rs"];
+        git(&["init", "-q"]);
+        // A long abbreviation: the hash is not 7 characters.
+        git(&["config", "core.abbrev", "12"]);
+        for name in names {
+            fs::write(dir.join(name), "needle\n").unwrap();
+        }
+        git(&["add", "-A"]);
+        git(&["commit", "-q", "-m", "seed"]);
+        for name in names {
+            fs::write(dir.join(name), "clean\n").unwrap();
+        }
+        git(&["add", "-A"]);
+        git(&["commit", "-q", "-m", "scrub"]);
+
+        let state = git_ever_matched_with(
+            std::path::Path::new("git"),
+            "needle",
+            root,
+            "rs",
+            QueryMode::default(),
+            false,
+        );
+        let mut want: Vec<&str> = names.to_vec();
+        want.sort();
+        match state {
+            History::Available { matches, served } => {
+                assert_eq!(matches.iter().map(String::as_str).collect::<Vec<_>>(), want);
+                assert_eq!(served, 2);
+            }
+            _ => panic!("expected available history"),
+        }
+        let scrubs = git_scrub_commits("needle", root, "rs", QueryMode::default());
+        assert_eq!(scrubs.keys().map(String::as_str).collect::<Vec<_>>(), want);
+        assert!(scrubs.values().all(|hash| hash.len() == 12), "{scrubs:?}");
+        fs::remove_dir_all(dir).unwrap();
     }
 }
