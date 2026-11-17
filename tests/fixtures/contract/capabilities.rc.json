@@ -454,12 +454,13 @@
         "details": "details.files[]",
         "exit": null,
         "fixture": "chmod 000 one file in a tree that has other readable files, then run content",
-        "precondition": "one or more paths under the root could not be read; the result covers the other paths",
+        "precondition": "one or more paths could not be read; the result covers the other paths. With --matches, a matched file that could not be read for its occurrences has matches null",
         "sites": [
           "content",
-          "find"
+          "find",
+          "why"
         ],
-        "summary": "one or more paths under the root could not be read; the result covers the other paths"
+        "summary": "one or more paths could not be read; the result covers the other paths. With --matches, a matched file that could not be read for its occurrences has matches null"
       },
       "RG_BINARY": {
         "appears_in": [
@@ -2918,9 +2919,9 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:da4baef41dd1a86b5f70664b769ed94a165918d68272e2ec4c041a5176d37cab",
+    "data_hash": "sha256:435923bcc7b91fbd5c98d54cc2d7a34bda29fcfb7c166a72699c7fdc12a38467",
     "elapsed_ms": 0,
-    "request_id": "req_8049df67eb28711f",
+    "request_id": "req_861f3aa34782329b",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },
