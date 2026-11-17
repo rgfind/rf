@@ -2,3 +2,5 @@
 # br doctor per-run artifacts
 .doctor/
 .DS_Store
+# Playwright MCP browser snapshots
+.playwright-mcp/
