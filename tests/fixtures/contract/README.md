@@ -21,30 +21,22 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
 
 ## Current capture
 
-- Package version: `rf 0.1.0` (contract version `0.1`).
-- Captured at source commit `9692a39` with plumbline 0.0.4. The release
-  commit `ec79e2a` changed only the release workflow file.
+- Package version: `rf 0.1.1` (contract version `0.1`).
+- Captured at source commit `4279ad4` (the release commit) with plumbline
+  0.0.4.
 - Fixture file (sha256):
-  `e5549de41ca3b7d5031787613a2521204a4ee498564642b1d1375b1433d67156`.
+  `19e00e91fd1cdb973ac6584f7db6b1171834c0a851002c0e15e36abe2d4cd67e`.
 - `fixture-fresh` passed in the release run for the release commit:
-  <https://github.com/rgfind/rf/actions/runs/43963625334>.
+  <https://github.com/rgfind/rf/actions/runs/44035300025>.
 - Conformance of the release binary in that run: profile
   `release-self-check`, 262 pass, 28 not applicable, 0 fail.
 - Published archive checksum (crates.io index):
-  `04e465e1b639d580e53156ada63a69837e636738271739033912f7c6642e2862`.
-
-## Capture after the release
-
-- Re-captured with plumbline 0.0.4 after two unreleased registry changes:
-  `a50de03` registers `PARTIAL_RESULT` for `why` and changes its summary;
-  the next commit adds the warning code `GIT_SCRUB_UNAVAILABLE`. The
-  fixture differs from the 0.1.0 capture in those two registry entries and
-  in the per-run fields. The hashes in "Current capture" are for the 0.1.0
-  release capture, not for this file.
-- Re-captured for the 0.1.1 release preparation. Added differences:
-  `tool_version` `0.1.1`, `release_record` `release-records/0.1.1.md`,
-  `release_classification` `additive-pending-release-verification`. Replace
-  "Current capture" with the 0.1.1 release evidence after the release.
+  `74cc4680594cc304cce06930dbd271a554fad9407d2cd82e188d5ca23d4be5ec`.
+- Difference from the 0.1.0 capture: the `PARTIAL_RESULT` entry (`why`
+  added, new summary), the new warning `GIT_SCRUB_UNAVAILABLE`,
+  `tool_version`, `release_record`, `release_classification`, and the
+  per-run fields. The 0.1.0 capture fixture sha256 was
+  `e5549de41ca3b7d5031787613a2521204a4ee498564642b1d1375b1433d67156`.
 
 ## Validity
 
