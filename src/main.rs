@@ -218,6 +218,19 @@ fn hex(token: &OsStr) -> String {
 /// The verbs whose next positional is also a command name.
 const GROUPS: [&str; 2] = ["robot-docs", "help"];
 
+/// The flag name of a `--name=value` token, when `name` is a declared flag.
+/// The bad bytes are then in the value, not in the name.
+fn value_flag_name(token: &[u8]) -> Option<&'static str> {
+    let split = token.iter().position(|byte| *byte == b'=')?;
+    let name = std::str::from_utf8(&token[..split]).ok()?;
+    flags::NODES
+        .iter()
+        .flat_map(|node| node.flags.iter())
+        .chain(flags::GLOBALS.iter())
+        .find(|flag| flag.name == name || flag.alias == Some(name))
+        .map(|flag| flag.name)
+}
+
 /// Classify the first undecodable token by its position.
 fn undecodable(args: &[OsString]) -> Option<Value> {
     let mut after_dashes = false;
@@ -231,6 +244,16 @@ fn undecodable(args: &[OsString]) -> Option<Value> {
         let is_flag = !after_dashes && bytes.starts_with(b"-") && bytes.len() > 1;
         let Some(text) = token.to_str() else {
             let shown = escaped(token);
+            if let Some(name) = is_flag.then(|| value_flag_name(bytes)).flatten() {
+                let mut problem = err(
+                    "INVALID_INPUT",
+                    format!("the value of {name} is not valid UTF-8: \"{shown}\""),
+                );
+                let object = problem.as_object_mut().unwrap();
+                object.insert("arg".into(), Value::from(name));
+                object.insert("details".into(), json!({"bytes_hex": hex(token)}));
+                return Some(problem);
+            }
             let (code, what) = if is_flag {
                 ("UNKNOWN_FLAG", "unknown flag")
             } else if command_slots > 0 && !after_dashes {

@@ -1814,6 +1814,17 @@ fn mode_and_help_surfaces_follow_the_selector() {
         assert_eq!(env["errors"][0]["details"]["bytes_hex"], hex);
         assert!(env["errors"][0]["arg"].as_str().unwrap().contains("\\xff"));
     }
+    // Bad bytes in the value of a declared flag: the flag is known.
+    let bad_value = OsStr::from_bytes(b"--cursor=\xff");
+    let (code, out) = raw(&[OsStr::new("content"), OsStr::new("x"), bad_value, json]);
+    let env: Value = serde_json::from_str(&out).expect("envelope");
+    assert_eq!(code, 1);
+    assert_eq!(env["errors"][0]["code"], "INVALID_INPUT");
+    assert_eq!(env["errors"][0]["arg"], "--cursor");
+    assert_eq!(
+        env["errors"][0]["details"]["bytes_hex"],
+        "2d2d637572736f723dff"
+    );
     let (code, out) = raw(&[bad]);
     assert_eq!(
         (code, out.as_str()),
