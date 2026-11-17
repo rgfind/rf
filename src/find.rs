@@ -332,14 +332,16 @@ fn ast_files(structural: &str, lang: &str, root: &str) -> Structural {
         return Structural::Unusable;
     }
     let text = String::from_utf8_lossy(&out.stdout);
-    let hits: Value = serde_json::from_str(if text.trim().is_empty() { "[]" } else { &text })
-        .unwrap_or(Value::Array(vec![]));
+    // Output that is not a JSON list is a broken tool, not "zero files".
+    let hits: Vec<Value> =
+        match serde_json::from_str(if text.trim().is_empty() { "[]" } else { &text }) {
+            Ok(Value::Array(hits)) => hits,
+            _ => return Structural::Unusable,
+        };
     let mut files = BTreeSet::new();
-    if let Some(arr) = hits.as_array() {
-        for m in arr {
-            if let Some(f) = m.get("file").and_then(|v| v.as_str()) {
-                files.insert(f.strip_prefix("./").unwrap_or(f).to_string());
-            }
+    for m in &hits {
+        if let Some(f) = m.get("file").and_then(|v| v.as_str()) {
+            files.insert(f.strip_prefix("./").unwrap_or(f).to_string());
         }
     }
     Structural::Used(files)
@@ -550,6 +552,7 @@ pub fn run(
     let bump = |m: &mut BTreeMap<String, i64>, s: &str| {
         *m.entry(s.to_string()).or_insert(0) += 1;
     };
+    let unread = std::cell::RefCell::new(Vec::new());
     let row = |file: &str, stage: &str, fix: Option<String>| -> Value {
         let mut r = Map::new();
         r.insert("file".into(), Value::from(file.to_string()));
@@ -574,13 +577,17 @@ pub fn run(
                 } else {
                     format!("{}/{}", root.trim_end_matches('/'), file)
                 };
-                let occurrences =
-                    crate::engine::occurrences(&full, pattern, &cfg_all_text(query), match_cap)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(crate::engine::occurrence_json)
-                        .collect();
-                r.insert("matches".into(), Value::Array(occurrences));
+                r.insert(
+                    "matches".into(),
+                    crate::engine::evidence_value(
+                        &full,
+                        file,
+                        pattern,
+                        &cfg_all_text(query),
+                        match_cap,
+                        &mut unread.borrow_mut(),
+                    ),
+                );
             }
         }
         Value::from(r)
@@ -728,6 +735,7 @@ pub fn run(
     // --- warnings: one per miss, carrying the paste-ready fix ---
     let mut warnings: Vec<Value> = history_warnings;
     warnings.extend(partial);
+    warnings.extend(crate::engine::evidence_unread_warning(unread.take()));
     if query.word && !git_deleted.is_empty() {
         warnings.push(warn(
             "GIT_SCRUB_WORD_UNAVAILABLE",

@@ -323,6 +323,44 @@ pub fn occurrences(
     Ok(found)
 }
 
+/// The `matches` value of one row. A file that matched and that rf cannot
+/// read again for its occurrences gives null, never an empty list: an empty
+/// list would say "zero occurrences". `report` is the name of the file in the
+/// reply; it goes into `unread`, and the caller reports those names with
+/// `evidence_unread_warning`.
+pub fn evidence_value(
+    read: &str,
+    report: &str,
+    pattern: &str,
+    cfg: &SearchCfg,
+    cap: usize,
+    unread: &mut Vec<String>,
+) -> serde_json::Value {
+    match occurrences(read, pattern, cfg, cap) {
+        Ok(found) => serde_json::Value::Array(found.into_iter().map(occurrence_json).collect()),
+        Err(_) => {
+            unread.push(report.to_string());
+            serde_json::Value::Null
+        }
+    }
+}
+
+/// The `PARTIAL_RESULT` warning for rows whose `matches` is null because the
+/// occurrence read failed. None when each read succeeded.
+pub fn evidence_unread_warning(unread: Vec<String>) -> Option<serde_json::Value> {
+    if unread.is_empty() {
+        return None;
+    }
+    Some(crate::envelope::warn(
+        "PARTIAL_RESULT",
+        format!(
+            "{} matched file(s) could not be read for occurrences; matches is null for them",
+            unread.len()
+        ),
+        unread,
+    ))
+}
+
 /// Files under `root` whose extension is `ext` (no dot) — the fd stage. The
 /// walker's `use_ignore`/`skip_hidden` reproduce fd's default and its -I/-H/-u.
 pub fn name_matches(
@@ -370,4 +408,58 @@ pub fn evidence_meta(requested: bool, match_cap: usize) -> serde_json::Value {
         "text_bytes_cap": MAX_EVIDENCE_TEXT_BYTES,
         "response_bytes_cap": crate::pagination::MAX_EVIDENCE_RESPONSE_BYTES,
     })
+}
+
+#[cfg(test)]
+mod evidence_tests {
+    use super::{evidence_unread_warning, evidence_value, SearchCfg};
+    use crate::query::QueryMode;
+
+    fn cfg() -> SearchCfg {
+        SearchCfg {
+            use_ignore: false,
+            skip_hidden: false,
+            binary_as_text: true,
+            query: QueryMode::default(),
+            encoding: None,
+        }
+    }
+
+    #[test]
+    fn a_failed_occurrence_read_is_null_and_named_not_an_empty_list() {
+        let dir = std::env::temp_dir().join(format!("rf-evidence-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let present = dir.join("present.txt");
+        std::fs::write(&present, "needle here\n").unwrap();
+        let gone = dir.join("gone.txt");
+
+        let mut unread = Vec::new();
+        let read = evidence_value(
+            &present.to_string_lossy(),
+            "present.txt",
+            "needle",
+            &cfg(),
+            5,
+            &mut unread,
+        );
+        assert_eq!(read.as_array().map(Vec::len), Some(1));
+        assert!(unread.is_empty());
+        assert!(evidence_unread_warning(Vec::new()).is_none());
+
+        // The file matched in the first pass and is gone at the second read.
+        let failed = evidence_value(
+            &gone.to_string_lossy(),
+            "gone.txt",
+            "needle",
+            &cfg(),
+            5,
+            &mut unread,
+        );
+        assert!(failed.is_null(), "{failed}");
+        assert_eq!(unread, ["gone.txt"]);
+        let warning = evidence_unread_warning(unread).expect("a warning");
+        assert_eq!(warning["code"], "PARTIAL_RESULT");
+        assert_eq!(warning["details"]["files"][0], "gone.txt");
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

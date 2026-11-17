@@ -624,6 +624,7 @@ pub fn run(
     let match_cap = max_matches
         .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
         .min(crate::engine::MAX_EVIDENCE_MATCHES);
+    let mut unread = Vec::new();
     let data: Vec<Value> = surfaced_by
         .iter()
         .map(|(f, layer)| {
@@ -638,12 +639,13 @@ pub fn run(
             );
             m.insert("surfaced_by".into(), Value::from(layer.clone()));
             let matches = if evidence {
-                Value::Array(
-                    crate::engine::occurrences(f, pattern, &evidence_cfg(layer, query), match_cap)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(crate::engine::occurrence_json)
-                        .collect(),
+                crate::engine::evidence_value(
+                    f,
+                    f,
+                    pattern,
+                    &evidence_cfg(layer, query),
+                    match_cap,
+                    &mut unread,
                 )
             } else {
                 Value::Null
@@ -652,6 +654,8 @@ pub fn run(
             Value::from(m)
         })
         .collect();
+
+    warnings.extend(crate::engine::evidence_unread_warning(unread));
 
     let total = seen.len();
     let mut meta = Map::new();

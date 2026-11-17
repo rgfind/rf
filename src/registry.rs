@@ -349,9 +349,9 @@ pub const CODES: &[Code] = &[
     ),
     warning(
         "PARTIAL_RESULT",
-        "one or more paths under the root could not be read; the result covers the other paths",
+        "one or more paths could not be read; the result covers the other paths. With --matches, a matched file that could not be read for its occurrences has matches null",
         "chmod 000 one file in a tree that has other readable files, then run content",
-        &["content", "find"],
+        &["content", "find", "why"],
         FILES,
     ),
     warning(

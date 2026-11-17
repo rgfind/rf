@@ -283,6 +283,66 @@ fn external_tool_health_and_find_provenance_are_bounded_and_typed() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[cfg(unix)]
+#[test]
+fn structural_output_that_is_not_a_json_list_is_not_zero_files() {
+    let root = unique_temp("structural-output");
+    let bin = root.join("bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    executable(
+        &bin.join("git"),
+        "#!/bin/sh\nprintf 'git version test\\n'\n",
+    );
+    let fake_path = bin.to_string_lossy().into_owned();
+    let corpus = Corpus::new();
+    let args = [
+        "find",
+        TOKEN,
+        ".",
+        "--name",
+        "py",
+        "--structural",
+        "x",
+        "--lang",
+        "python",
+        "--json",
+    ];
+    // (stdout of `ast-grep run`, expected actual, expected fallback_reason)
+    let cases = [
+        ("[]", "used", None),
+        ("", "used", None),
+        ("not json", "skipped", Some("tool-unusable")),
+        ("[{\"file\": \"a.py\"}", "skipped", Some("tool-unusable")),
+        ("{\"file\": \"a.py\"}", "skipped", Some("tool-unusable")),
+    ];
+    for (output, actual, reason) in cases {
+        std::fs::write(root.join("out"), output).unwrap();
+        executable(
+            &bin.join("ast-grep"),
+            &format!(
+                "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then printf 'ast-grep test\\n'; exit 0; fi\n/bin/cat '{}'\n",
+                root.join("out").display()
+            ),
+        );
+        let (code, env, _) = rf(&args, Some(&corpus.path), &[("PATH", &fake_path)]);
+        assert_eq!(code, 0, "{output:?} {env}");
+        let source = &env["meta"]["sources"]["structural"];
+        assert_eq!(source["actual"], actual, "{output:?} {env}");
+        assert_eq!(
+            source["fallback_reason"].as_str(),
+            reason,
+            "{output:?} {env}"
+        );
+        let warned = env["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "STRUCTURAL_UNAVAILABLE");
+        assert_eq!(warned, reason.is_some(), "{output:?} {env}");
+    }
+    let _ = std::fs::remove_dir_all(root);
+}
+
 #[test]
 fn match_evidence_flags_are_uniform_and_preserve_default_rows() {
     let corpus = Corpus::new();

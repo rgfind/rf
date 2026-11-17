@@ -205,18 +205,15 @@ pub fn run(
         .unwrap_or(crate::engine::MAX_EVIDENCE_MATCHES)
         .min(crate::engine::MAX_EVIDENCE_MATCHES);
     // Every key is in every reply; a key with no value is null.
+    let mut unread = Vec::new();
     let matches = if evidence {
-        Value::Array(
-            crate::engine::occurrences(
-                &canonical.to_string_lossy(),
-                pattern,
-                &evidence_cfg(class, query),
-                match_cap,
-            )
-            .unwrap_or_default()
-            .into_iter()
-            .map(crate::engine::occurrence_json)
-            .collect(),
+        crate::engine::evidence_value(
+            &canonical.to_string_lossy(),
+            &file,
+            pattern,
+            &evidence_cfg(class, query),
+            match_cap,
+            &mut unread,
         )
     } else {
         Value::Null
@@ -226,6 +223,7 @@ pub fn run(
     row.insert("hiding_filter".into(), Value::Null);
 
     let mut warnings = Vec::new();
+    warnings.extend(crate::engine::evidence_unread_warning(unread));
     let mut commands = Vec::new();
     if let Some(class) = class {
         if class == Class::VcsIgnore {
