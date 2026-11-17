@@ -946,7 +946,133 @@
         ],
         "flags": [],
         "json": true,
-        "mutates": false
+        "mutates": false,
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "contract_policy": {
+                  "type": "object"
+                },
+                "contract_version": {
+                  "type": "string"
+                },
+                "diagnosis_order": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "engine": {
+                  "type": "string"
+                },
+                "env_vars": {
+                  "type": "object"
+                },
+                "envelope_meta": {
+                  "type": "object"
+                },
+                "error_codes": {
+                  "type": "object"
+                },
+                "exit_codes": {
+                  "type": "object"
+                },
+                "global_flags": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "limits": {
+                  "type": "object"
+                },
+                "parser_manifest": {
+                  "type": "object"
+                },
+                "release_scope": {
+                  "type": "object"
+                },
+                "schema_versions": {
+                  "type": "object"
+                },
+                "tool_version": {
+                  "type": "string"
+                },
+                "verb_dependencies": {
+                  "type": "object"
+                },
+                "verbs": {
+                  "type": "object"
+                },
+                "verification_fixtures": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "contract_policy",
+                "contract_version",
+                "diagnosis_order",
+                "engine",
+                "env_vars",
+                "envelope_meta",
+                "error_codes",
+                "exit_codes",
+                "global_flags",
+                "limits",
+                "parser_manifest",
+                "release_scope",
+                "schema_versions",
+                "tool_version",
+                "verb_dependencies",
+                "verbs",
+                "verification_fixtures"
+              ],
+              "type": "object"
+            },
+            "meta": {
+              "additionalProperties": false,
+              "properties": {
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "contract_version",
+                "data_hash",
+                "elapsed_ms",
+                "request_id",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "data",
+            "meta"
+          ],
+          "type": "object"
+        }
       },
       "conformance": {
         "aliases": [],
@@ -2409,7 +2535,70 @@
         ],
         "flags": [],
         "json": true,
-        "mutates": false
+        "mutates": false,
+        "output_schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "description": "data and meta of a reply that carries data; every key is always present, and a key with no value is null",
+          "properties": {
+            "data": {
+              "additionalProperties": false,
+              "properties": {
+                "capabilities_command": {
+                  "type": "string"
+                },
+                "usage": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "capabilities_command",
+                "usage"
+              ],
+              "type": "object"
+            },
+            "meta": {
+              "additionalProperties": false,
+              "properties": {
+                "contract_version": {
+                  "type": "string"
+                },
+                "data_hash": {
+                  "type": "string"
+                },
+                "elapsed_ms": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "request_id": {
+                  "type": "string"
+                },
+                "ts_iso": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "contract_version",
+                "data_hash",
+                "elapsed_ms",
+                "request_id",
+                "ts_iso",
+                "verb"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "data",
+            "meta"
+          ],
+          "type": "object"
+        }
       },
       "robot-docs": {
         "aliases": [],
@@ -2936,9 +3125,9 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:8d6b90830bab43e1bf34beaaf35437cd256268247449cd86b7dc1d8c82f578b1",
+    "data_hash": "sha256:57564f9bfa688645adfaeb50a13ebaf0643875ab4e8740637c9dd690e56ac65b",
     "elapsed_ms": 0,
-    "request_id": "req_0c5a8c6d18b08a37",
+    "request_id": "req_8899db422ac31b61",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

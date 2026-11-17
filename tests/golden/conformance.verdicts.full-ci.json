@@ -1371,6 +1371,11 @@
       "verdict": "pass"
     },
     {
+      "case_id": "X-07::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
       "case_id": "X-07::verb=conformance",
       "reason": null,
       "verdict": "pass"
@@ -1387,6 +1392,11 @@
     },
     {
       "case_id": "X-07::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=help",
       "reason": null,
       "verdict": "pass"
     },
@@ -1449,7 +1459,7 @@
   "counts": {
     "fail": 0,
     "not_applicable": 11,
-    "pass": 278
+    "pass": 280
   },
   "profile": "full-ci"
 }

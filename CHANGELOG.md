@@ -7,6 +7,13 @@
   failed log. Before, the log had no limit: `-S` diffs every commit on every
   branch, so `find` could block for minutes on a large history. Capabilities
   `limits` has the new key `scrub_log`. Additive; contract stays `0.1`.
+- `capabilities` and `help` now declare an `output_schema`, as the other
+  JSON verbs do. The `capabilities` schema types each top-level key; the
+  inner shape is not repeated. `help` has `meta.verb` null. Additive.
+- `conformance` X-07: a JSON leaf verb with no `output_schema` is now a
+  failing row. Before, X-07 skipped it, so a missing schema passed without
+  a check. The release profile has 264 pass (was 262); full-ci 280 (was
+  278).
 
 ## 0.1.1 — defect fixes after 0.1.0
 

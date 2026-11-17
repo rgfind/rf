@@ -2629,6 +2629,8 @@ fn output_matches_the_declared_schema_with_every_key_present() {
         "doctor",
         "conformance",
         "robot-docs guide",
+        "capabilities",
+        "help",
     ] {
         check_declaration(&schema_of(verb), "$", &mut faults);
     }
@@ -2709,6 +2711,9 @@ fn output_matches_the_declared_schema_with_every_key_present() {
         None,
         None,
     );
+    run("capabilities", &["capabilities", "--json"], None, None);
+    run("help", &["help", "--json"], None, None);
+    run("help", &["help", "content", "--json"], None, None);
 
     for (verb, argv, reply) in &replies {
         check_schema(

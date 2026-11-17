@@ -25,8 +25,8 @@ pub fn build() -> Value {
         "engine": "in-process (ignore + grep crates); no subprocess",
         "verbs": {
             "robot-docs": {"description": "agent workflow documents", "aliases": [], "flags": [], "subcommands": {"guide": {"description": "emit agent workflow recipes", "aliases": [], "flags": [], "output_schema": crate::schema::guide()}}},
-            "capabilities": {"description": "emit this machine contract", "aliases": [], "flags": []},
-            "help": {"description": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "flags": []},
+            "capabilities": {"description": "emit this machine contract", "aliases": [], "flags": [], "output_schema": crate::schema::capabilities()},
+            "help": {"description": "show help for rf or for one verb; same bytes as --help at that node", "aliases": [], "flags": [], "output_schema": crate::schema::help()},
             "content": {
                 "description": "content search; attributes each match to the filter that would hide it",
                 "aliases": [],

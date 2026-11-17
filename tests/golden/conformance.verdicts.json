@@ -1376,6 +1376,11 @@
       "verdict": "pass"
     },
     {
+      "case_id": "X-07::verb=capabilities",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
       "case_id": "X-07::verb=conformance",
       "reason": null,
       "verdict": "pass"
@@ -1392,6 +1397,11 @@
     },
     {
       "case_id": "X-07::verb=find",
+      "reason": null,
+      "verdict": "pass"
+    },
+    {
+      "case_id": "X-07::verb=help",
       "reason": null,
       "verdict": "pass"
     },
@@ -1454,7 +1464,7 @@
   "counts": {
     "fail": 0,
     "not_applicable": 28,
-    "pass": 262
+    "pass": 264
   },
   "profile": "release-self-check"
 }

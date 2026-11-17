@@ -39,10 +39,11 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
   `e5549de41ca3b7d5031787613a2521204a4ee498564642b1d1375b1433d67156`.
 
 - After the 0.1.1 release, the fixture was captured again from the source
-  tree for an unreleased change: `limits.scrub_log` added, and the
-  `GIT_SCRUB_UNAVAILABLE` summary now also names the time limit. Fixture
-  sha256 after this change:
-  `e209d7fd49d81961894728392a40a719365f035dfa5bfbde57857b5ae9138131`.
+  tree for unreleased changes: `limits.scrub_log` added, the
+  `GIT_SCRUB_UNAVAILABLE` summary now also names the time limit, and
+  `verbs.capabilities` and `verbs.help` have an `output_schema`. Fixture
+  sha256 after these changes:
+  `df81d188aee63442ce21b6edb8d54922ad897e94478259528c50014f1652f747`.
   The release hashes above are for the 0.1.1 release capture.
 
 ## Validity

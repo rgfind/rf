@@ -292,6 +292,43 @@ pub fn doctor() -> Value {
     )
 }
 
+/// `help` mirrors `--help`, which runs before verb dispatch, so `meta.verb`
+/// is null.
+pub fn help() -> Value {
+    reply(
+        obj(json!({"usage": string(), "capabilities_command": string()})),
+        json!({"verb": nullable(string())}),
+    )
+}
+
+/// The top level of the contract. Each key is typed; the inner shape is
+/// pinned by the golden file, not repeated here.
+pub fn capabilities() -> Value {
+    let object = || json!({"type": "object"});
+    reply(
+        obj(json!({
+            "contract_policy": object(),
+            "contract_version": string(),
+            "diagnosis_order": array(string()),
+            "engine": string(),
+            "env_vars": object(),
+            "envelope_meta": object(),
+            "error_codes": object(),
+            "exit_codes": object(),
+            "global_flags": array(object()),
+            "limits": object(),
+            "parser_manifest": object(),
+            "release_scope": object(),
+            "schema_versions": object(),
+            "tool_version": string(),
+            "verb_dependencies": object(),
+            "verbs": object(),
+            "verification_fixtures": object(),
+        })),
+        json!({}),
+    )
+}
+
 pub fn guide() -> Value {
     reply(
         list(obj(json!({

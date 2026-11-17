@@ -1589,6 +1589,16 @@ impl Sweep {
                     check(faults.is_empty(), || faults.join("; ")),
                     None,
                 );
+            } else if entry["json"] == true && entry.get("subcommands").is_none() {
+                // A JSON leaf verb with no schema is a fault, not a skip.
+                self.row(
+                    "X-07",
+                    &[("verb", &verb)],
+                    check(false, || {
+                        format!("{verb} emits JSON and declares no output_schema")
+                    }),
+                    None,
+                );
             }
             if !group_names.is_empty() {
                 let name = path.rsplit(' ').next().unwrap_or("");
