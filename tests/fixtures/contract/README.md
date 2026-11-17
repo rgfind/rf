@@ -38,6 +38,13 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
   per-run fields. The 0.1.0 capture fixture sha256 was
   `e5549de41ca3b7d5031787613a2521204a4ee498564642b1d1375b1433d67156`.
 
+- After the 0.1.1 release, the fixture was captured again from the source
+  tree for an unreleased change: `limits.scrub_log` added, and the
+  `GIT_SCRUB_UNAVAILABLE` summary now also names the time limit. Fixture
+  sha256 after this change:
+  `e209d7fd49d81961894728392a40a719365f035dfa5bfbde57857b5ae9138131`.
+  The release hashes above are for the 0.1.1 release capture.
+
 ## Validity
 
 Prose edits (README, CHANGELOG) keep this fixture valid, because they do not

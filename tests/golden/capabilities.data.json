@@ -293,11 +293,11 @@
       "details": "details.files[]",
       "exit": null,
       "fixture": "put a script named git that exits 2 for log and runs the real git for all else first on PATH, then run find in a repository with a history-only match",
-      "precondition": "git log failed, so the scrub commit of a history-only match is unknown",
+      "precondition": "git log failed or exceeded its time limit, so the scrub commit of a history-only match is unknown",
       "sites": [
         "find"
       ],
-      "summary": "git log failed, so the scrub commit of a history-only match is unknown"
+      "summary": "git log failed or exceeded its time limit, so the scrub commit of a history-only match is unknown"
     },
     "GIT_SCRUB_WORD_UNAVAILABLE": {
       "appears_in": [
@@ -624,6 +624,10 @@
     "pagination": {
       "default_limit": 100,
       "max_limit": 1000
+    },
+    "scrub_log": {
+      "captured_output_bytes": 1048576,
+      "timeout_ms": 2000
     },
     "structural_search": {
       "captured_output_bytes": 65536,

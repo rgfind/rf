@@ -295,11 +295,11 @@
         "details": "details.files[]",
         "exit": null,
         "fixture": "put a script named git that exits 2 for log and runs the real git for all else first on PATH, then run find in a repository with a history-only match",
-        "precondition": "git log failed, so the scrub commit of a history-only match is unknown",
+        "precondition": "git log failed or exceeded its time limit, so the scrub commit of a history-only match is unknown",
         "sites": [
           "find"
         ],
-        "summary": "git log failed, so the scrub commit of a history-only match is unknown"
+        "summary": "git log failed or exceeded its time limit, so the scrub commit of a history-only match is unknown"
       },
       "GIT_SCRUB_WORD_UNAVAILABLE": {
         "appears_in": [
@@ -626,6 +626,10 @@
       "pagination": {
         "default_limit": 100,
         "max_limit": 1000
+      },
+      "scrub_log": {
+        "captured_output_bytes": 1048576,
+        "timeout_ms": 2000
       },
       "structural_search": {
         "captured_output_bytes": 65536,
@@ -2932,9 +2936,9 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:a3ae650c5b45b49af6d7a3c9ec3a0ac6994733e0834361f3ebf24b8daf0482c6",
+    "data_hash": "sha256:8d6b90830bab43e1bf34beaaf35437cd256268247449cd86b7dc1d8c82f578b1",
     "elapsed_ms": 0,
-    "request_id": "req_0ee07e449d4e6715",
+    "request_id": "req_0c5a8c6d18b08a37",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

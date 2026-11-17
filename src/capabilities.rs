@@ -89,7 +89,8 @@ pub fn build() -> Value {
             "pagination": {"default_limit": 100, "max_limit": 1000},
             "evidence": {"max_occurrences_per_row": 16, "text_bytes": 512, "response_data_bytes": 32768},
             "external_tool_probe": {"timeout_ms": 2000, "captured_output_bytes": 8192, "probe_error_bytes": 512},
-            "structural_search": {"timeout_ms": 5000, "captured_output_bytes": 65536}
+            "structural_search": {"timeout_ms": 5000, "captured_output_bytes": 65536},
+            "scrub_log": {"timeout_ms": 2000, "captured_output_bytes": 1048576}
         }));
         object.insert("envelope_meta".into(), json!({
             "ts_iso": {"format": "RFC 3339 UTC with Z", "precision": "seconds"},

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `find`: the scrub `git log` now has a time limit of 2000 ms and an output
+  cap of 1 MiB. Past either one, rf gives `GIT_SCRUB_UNAVAILABLE`, as for a
+  failed log. Before, the log had no limit: `-S` diffs every commit on every
+  branch, so `find` could block for minutes on a large history. Capabilities
+  `limits` has the new key `scrub_log`. Additive; contract stays `0.1`.
+
 ## 0.1.1 — defect fixes after 0.1.0
 
 Contract version stays `0.1`. All changes are additive or defect fixes. The

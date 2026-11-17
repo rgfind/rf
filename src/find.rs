@@ -22,6 +22,10 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 const HISTORY_BUDGET: Duration = Duration::from_secs(2);
+/// Deadline and output cap for the scrub `git log`. Pickaxe (`-S`) diffs every
+/// commit on every branch, so on a large history it can run for minutes.
+pub const SCRUB_TIMEOUT: Duration = Duration::from_millis(2_000);
+pub const SCRUB_OUTPUT_BYTES: usize = 1_048_576;
 
 /// -uu -a config: the content the pipe surfaces if nothing filters it (no
 /// ignore, hidden shown, binary read as text). content_all uses this; the
@@ -245,8 +249,9 @@ fn git_scrub_commits(
     git_scrub_commits_with(Path::new("git"), pattern, root, ext, query)
 }
 
-/// None when `git log` did not run or did not exit 0: the scrub commits are
-/// then not known, which is different from "no scrub commit".
+/// None when `git log` did not run, did not exit 0, ran past `SCRUB_TIMEOUT`,
+/// or wrote more than `SCRUB_OUTPUT_BYTES`: the scrub commits are then not
+/// known, which is different from "no scrub commit".
 fn git_scrub_commits_with(
     git: &Path,
     pattern: &str,
@@ -254,30 +259,43 @@ fn git_scrub_commits_with(
     ext: &str,
     query: QueryMode,
 ) -> Option<BTreeMap<String, String>> {
+    git_scrub_commits_bounded(git, pattern, root, ext, query, SCRUB_TIMEOUT)
+}
+
+fn git_scrub_commits_bounded(
+    git: &Path,
+    pattern: &str,
+    root: &str,
+    ext: &str,
+    query: QueryMode,
+    timeout: Duration,
+) -> Option<BTreeMap<String, String>> {
     if query.word {
         return Some(BTreeMap::new());
     }
     let glob = format!("*.{ext}");
-    let out = Command::new(git)
-        .args({
-            let mut args = vec!["-C".into(), root.into(), "log".into()];
-            if query.case_insensitive {
-                args.push("-i".into());
-            }
-            args.extend([
-                "--all".into(),
-                "-z".into(),
-                "--format=%x01%h".into(),
-                "--name-only".into(),
-                "-S".into(),
-                pattern.into(),
-                "--".into(),
-                glob,
-            ]);
-            args
-        })
-        .output();
-    let out = out.ok().filter(|out| out.status.success())?;
+    let mut args = vec!["-C", root, "log"];
+    if query.case_insensitive {
+        args.push("-i");
+    }
+    args.extend([
+        "--all",
+        "-z",
+        "--format=%x01%h",
+        "--name-only",
+        "-S",
+        pattern,
+        "--",
+        &glob,
+    ]);
+    let out = crate::external_tools::run_bounded(git, &args, None, timeout, SCRUB_OUTPUT_BYTES);
+    // A cut-off log can end inside a record, so a truncated log is unknown too.
+    if out.state != crate::external_tools::RunState::Completed
+        || !out.success
+        || out.output_truncated
+    {
+        return None;
+    }
     Some(parse_scrub_log(&String::from_utf8_lossy(&out.stdout)))
 }
 
@@ -763,7 +781,7 @@ pub fn run(
     if scrub_failed {
         warnings.push(warn(
             "GIT_SCRUB_UNAVAILABLE",
-            "git log failed, so the scrub commit of each history-only match is unknown",
+            "git log failed or exceeded its time limit, so the scrub commit of each history-only match is unknown",
             git_deleted.clone(),
         ));
     }
@@ -1033,7 +1051,8 @@ pub fn run(
 #[cfg(test)]
 mod history_tests {
     use super::{
-        git_ever_matched_with, git_scrub_commits, git_scrub_commits_with, parse_scrub_log, History,
+        git_ever_matched_with, git_scrub_commits, git_scrub_commits_bounded,
+        git_scrub_commits_with, parse_scrub_log, History,
     };
     use crate::query::QueryMode;
     use std::fs;
@@ -1138,6 +1157,25 @@ mod history_tests {
         // Whole-word mode does not run the log; that is not a failure.
         let word = QueryMode::new(false, true, false);
         assert!(git_scrub_commits_with(absent, "needle", ".", "rs", word).is_some());
+    }
+
+    #[test]
+    fn a_slow_or_oversized_scrub_log_is_unknown() {
+        let mode = QueryMode::default();
+        // `exec` so the killed process is the one that holds the pipes open.
+        let slow = fake_git(
+            "scrub-slow",
+            "#!/bin/sh\nprintf '\\001abc1234\\0\\nold.rs\\0'\nexec sleep 30\n",
+        );
+        let started = std::time::Instant::now();
+        let timeout = std::time::Duration::from_millis(200);
+        assert!(git_scrub_commits_bounded(&slow, "needle", ".", "rs", mode, timeout).is_none());
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+        let big = fake_git(
+            "scrub-big",
+            "#!/bin/sh\nhead -c 1100000 /dev/zero\nexit 0\n",
+        );
+        assert!(git_scrub_commits_with(&big, "needle", ".", "rs", mode).is_none());
     }
 
     #[test]
