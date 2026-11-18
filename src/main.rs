@@ -22,6 +22,7 @@ mod pagination;
 mod paths;
 mod provenance;
 mod query;
+mod rawpath;
 mod registry;
 mod schema;
 mod why;
@@ -197,22 +198,23 @@ fn bootstrap_json(args: &[OsString]) -> bool {
 
 /// Text form of one raw token: each undecodable byte becomes `\xNN`.
 fn escaped(token: &OsStr) -> String {
-    let mut out = String::new();
-    for chunk in token.as_encoded_bytes().utf8_chunks() {
-        out.push_str(chunk.valid());
-        for byte in chunk.invalid() {
-            out.push_str(&format!("\\x{byte:02x}"));
-        }
-    }
-    out
+    rawpath::escaped(token.as_encoded_bytes())
 }
 
 fn hex(token: &OsStr) -> String {
-    token
-        .as_encoded_bytes()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    rawpath::hex(token.as_encoded_bytes())
+}
+
+/// The file name of a row for people: the exact bytes when `file` is lossy,
+/// with each byte that is not UTF-8 as `\xNN`.
+fn shown_file(row: &Value) -> String {
+    match row["file_bytes_hex"]
+        .as_str()
+        .and_then(rawpath::RawPath::from_hex)
+    {
+        Some(raw) => raw.escaped(),
+        None => row["file"].as_str().unwrap_or("").to_string(),
+    }
 }
 
 /// The verbs whose next positional is also a command name.
@@ -468,7 +470,7 @@ fn render_human(env: &Value) -> String {
                 out.push(format!(
                     "  {:<12} {}",
                     d["surfaced_by"].as_str().unwrap_or(""),
-                    d["file"].as_str().unwrap_or("")
+                    shown_file(d)
                 ));
             }
         }
@@ -485,7 +487,7 @@ fn render_human(env: &Value) -> String {
                 out.push(format!(
                     "  {:<14} {}",
                     d["stage"].as_str().unwrap_or(""),
-                    d["file"].as_str().unwrap_or("")
+                    shown_file(d)
                 ));
             }
         }
@@ -511,7 +513,7 @@ fn render_human(env: &Value) -> String {
         "why" => {
             let d = &env["data"];
             let pattern = d["pattern"].as_str().unwrap_or("");
-            let file = d["file"].as_str().unwrap_or("");
+            let file = shown_file(d);
             if d["matched"].as_bool().unwrap_or(false) {
                 let suffix = d["surfaced_by"]
                     .as_str()

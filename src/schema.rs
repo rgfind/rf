@@ -42,6 +42,12 @@ fn string() -> Value {
     json!({"type": "string"})
 }
 
+/// `file_bytes_hex`: the exact bytes of a file name that is not UTF-8, as
+/// lowercase hex; null when `file` is the exact name.
+fn file_bytes_hex() -> Value {
+    nullable(json!({"type": "string", "pattern": "^([0-9a-f]{2})+$"}))
+}
+
 fn boolean() -> Value {
     json!({"type": "boolean"})
 }
@@ -152,6 +158,7 @@ pub fn content() -> Value {
     reply(
         list(obj(json!({
             "file": string(),
+            "file_bytes_hex": file_bytes_hex(),
             "selection": nullable(one_of(&["selected"])),
             "surfaced_by": one_of(&LAYERS),
             "matches": matches(),
@@ -184,6 +191,7 @@ pub fn find() -> Value {
     reply(
         list(obj(json!({
             "file": string(),
+            "file_bytes_hex": file_bytes_hex(),
             "stage": one_of(&["found", "fd_name", "fd_hidden", "fd_ignore", "fd_filter", "rg_binary", "git_deleted", "ast_structural"]),
             "fix": nullable(string()),
             "matches": matches(),
@@ -222,6 +230,7 @@ pub fn why() -> Value {
     let mut schema = reply(
         obj(json!({
             "file": string(),
+            "file_bytes_hex": file_bytes_hex(),
             "pattern": string(),
             "matched": boolean(),
             "hidden_from_default": boolean(),

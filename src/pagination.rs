@@ -30,13 +30,15 @@ pub enum Error {
     Conflict,
 }
 
-fn row_key(row: &Value) -> (&str, &str) {
+/// Sort key. Two names that are not UTF-8 can share the lossy `file`, so
+/// `file_bytes_hex` breaks the tie; it is null (sorts first) for UTF-8 names.
+fn row_key(row: &Value) -> (&str, &str, Option<&str>) {
     let attribution = row["stage"]
         .as_str()
         .or_else(|| row["surfaced_by"].as_str())
         .unwrap_or("");
     let path = row["file"].as_str().unwrap_or("");
-    (attribution, path)
+    (attribution, path, row["file_bytes_hex"].as_str())
 }
 
 /// Return a page that is bound to the complete sorted result set. The cursor

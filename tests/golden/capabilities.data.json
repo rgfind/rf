@@ -1361,6 +1361,13 @@
                     "file": {
                       "type": "string"
                     },
+                    "file_bytes_hex": {
+                      "pattern": "^([0-9a-f]{2})+$",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "matches": {
                       "items": {
                         "additionalProperties": false,
@@ -1422,6 +1429,7 @@
                   },
                   "required": [
                     "file",
+                    "file_bytes_hex",
                     "matches",
                     "selection",
                     "surfaced_by"
@@ -2107,6 +2115,13 @@
                     "file": {
                       "type": "string"
                     },
+                    "file_bytes_hex": {
+                      "pattern": "^([0-9a-f]{2})+$",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "fix": {
                       "type": [
                         "string",
@@ -2177,6 +2192,7 @@
                   },
                   "required": [
                     "file",
+                    "file_bytes_hex",
                     "fix",
                     "matches",
                     "matches_unavailable_reason",
@@ -2834,6 +2850,13 @@
               "file": {
                 "type": "string"
               },
+              "file_bytes_hex": {
+                "pattern": "^([0-9a-f]{2})+$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "hidden_from_default": {
                 "type": "boolean"
               },
@@ -2958,6 +2981,7 @@
             },
             "required": [
               "file",
+              "file_bytes_hex",
               "hidden_from_default",
               "hiding_filter",
               "ignore_source",

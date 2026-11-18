@@ -4,6 +4,7 @@
 //! instead of being reconstructed from a shell pipe in each verb.
 
 use crate::query::QueryMode;
+use crate::rawpath::RawPath;
 use grep_matcher::Matcher;
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::sinks::Bytes;
@@ -42,7 +43,7 @@ pub struct Occurrence {
 #[derive(Default)]
 pub struct Skips {
     /// Walked-form path -> errno name.
-    pub unreadable: BTreeMap<String, String>,
+    pub unreadable: BTreeMap<RawPath, String>,
     pub read_ok: bool,
 }
 
@@ -61,7 +62,7 @@ fn record_skip(path: &Path, error: &std::io::Error) {
     }
     SKIPS.with(|skips| {
         skips.borrow_mut().unreadable.insert(
-            norm(&path.to_string_lossy()),
+            RawPath::from_path(path).strip_dot(),
             crate::paths::errno_name(error),
         );
     });
@@ -84,25 +85,6 @@ fn error_path(error: &ignore::Error) -> Option<&Path> {
 fn record_walk_error(error: &ignore::Error) {
     if let (Some(path), Some(io)) = (error_path(error), error.io_error()) {
         record_skip(path, io);
-    }
-}
-
-/// Strip a leading `./`. Used for the display form when the root is ".".
-pub fn norm(p: &str) -> String {
-    p.strip_prefix("./").unwrap_or(p).to_string()
-}
-
-/// Path relative to the search root, so sets from the walker line up with paths
-/// git/ast-grep report (which are already root-relative).
-pub fn rel(root: &str, full: &str) -> String {
-    let full = full.strip_prefix("./").unwrap_or(full);
-    let root = root.strip_suffix('/').unwrap_or(root);
-    if root == "." || root.is_empty() {
-        return full.to_string();
-    }
-    match full.strip_prefix(root) {
-        Some(rest) => rest.trim_start_matches('/').to_string(),
-        None => full.to_string(),
     }
 }
 
@@ -147,7 +129,7 @@ pub fn content_matches(
     root: &str,
     pattern: &str,
     cfg: &SearchCfg,
-) -> Result<BTreeSet<String>, String> {
+) -> Result<BTreeSet<RawPath>, String> {
     let matcher = build_matcher(pattern, cfg)?;
 
     let mut sb = SearcherBuilder::new();
@@ -191,7 +173,7 @@ pub fn content_matches(
             Err(e) => record_skip(dent.path(), &e),
         }
         if hit {
-            out.insert(norm(&dent.path().to_string_lossy()));
+            out.insert(RawPath::from_path(dent.path()).strip_dot());
         }
     }
     Ok(out)
@@ -205,8 +187,8 @@ pub fn content_matches_selected(
     root: &str,
     pattern: &str,
     cfg: &SearchCfg,
-    files: &BTreeMap<String, PathBuf>,
-) -> Result<BTreeSet<String>, String> {
+    files: &BTreeMap<RawPath, PathBuf>,
+) -> Result<BTreeSet<RawPath>, String> {
     let matcher = build_matcher(pattern, cfg)?;
 
     let mut sb = SearcherBuilder::new();
@@ -221,7 +203,7 @@ pub fn content_matches_selected(
     }
     let mut searcher = sb.build();
     let mut out = BTreeSet::new();
-    let selected_by_path: BTreeMap<PathBuf, String> = files
+    let selected_by_path: BTreeMap<PathBuf, RawPath> = files
         .iter()
         .map(|(display, file)| (file.clone(), display.clone()))
         .collect();
@@ -277,16 +259,16 @@ pub fn content_matches_selected(
 /// True when `path` is a selected file or a directory above one. The check
 /// uses the canonical form when `path` resolves, and the root-relative form
 /// when it does not (the path can be gone or unreachable).
-fn can_hide_selected(root: &str, path: &Path, files: &BTreeMap<String, PathBuf>) -> bool {
+fn can_hide_selected(root: &str, path: &Path, files: &BTreeMap<RawPath, PathBuf>) -> bool {
     if let Ok(canonical) = std::fs::canonicalize(path) {
         if files.values().any(|file| file.starts_with(&canonical)) {
             return true;
         }
     }
-    let relative = rel(root, &path.to_string_lossy());
+    let relative = RawPath::from_path(path).rel(root).to_path_buf();
     files
         .keys()
-        .any(|display| Path::new(display).starts_with(&relative))
+        .any(|display| display.to_path_buf().starts_with(&relative))
 }
 
 fn cap_text(text: String) -> (String, bool) {
@@ -307,7 +289,7 @@ fn cap_text(text: String) -> (String, bool) {
 /// so it retains the existing first-match early exit and does not allocate line
 /// text unless evidence was requested.
 pub fn occurrences(
-    file: &str,
+    file: &Path,
     pattern: &str,
     cfg: &SearchCfg,
     cap: usize,
@@ -362,7 +344,7 @@ pub fn occurrences(
 /// reply; it goes into `unread`, and the caller reports those names with
 /// `evidence_unread_warning`.
 pub fn evidence_value(
-    read: &str,
+    read: &Path,
     report: &str,
     pattern: &str,
     cfg: &SearchCfg,
@@ -401,7 +383,7 @@ pub fn name_matches(
     ext: &str,
     use_ignore: bool,
     skip_hidden: bool,
-) -> BTreeSet<String> {
+) -> BTreeSet<RawPath> {
     let mut out = BTreeSet::new();
     for dent in walk(root, use_ignore, skip_hidden) {
         let dent = match dent {
@@ -415,7 +397,7 @@ pub fn name_matches(
             continue;
         }
         if dent.path().extension().and_then(|e| e.to_str()) == Some(ext) {
-            out.insert(norm(&dent.path().to_string_lossy()));
+            out.insert(RawPath::from_path(dent.path()).strip_dot());
         }
     }
     out
@@ -467,27 +449,13 @@ mod evidence_tests {
         let gone = dir.join("gone.txt");
 
         let mut unread = Vec::new();
-        let read = evidence_value(
-            &present.to_string_lossy(),
-            "present.txt",
-            "needle",
-            &cfg(),
-            5,
-            &mut unread,
-        );
+        let read = evidence_value(&present, "present.txt", "needle", &cfg(), 5, &mut unread);
         assert_eq!(read.as_array().map(Vec::len), Some(1));
         assert!(unread.is_empty());
         assert!(evidence_unread_warning(Vec::new()).is_none());
 
         // The file matched in the first pass and is gone at the second read.
-        let failed = evidence_value(
-            &gone.to_string_lossy(),
-            "gone.txt",
-            "needle",
-            &cfg(),
-            5,
-            &mut unread,
-        );
+        let failed = evidence_value(&gone, "gone.txt", "needle", &cfg(), 5, &mut unread);
         assert!(failed.is_null(), "{failed}");
         assert_eq!(unread, ["gone.txt"]);
         let warning = evidence_unread_warning(unread).expect("a warning");
@@ -501,6 +469,7 @@ mod evidence_tests {
 mod selected_walk_tests {
     use super::{content_matches_selected, take_skips, SearchCfg};
     use crate::query::QueryMode;
+    use crate::rawpath::RawPath;
     use std::collections::BTreeMap;
     use std::os::unix::fs::PermissionsExt;
 
@@ -535,8 +504,9 @@ mod selected_walk_tests {
 
         // The selection was valid; the directory became unreadable after it.
         let mut files = BTreeMap::new();
-        files.insert("open.txt".to_string(), canonical_root.join("open.txt"));
-        files.insert("held/a.txt".to_string(), canonical_root.join("held/a.txt"));
+        let key = |text: &str| RawPath::from_bytes(text.as_bytes().to_vec());
+        files.insert(key("open.txt"), canonical_root.join("open.txt"));
+        files.insert(key("held/a.txt"), canonical_root.join("held/a.txt"));
         lock(&held, 0o000);
         lock(&other, 0o000);
         if std::fs::read_dir(&held).is_ok() {
@@ -554,9 +524,9 @@ mod selected_walk_tests {
         lock(&other, 0o755);
         let _ = std::fs::remove_dir_all(&base);
 
-        assert_eq!(found.into_iter().collect::<Vec<_>>(), ["open.txt"]);
+        assert_eq!(crate::rawpath::displays(&found), ["open.txt"]);
         assert!(skips.read_ok);
-        let unreadable: Vec<&String> = skips.unreadable.keys().collect();
+        let unreadable = crate::rawpath::displays(skips.unreadable.keys());
         assert_eq!(unreadable.len(), 1, "{unreadable:?}");
         assert!(unreadable[0].ends_with("held"), "{unreadable:?}");
     }

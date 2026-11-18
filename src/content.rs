@@ -17,6 +17,7 @@
 use crate::engine::{content_matches, content_matches_selected, SearchCfg};
 use crate::envelope::{envelope, err, list, warn};
 use crate::query::QueryMode;
+use crate::rawpath::{displays, RawPath};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
@@ -263,8 +264,8 @@ fn matches_for(
     pattern: &str,
     path: &str,
     cfg: &Cfg,
-    selected: Option<&BTreeMap<String, PathBuf>>,
-) -> Result<BTreeSet<String>, String> {
+    selected: Option<&BTreeMap<RawPath, PathBuf>>,
+) -> Result<BTreeSet<RawPath>, String> {
     let cfg = search_cfg(cfg);
     match selected {
         Some(files) => content_matches_selected(path, pattern, &cfg, files),
@@ -327,11 +328,11 @@ pub(crate) fn classify_target(
     canonical: &Path,
     query: QueryMode,
 ) -> Result<Option<Class>, String> {
-    let relative = canonical
-        .strip_prefix(root)
-        .map_err(|_| "target is outside the query root".to_string())?
-        .to_string_lossy()
-        .replace('\\', "/");
+    let relative = RawPath::from_path(
+        canonical
+            .strip_prefix(root)
+            .map_err(|_| "target is outside the query root".to_string())?,
+    );
     let selected = BTreeMap::from([(relative.clone(), canonical.to_path_buf())]);
     let root = root.to_string_lossy();
     for layer in layers(query) {
@@ -382,7 +383,7 @@ fn selection_error(message: impl Into<String>) -> (Value, i32) {
     )
 }
 
-fn parse_selected_paths(mode: SelectionMode) -> Result<Vec<String>, String> {
+fn parse_selected_paths(mode: SelectionMode) -> Result<Vec<RawPath>, String> {
     let mut bytes = Vec::new();
     std::io::stdin()
         .read_to_end(&mut bytes)
@@ -401,11 +402,8 @@ fn parse_selected_paths(mode: SelectionMode) -> Result<Vec<String>, String> {
                     }
                     return Err("selected path input contains an empty path".into());
                 }
-                paths.push(
-                    std::str::from_utf8(part)
-                        .map_err(|_| "selected path input is not valid UTF-8")?
-                        .to_string(),
-                );
+                // A file name is bytes: a name that is not UTF-8 is valid.
+                paths.push(RawPath::from_bytes(part.to_vec()));
             }
             if paths.is_empty() {
                 Err("selected path input contains no paths".into())
@@ -424,25 +422,38 @@ fn parse_selected_paths(mode: SelectionMode) -> Result<Vec<String>, String> {
             if data.is_empty() {
                 return Err("selected envelope contains no files".into());
             }
-            data.iter()
-                .map(|row| {
-                    row.get("file")
-                        .and_then(Value::as_str)
-                        .filter(|file| !file.is_empty())
-                        .map(str::to_string)
-                        .ok_or_else(|| {
-                            "each selected envelope row must contain a non-empty file string".into()
-                        })
-                })
-                .collect()
+            data.iter().map(envelope_row_path).collect()
         }
     }
 }
 
+/// The path of one envelope row. A non-null `file_bytes_hex` is the exact
+/// name and wins over `file`, which is lossy for a name that is not UTF-8.
+fn envelope_row_path(row: &Value) -> Result<RawPath, String> {
+    match row.get("file_bytes_hex") {
+        None | Some(Value::Null) => {}
+        Some(Value::String(hex)) => {
+            return RawPath::from_hex(hex)
+                .filter(|path| !path.is_empty())
+                .ok_or_else(|| {
+                    format!("selected envelope row has a file_bytes_hex that is not hex: {hex}")
+                });
+        }
+        Some(_) => {
+            return Err("selected envelope row has a file_bytes_hex that is not a string".into())
+        }
+    }
+    row.get("file")
+        .and_then(Value::as_str)
+        .filter(|file| !file.is_empty())
+        .map(|file| RawPath::from_bytes(file.as_bytes().to_vec()))
+        .ok_or_else(|| "each selected envelope row must contain a non-empty file string".into())
+}
+
 fn validate_selected_paths(
     path: &str,
-    inputs: Vec<String>,
-) -> Result<BTreeMap<String, PathBuf>, String> {
+    inputs: Vec<RawPath>,
+) -> Result<BTreeMap<RawPath, PathBuf>, String> {
     let root = std::fs::canonicalize(path)
         .map_err(|_| "query root does not exist or cannot be resolved")?;
     if !root.is_dir() {
@@ -450,7 +461,8 @@ fn validate_selected_paths(
     }
     let mut selected = BTreeMap::new();
     for input in inputs {
-        let supplied = Path::new(&input);
+        let supplied = input.to_path_buf();
+        let input = input.escaped();
         if supplied.as_os_str().is_empty() {
             return Err("selected path is empty".into());
         }
@@ -470,9 +482,9 @@ fn validate_selected_paths(
             format!("selected path {detail}: {input}")
         })?;
         let display = if path == "." {
-            relative.to_string_lossy().to_string()
+            RawPath::from_path(&relative)
         } else {
-            Path::new(path).join(relative).to_string_lossy().to_string()
+            RawPath::from_path(&Path::new(path).join(relative))
         };
         if selected.insert(display, canonical).is_some() {
             return Err(format!("selected path is duplicated: {input}"));
@@ -522,9 +534,9 @@ pub fn run(
     }
     crate::engine::take_skips();
     let ls = layers(query);
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-    let mut surfaced_by: Vec<(String, String)> = Vec::new(); // (file, layer)
-    let mut default_files: BTreeSet<String> = BTreeSet::new();
+    let mut seen: BTreeSet<RawPath> = BTreeSet::new();
+    let mut surfaced_by: Vec<(RawPath, String)> = Vec::new(); // (file, layer)
+    let mut default_files: BTreeSet<RawPath> = BTreeSet::new();
     let mut warnings: Vec<Value> = Vec::new();
     let mut commands: Vec<String> = Vec::new();
 
@@ -550,7 +562,7 @@ pub fn run(
         if layer.name == "default" {
             default_files = files.clone();
         }
-        let new: Vec<String> = files.difference(&seen).cloned().collect();
+        let new: Vec<RawPath> = files.difference(&seen).cloned().collect();
         for f in &new {
             surfaced_by.push((f.clone(), layer.name.to_string()));
         }
@@ -560,7 +572,7 @@ pub fn run(
                 warnings.push(warn(
                     code,
                     format!("{} match(es) hidden by default; {hint}", new.len()),
-                    new.clone(),
+                    displays(&new),
                 ));
                 let mut args = query.rg_args(explicit_case_sensitive);
                 args.extend(layer.flags.split_whitespace().map(String::from));
@@ -592,7 +604,7 @@ pub fn run(
             Ok(f) => f,
             Err(_) => continue, // a broken decoder contributes nothing (totality)
         };
-        let new: Vec<String> = probed
+        let new: Vec<RawPath> = probed
             .difference(&base)
             .filter(|f| !seen.contains(*f))
             .cloned()
@@ -605,7 +617,7 @@ pub fn run(
             warnings.push(warn(
                 p.code,
                 format!("{} match(es) hidden by default; {}", new.len(), p.hint),
-                new.clone(),
+                displays(&new),
             ));
             let mut args = query.rg_args(explicit_case_sensitive);
             args.extend(p.flags.split_whitespace().map(String::from));
@@ -614,7 +626,7 @@ pub fn run(
         }
     }
 
-    match crate::paths::settle("content", |p| p.to_string()) {
+    match crate::paths::settle("content", RawPath::display) {
         Ok(Some(partial)) => warnings.push(partial),
         Ok(None) => {}
         Err(failure) => return failure,
@@ -629,7 +641,8 @@ pub fn run(
         .iter()
         .map(|(f, layer)| {
             let mut m = Map::new();
-            m.insert("file".into(), Value::from(f.clone()));
+            m.insert("file".into(), Value::from(f.display()));
+            m.insert("file_bytes_hex".into(), f.bytes_hex_value());
             // Every key is in every row; a key with no value is null.
             m.insert(
                 "selection".into(),
@@ -640,8 +653,8 @@ pub fn run(
             m.insert("surfaced_by".into(), Value::from(layer.clone()));
             let matches = if evidence {
                 crate::engine::evidence_value(
-                    f,
-                    f,
+                    &f.to_path_buf(),
+                    &f.display(),
                     pattern,
                     &evidence_cfg(layer, query),
                     match_cap,

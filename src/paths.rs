@@ -90,7 +90,10 @@ pub fn must_exist(verb: &str, arg: &str, path: &str) -> Result<(), (Value, i32)>
 /// Close a walk. No file read and one or more paths refused: `IO_FAILURE`.
 /// Some files read and some paths refused: a `PARTIAL_RESULT` warning.
 /// `display` maps a walked path to the form that the verb reports.
-pub fn settle(verb: &str, display: impl Fn(&str) -> String) -> Result<Option<Value>, (Value, i32)> {
+pub fn settle(
+    verb: &str,
+    display: impl Fn(&crate::rawpath::RawPath) -> String,
+) -> Result<Option<Value>, (Value, i32)> {
     let skips = crate::engine::take_skips();
     let Some((first, os_error)) = skips.unreadable.iter().next() else {
         return Ok(None);
@@ -100,11 +103,11 @@ pub fn settle(verb: &str, display: impl Fn(&str) -> String) -> Result<Option<Val
             .unreadable
             .keys()
             .skip(1)
-            .map(|p| absolute(Path::new(p)))
+            .map(|p| absolute(&p.to_path_buf()))
             .collect();
-        return Err(io_failure(verb, Path::new(first), os_error, &others));
+        return Err(io_failure(verb, &first.to_path_buf(), os_error, &others));
     }
-    let files: Vec<String> = skips.unreadable.keys().map(|p| display(p)).collect();
+    let files: Vec<String> = skips.unreadable.keys().map(display).collect();
     Ok(Some(crate::envelope::warn(
         "PARTIAL_RESULT",
         format!(

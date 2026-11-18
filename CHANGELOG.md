@@ -26,6 +26,16 @@ is in `release-records/0.1.2.md`.
   `BAD_PATTERN`, exit 1, as rg does. Before, it compiled, could never match
   one line, and rf gave "no files", exit 0. `\s` and other classes no longer
   match the `\n` of a line; they never matched a line before either.
+- File names that are not UTF-8: each result row (`content`, `find`,
+  `why`) has the new key `file_bytes_hex`. It is null for a UTF-8 name.
+  Else it holds the exact name bytes in lowercase hex; `file` stays the
+  lossy text. Before, two names that differed only in bytes that are not
+  UTF-8 became one row, and `--matches` could not read such a file.
+  `--paths-stdin` now takes raw name bytes, and `--paths-envelope` uses a
+  non-null `file_bytes_hex` before `file`. A bad hex value gives
+  `INVALID_SELECTION`, exit 1. Warning `details.files` keeps display names.
+  Rows now sort by `file_bytes_hex` after `file`, so a cursor from an
+  earlier rf gives `CONFLICT`; run the query again. Additive.
 
 ## 0.1.1 — defect fixes after 0.1.0
 

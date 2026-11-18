@@ -2829,3 +2829,195 @@ fn bad_pattern_is_refused_by_each_search_verb() {
         assert_eq!(e["errors"][0]["code"], "BAD_PATTERN", "{argv:?}");
     }
 }
+
+/// Two file names that are not UTF-8 and differ in one byte. Lossy text
+/// makes both `caf\u{FFFD}.txt`.
+#[cfg(unix)]
+const RAW_NAMES: [&[u8]; 2] = [b"caf\xe9.txt", b"caf\xea.txt"];
+#[cfg(unix)]
+const RAW_HEX: [&str; 2] = ["636166e92e747874", "636166ea2e747874"];
+
+#[cfg(unix)]
+fn raw_name(bytes: &[u8]) -> std::ffi::OsString {
+    use std::os::unix::ffi::OsStrExt;
+    std::ffi::OsStr::from_bytes(bytes).to_os_string()
+}
+
+/// The `file_bytes_hex` values of the rows, sorted.
+fn row_hexes(env: &Value) -> Vec<String> {
+    let mut hexes: Vec<String> = env["data"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|row| row["file_bytes_hex"].as_str().map(String::from))
+        .collect();
+    hexes.sort();
+    hexes
+}
+
+#[cfg(unix)]
+#[test]
+fn history_keeps_non_utf8_names_apart() {
+    use std::io::Write;
+    use std::process::Stdio;
+    let dir = unique_temp("raw-history");
+    let git = |args: &[std::ffi::OsString], input: Option<&[u8]>| {
+        let mut child = Command::new("git")
+            .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+            .args(args)
+            .current_dir(&dir)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("git");
+        let mut stdin = child.stdin.take().unwrap();
+        stdin.write_all(input.unwrap_or_default()).unwrap();
+        drop(stdin);
+        let out = child.wait_with_output().unwrap();
+        assert!(out.status.success(), "git {args:?}");
+        String::from_utf8(out.stdout).unwrap().trim().to_string()
+    };
+    let a = |text: &str| std::ffi::OsString::from(text);
+    git(&[a("init"), a("-q")], None);
+    let blob = git(
+        &[a("hash-object"), a("-w"), a("--stdin")],
+        Some(format!("{TOKEN}\n").as_bytes()),
+    );
+    // The index takes raw bytes, so this works where the file system refuses
+    // such names (APFS).
+    let mut index = Vec::new();
+    for name in RAW_NAMES {
+        index.extend_from_slice(format!("100644 {blob}\t").as_bytes());
+        index.extend_from_slice(name);
+        index.push(0);
+    }
+    git(
+        &[a("update-index"), a("--add"), a("-z"), a("--index-info")],
+        Some(&index),
+    );
+    git(&[a("commit"), a("-q"), a("-m"), a("add")], None);
+    let mut remove = vec![a("rm"), a("-q"), a("--cached")];
+    remove.extend(RAW_NAMES.iter().map(|name| raw_name(name)));
+    git(&remove, None);
+    git(&[a("commit"), a("-q"), a("-m"), a("remove")], None);
+
+    let (code, env, _) = rf(
+        &["find", TOKEN, ".", "--name", "txt", "--json"],
+        Some(&dir),
+        &[],
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(code, 0, "{env}");
+    let rows = env["data"]["items"].as_array().unwrap();
+    assert_eq!(rows.len(), 2, "{env}");
+    assert!(rows.iter().all(|row| row["stage"] == "git_deleted"));
+    assert!(rows.iter().all(|row| row["file"] == "caf\u{FFFD}.txt"));
+    assert_eq!(row_hexes(&env), RAW_HEX);
+    assert_eq!(env["meta"]["pagination"]["total"], 2);
+    assert_eq!(env["meta"]["history_matches"], 2);
+}
+
+/// Linux only in practice: APFS refuses names that are not UTF-8 (EILSEQ),
+/// and the test then returns early. CI runs on Ubuntu.
+#[cfg(unix)]
+#[test]
+fn tree_search_keeps_non_utf8_names_apart_and_reads_them() {
+    let dir = unique_temp("raw-tree");
+    for name in RAW_NAMES {
+        match std::fs::write(dir.join(raw_name(name)), format!("{TOKEN}\n")) {
+            Ok(()) => {}
+            Err(error) if error.raw_os_error() == Some(92) || error.raw_os_error() == Some(84) => {
+                eprintln!("skip: the file system refuses non-UTF-8 names ({error})");
+                let _ = std::fs::remove_dir_all(&dir);
+                return;
+            }
+            Err(error) => panic!("create: {error}"),
+        }
+    }
+    let cwd = Some(dir.as_path());
+
+    let (code, content, raw) = rf(&["content", TOKEN, ".", "--matches", "--json"], cwd, &[]);
+    assert_eq!(code, 0, "{content}");
+    assert_eq!(content["meta"]["matched_files"], 2, "{content}");
+    assert_eq!(row_hexes(&content), RAW_HEX);
+    for row in content["data"]["items"].as_array().unwrap() {
+        assert_eq!(row["matches"].as_array().map(Vec::len), Some(1), "{row}");
+    }
+    assert!(
+        content["warnings"].as_array().unwrap().is_empty(),
+        "{content}"
+    );
+
+    let (code, find, _) = rf(
+        &["find", TOKEN, ".", "--name", "txt", "--matches", "--json"],
+        cwd,
+        &[],
+    );
+    assert_eq!(code, 0, "{find}");
+    assert_eq!(row_hexes(&find), RAW_HEX);
+    for row in find["data"]["items"].as_array().unwrap() {
+        assert_eq!(row["stage"], "found", "{row}");
+        assert_eq!(row["matches"].as_array().map(Vec::len), Some(1), "{row}");
+    }
+
+    let (code, round, _) = rf_with_input(
+        &["content", TOKEN, ".", "--paths-envelope", "--json"],
+        cwd,
+        raw.as_bytes(),
+    );
+    assert_eq!(code, 0, "{round}");
+    assert_eq!(round["meta"]["selection"]["selected_files"], 2, "{round}");
+    assert_eq!(row_hexes(&round), RAW_HEX);
+
+    let mut input = Vec::new();
+    for name in RAW_NAMES {
+        input.extend_from_slice(name);
+        input.push(0);
+    }
+    let (code, stdin, _) = rf_with_input(
+        &["content", TOKEN, ".", "--paths-stdin", "--json"],
+        cwd,
+        &input,
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(code, 0, "{stdin}");
+    assert_eq!(row_hexes(&stdin), RAW_HEX);
+}
+
+#[test]
+fn utf8_rows_carry_a_null_file_bytes_hex_and_the_envelope_reads_hex() {
+    let corpus = Corpus::new();
+    let cwd = Some(corpus.path.as_path());
+    let (_, full, _) = rf(&["content", TOKEN, ".", "--json"], cwd, &[]);
+    for row in full["data"]["items"].as_array().unwrap() {
+        assert!(
+            row.as_object().unwrap().contains_key("file_bytes_hex"),
+            "{row}"
+        );
+        assert!(row["file_bytes_hex"].is_null(), "{row}");
+    }
+    // A non-null file_bytes_hex wins over file.
+    let hex: String = b"src/app.py".iter().map(|b| format!("{b:02x}")).collect();
+    let crafted = serde_json::json!({"data": {"items": [
+        {"file": "no-such-file", "file_bytes_hex": hex}
+    ]}});
+    let (code, env, _) = rf_with_input(
+        &["content", TOKEN, ".", "--paths-envelope", "--json"],
+        cwd,
+        crafted.to_string().as_bytes(),
+    );
+    assert_eq!(code, 0, "{env}");
+    assert_eq!(env["data"]["items"][0]["file"], "src/app.py", "{env}");
+    for bad in ["zz", "abc", ""] {
+        let crafted = serde_json::json!({"data": {"items": [
+            {"file": "src/app.py", "file_bytes_hex": bad}
+        ]}});
+        let (code, env, _) = rf_with_input(
+            &["content", TOKEN, ".", "--paths-envelope", "--json"],
+            cwd,
+            crafted.to_string().as_bytes(),
+        );
+        assert_eq!(code, 1, "{bad}: {env}");
+        assert_eq!(env["errors"][0]["code"], "INVALID_SELECTION", "{env}");
+    }
+}

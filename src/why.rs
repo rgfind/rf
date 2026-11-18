@@ -167,7 +167,8 @@ pub fn run(
         Ok(value) => value,
         Err(error) => return target_failure(target, root_arg, error),
     };
-    let file = slash(&relative);
+    let raw_file = crate::rawpath::RawPath::from_path(&relative);
+    let file = raw_file.display();
     let root_display = display_root(&root);
     let class = match classify_target(pattern, &root, &canonical, query) {
         Ok(class) => class,
@@ -192,6 +193,7 @@ pub fn run(
     let hidden = matches!(class, Some(value) if value != Class::Default);
     let mut row = Map::new();
     row.insert("file".into(), Value::from(file.clone()));
+    row.insert("file_bytes_hex".into(), raw_file.bytes_hex_value());
     row.insert("pattern".into(), Value::from(pattern));
     row.insert("matched".into(), Value::from(matched));
     row.insert("hidden_from_default".into(), Value::from(hidden));
@@ -208,7 +210,7 @@ pub fn run(
     let mut unread = Vec::new();
     let matches = if evidence {
         crate::engine::evidence_value(
-            &canonical.to_string_lossy(),
+            &canonical,
             &file,
             pattern,
             &evidence_cfg(class, query),

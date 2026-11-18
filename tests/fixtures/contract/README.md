@@ -45,6 +45,9 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
   sha256 after these changes and the 0.1.2 version bump (release
   candidate, not yet released):
   `3e19315a68f095bc7d5c82e3a9fd1b705eb0a61613445cfc65c664fb92b16ea2`.
+  Then the row schemas of `content`, `find` and `why` got the key
+  `file_bytes_hex` (string or null). Fixture sha256 after that change:
+  `89e94e4b040dd1301e85a7cd6777d7a9bcc4b1914fdfdc994b47a76cef9776eb`.
   The release hashes above are for the 0.1.1 release capture.
 
 ## Validity

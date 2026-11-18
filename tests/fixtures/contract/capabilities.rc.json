@@ -1363,6 +1363,13 @@
                       "file": {
                         "type": "string"
                       },
+                      "file_bytes_hex": {
+                        "pattern": "^([0-9a-f]{2})+$",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
                       "matches": {
                         "items": {
                           "additionalProperties": false,
@@ -1424,6 +1431,7 @@
                     },
                     "required": [
                       "file",
+                      "file_bytes_hex",
                       "matches",
                       "selection",
                       "surfaced_by"
@@ -2109,6 +2117,13 @@
                       "file": {
                         "type": "string"
                       },
+                      "file_bytes_hex": {
+                        "pattern": "^([0-9a-f]{2})+$",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
                       "fix": {
                         "type": [
                           "string",
@@ -2179,6 +2194,7 @@
                     },
                     "required": [
                       "file",
+                      "file_bytes_hex",
                       "fix",
                       "matches",
                       "matches_unavailable_reason",
@@ -2836,6 +2852,13 @@
                 "file": {
                   "type": "string"
                 },
+                "file_bytes_hex": {
+                  "pattern": "^([0-9a-f]{2})+$",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "hidden_from_default": {
                   "type": "boolean"
                 },
@@ -2960,6 +2983,7 @@
               },
               "required": [
                 "file",
+                "file_bytes_hex",
                 "hidden_from_default",
                 "hiding_filter",
                 "ignore_source",
@@ -3125,9 +3149,9 @@
   "errors": [],
   "meta": {
     "contract_version": "0.1",
-    "data_hash": "sha256:4c438fa9814a37f62a4d8f6e73368925867ac05ce835f17e22af22f70ae00f2f",
+    "data_hash": "sha256:82610d56a3c20ab982354f234dcf6ec0ce2270ece5cae40dae402fe6b90b0dcf",
     "elapsed_ms": 0,
-    "request_id": "req_27c2b22f32a0cd92",
+    "request_id": "req_3c051ce011cea083",
     "ts_iso": "1970-01-01T00:00:00Z",
     "verb": "capabilities"
   },

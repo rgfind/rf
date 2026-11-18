@@ -12,9 +12,10 @@
 //! oracle. Each source contributes nothing (not a crash) when unavailable, so
 //! totality holds.
 
-use crate::engine::{content_matches, name_matches, rel, SearchCfg};
+use crate::engine::{content_matches, name_matches, SearchCfg};
 use crate::envelope::{envelope, err, list, warn};
 use crate::query::QueryMode;
+use crate::rawpath::{displays, RawPath};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -53,7 +54,7 @@ fn cfg_default(query: QueryMode) -> SearchCfg {
 
 enum History {
     Available {
-        matches: BTreeSet<String>,
+        matches: BTreeSet<RawPath>,
         served: usize,
     },
     GitAbsent,
@@ -61,7 +62,7 @@ enum History {
     GitTimedOut,
     NotWorkTree,
     Partial {
-        matches: BTreeSet<String>,
+        matches: BTreeSet<RawPath>,
         served: usize,
         failed: usize,
     },
@@ -81,7 +82,7 @@ impl History {
         }
     }
 
-    fn matches(&self) -> BTreeSet<String> {
+    fn matches(&self) -> BTreeSet<RawPath> {
         match self {
             Self::Available { matches, .. } | Self::Partial { matches, .. } => matches.clone(),
             Self::GitAbsent
@@ -175,10 +176,12 @@ fn git_ever_matched_with(
             continue;
         }
         served += 1;
-        for record in String::from_utf8_lossy(&g.stdout).split('\0') {
-            // "<rev>:<path>"
-            if let Some((_, path)) = record.split_once(':') {
-                out.insert(path.to_string());
+        // Each record is "<rev>:<path>" in raw bytes. A rev has no `:`, so the
+        // first `:` ends it. The path stays bytes: a name that is not UTF-8
+        // keeps its own key.
+        for record in g.stdout.split(|byte| *byte == 0) {
+            if let Some(colon) = record.iter().position(|byte| *byte == b':') {
+                out.insert(RawPath::from_bytes(record[colon + 1..].to_vec()));
             }
         }
     }
@@ -245,7 +248,7 @@ fn git_scrub_commits(
     root: &str,
     ext: &str,
     query: QueryMode,
-) -> Option<BTreeMap<String, String>> {
+) -> Option<BTreeMap<RawPath, String>> {
     git_scrub_commits_with(Path::new("git"), pattern, root, ext, query)
 }
 
@@ -258,7 +261,7 @@ fn git_scrub_commits_with(
     root: &str,
     ext: &str,
     query: QueryMode,
-) -> Option<BTreeMap<String, String>> {
+) -> Option<BTreeMap<RawPath, String>> {
     git_scrub_commits_bounded(git, pattern, root, ext, query, SCRUB_TIMEOUT)
 }
 
@@ -269,7 +272,7 @@ fn git_scrub_commits_bounded(
     ext: &str,
     query: QueryMode,
     timeout: Duration,
-) -> Option<BTreeMap<String, String>> {
+) -> Option<BTreeMap<RawPath, String>> {
     if query.word {
         return Some(BTreeMap::new());
     }
@@ -296,23 +299,23 @@ fn git_scrub_commits_bounded(
     {
         return None;
     }
-    Some(parse_scrub_log(&String::from_utf8_lossy(&out.stdout)))
+    Some(parse_scrub_log(&out.stdout))
 }
 
 /// Parse `git log -z --format=%x01%h --name-only`. Each record ends with NUL.
 /// A commit record is `\x01<hash>`; the hash has any length. A path record
 /// follows its commit and can start with the newline that ends the format.
 /// The first commit seen for a path is the most recent one.
-fn parse_scrub_log(text: &str) -> BTreeMap<String, String> {
+fn parse_scrub_log(bytes: &[u8]) -> BTreeMap<RawPath, String> {
     let mut result = BTreeMap::new();
     let mut commit = String::new();
-    for record in text.split('\0') {
-        let record = record.strip_prefix('\n').unwrap_or(record);
-        if let Some(hash) = record.strip_prefix('\x01') {
-            commit = hash.into();
+    for record in bytes.split(|byte| *byte == 0) {
+        let record = record.strip_prefix(b"\n").unwrap_or(record);
+        if let Some(hash) = record.strip_prefix(b"\x01") {
+            commit = String::from_utf8_lossy(hash).into_owned();
         } else if !record.is_empty() && !commit.is_empty() {
             result
-                .entry(record.into())
+                .entry(RawPath::from_bytes(record.to_vec()))
                 .or_insert_with(|| commit.clone());
         }
     }
@@ -320,7 +323,13 @@ fn parse_scrub_log(text: &str) -> BTreeMap<String, String> {
 }
 
 enum Structural {
-    Used(BTreeSet<String>),
+    /// `unjoinable`: paths that ast-grep wrote lossily (not UTF-8). They
+    /// cannot be joined with a tree row by name, so they are reported, not
+    /// guessed.
+    Used {
+        files: BTreeSet<RawPath>,
+        unjoinable: Vec<String>,
+    },
     Missing,
     Unusable,
     TimedOut,
@@ -367,24 +376,30 @@ fn ast_files(structural: &str, lang: &str, root: &str) -> Structural {
             _ => return Structural::Unusable,
         };
     let mut files = BTreeSet::new();
+    let mut unjoinable = Vec::new();
     for m in &hits {
         if let Some(f) = m.get("file").and_then(|v| v.as_str()) {
-            files.insert(f.strip_prefix("./").unwrap_or(f).to_string());
+            let f = f.strip_prefix("./").unwrap_or(f);
+            // ast-grep writes a name that is not UTF-8 with U+FFFD. Such a
+            // name is not a real path, so it is not a join key. A real name
+            // with U+FFFD exists on disk and is kept.
+            if f.contains('\u{FFFD}') && !Path::new(root).join(f).exists() {
+                unjoinable.push(f.to_string());
+                continue;
+            }
+            files.insert(RawPath::from_bytes(f.as_bytes().to_vec()));
         }
     }
-    Structural::Used(files)
+    unjoinable.sort();
+    unjoinable.dedup();
+    Structural::Used { files, unjoinable }
 }
 
 /// Does the file at root/rel_path contain `needle` as a literal byte substring?
 /// The in-process equivalent of `rg -F -uu -a` restricted to the ast hits: a
 /// file where this is false but ast matched is surfaced only structurally.
-fn file_contains_literal(root: &str, rel_path: &str, needle: &str) -> bool {
-    let full = if root == "." || root.is_empty() {
-        rel_path.to_string()
-    } else {
-        format!("{}/{}", root.trim_end_matches('/'), rel_path)
-    };
-    match std::fs::read(&full) {
+fn file_contains_literal(root: &str, rel_path: &RawPath, needle: &str) -> bool {
+    match std::fs::read(rel_path.under(root).to_path_buf()) {
         Ok(bytes) => bytes
             .windows(needle.len().max(1))
             .any(|w| w == needle.as_bytes()),
@@ -445,8 +460,8 @@ pub fn run(
     crate::engine::take_skips();
     let ext = name;
     let root = path;
-    let relset = |s: BTreeSet<String>| -> BTreeSet<String> {
-        s.into_iter().map(|f| rel(root, &f)).collect()
+    let relset = |s: BTreeSet<RawPath>| -> BTreeSet<RawPath> {
+        s.into_iter().map(|f| f.rel(root)).collect()
     };
 
     // --- source 1: fd name-filter stages (in-process walker) ---
@@ -495,7 +510,7 @@ pub fn run(
         }
     };
     let pipe_found: BTreeSet<_> = fd_default.intersection(&rg_default).cloned().collect();
-    let partial = match crate::paths::settle("find", |p| rel(root, p)) {
+    let partial = match crate::paths::settle("find", |p| p.rel(root).display()) {
         Ok(partial) => partial,
         Err(failure) => return failure,
     };
@@ -581,9 +596,10 @@ pub fn run(
         *m.entry(s.to_string()).or_insert(0) += 1;
     };
     let unread = std::cell::RefCell::new(Vec::new());
-    let row = |file: &str, stage: &str, fix: Option<String>| -> Value {
+    let row = |file: &RawPath, stage: &str, fix: Option<String>| -> Value {
         let mut r = Map::new();
-        r.insert("file".into(), Value::from(file.to_string()));
+        r.insert("file".into(), Value::from(file.display()));
+        r.insert("file_bytes_hex".into(), file.bytes_hex_value());
         r.insert("stage".into(), Value::from(stage.to_string()));
         r.insert("fix".into(), fix.map(Value::from).unwrap_or(Value::Null));
         // Every key is in every row; a key with no value is null.
@@ -600,16 +616,11 @@ pub fn run(
                     }),
                 );
             } else {
-                let full = if root == "." || root.is_empty() {
-                    file.to_string()
-                } else {
-                    format!("{}/{}", root.trim_end_matches('/'), file)
-                };
                 r.insert(
                     "matches".into(),
                     crate::engine::evidence_value(
-                        &full,
-                        file,
+                        &file.under(root).to_path_buf(),
+                        &file.display(),
                         pattern,
                         &cfg_all_text(query),
                         match_cap,
@@ -659,8 +670,9 @@ pub fn run(
 
     // --- source 3: Git history matches (scrubbed from the tree) ---
     let ever = history.matches();
-    let git_deleted: Vec<String> = ever.difference(&content_all).cloned().collect(); // BTreeSet -> sorted
-                                                                                     // The log is read only when a history-only match needs a scrub commit.
+    // BTreeSet difference, so sorted.
+    let git_deleted: Vec<RawPath> = ever.difference(&content_all).cloned().collect();
+    // The log is read only when a history-only match needs a scrub commit.
     let scrub_lookup = if git_deleted.is_empty() {
         Some(BTreeMap::new())
     } else {
@@ -678,7 +690,8 @@ pub fn run(
     }
 
     // --- source 4: ast-grep structural (a construct with no literal form) ---
-    let mut ast_only: Vec<String> = Vec::new();
+    let mut ast_only: Vec<RawPath> = Vec::new();
+    let mut structural_partial: Option<Value> = None;
     let mut structural_fallback = if structural.is_some() {
         None
     } else {
@@ -687,7 +700,20 @@ pub fn run(
     if let Some(sp) = structural {
         let lg = lang.unwrap_or("");
         match ast_files(sp, lg, root) {
-            Structural::Used(ast_hits) => {
+            Structural::Used {
+                files: ast_hits,
+                unjoinable,
+            } => {
+                if !unjoinable.is_empty() {
+                    structural_partial = Some(warn(
+                        "PARTIAL_RESULT",
+                        format!(
+                            "{} structural match path(s) are not UTF-8 in ast-grep output and cannot be joined with the tree; they are not in the result",
+                            unjoinable.len()
+                        ),
+                        unjoinable,
+                    ));
+                }
                 // ast_only = files ast matched but a literal search for the pattern
                 // text does NOT — surfaced only structurally.
                 ast_only = ast_hits
@@ -770,19 +796,20 @@ pub fn run(
     // --- warnings: one per miss, carrying the paste-ready fix ---
     let mut warnings: Vec<Value> = history_warnings;
     warnings.extend(partial);
+    warnings.extend(structural_partial);
     warnings.extend(crate::engine::evidence_unread_warning(unread.take()));
     if query.word && !git_deleted.is_empty() {
         warnings.push(warn(
             "GIT_SCRUB_WORD_UNAVAILABLE",
             "whole-word mode omits scrub-commit evidence because Git pickaxe is not whole-word",
-            git_deleted.clone(),
+            displays(&git_deleted),
         ));
     }
     if scrub_failed {
         warnings.push(warn(
             "GIT_SCRUB_UNAVAILABLE",
             "git log failed or exceeded its time limit, so the scrub commit of each history-only match is unknown",
-            git_deleted.clone(),
+            displays(&git_deleted),
         ));
     }
     if let Some(reason) = structural_fallback.filter(|reason| *reason != "not-requested") {
@@ -798,7 +825,7 @@ pub fn run(
         let mut msg = d["fix"].as_str().unwrap_or("").to_string();
         if stage == "git_deleted" {
             let sc = scrub_commits
-                .get(&file)
+                .get(&RawPath::from_row(d))
                 .cloned()
                 .unwrap_or_else(|| "unknown".into());
             msg.push_str(&format!(" (scrubbed in {sc})"));
@@ -1055,6 +1082,7 @@ mod history_tests {
         git_scrub_commits_with, parse_scrub_log, History,
     };
     use crate::query::QueryMode;
+    use crate::rawpath::{displays, RawPath};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -1116,7 +1144,7 @@ mod history_tests {
                 served,
                 failed,
             } => {
-                assert_eq!(matches.into_iter().collect::<Vec<_>>(), vec!["old.config"]);
+                assert_eq!(displays(&matches), vec!["old.config"]);
                 assert_eq!((served, failed), (1, 1));
             }
             _ => panic!("expected partial history"),
@@ -1134,11 +1162,15 @@ mod history_tests {
     #[test]
     fn scrub_log_accepts_any_hash_length_and_raw_paths() {
         let log = "\x01abcdef012\0\ncaf\u{e9}.rs\0sub/sp ace.rs\0\x01abc1234\0\ncaf\u{e9}.rs\0";
-        let parsed = parse_scrub_log(log);
-        assert_eq!(parsed["caf\u{e9}.rs"], "abcdef012");
-        assert_eq!(parsed["sub/sp ace.rs"], "abcdef012");
-        assert_eq!(parsed.len(), 2);
-        assert!(parse_scrub_log("").is_empty());
+        let mut raw = log.as_bytes().to_vec();
+        raw.extend_from_slice(b"\x01fff0000\0\nraw\xe9.rs\0");
+        let parsed = parse_scrub_log(&raw);
+        let key = |bytes: &[u8]| RawPath::from_bytes(bytes.to_vec());
+        assert_eq!(parsed[&key("caf\u{e9}.rs".as_bytes())], "abcdef012");
+        assert_eq!(parsed[&key(b"sub/sp ace.rs")], "abcdef012");
+        assert_eq!(parsed[&key(b"raw\xe9.rs")], "fff0000");
+        assert_eq!(parsed.len(), 3);
+        assert!(parse_scrub_log(b"").is_empty());
     }
 
     #[test]
@@ -1230,14 +1262,14 @@ mod history_tests {
         want.sort();
         match state {
             History::Available { matches, served } => {
-                assert_eq!(matches.iter().map(String::as_str).collect::<Vec<_>>(), want);
+                assert_eq!(displays(&matches), want);
                 assert_eq!(served, 2);
             }
             _ => panic!("expected available history"),
         }
         let scrubs =
             git_scrub_commits("needle", root, "rs", QueryMode::default()).expect("git log runs");
-        assert_eq!(scrubs.keys().map(String::as_str).collect::<Vec<_>>(), want);
+        assert_eq!(displays(scrubs.keys()), want);
         assert!(scrubs.values().all(|hash| hash.len() == 12), "{scrubs:?}");
         fs::remove_dir_all(dir).unwrap();
     }
