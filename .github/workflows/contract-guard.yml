@@ -6,10 +6,24 @@ name: Contract guard
 # installed CLI, not an in-repo member; it reads `plumbline.json`. Runs per tree,
 # so this crate tree can go green independently of the site tree.
 
+# Skips tracker-only and release-record-only changes. It still runs on
+# README.md and CHANGELOG.md: they are plumbline surfaces.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - ".beads/**"
+      - "release-records/**"
+      - "RELEASING.md"
+      - "CONTRACT.md"
+      - "bench/**"
   pull_request:
+    paths-ignore:
+      - ".beads/**"
+      - "release-records/**"
+      - "RELEASING.md"
+      - "CONTRACT.md"
+      - "bench/**"
 
 jobs:
   contract-guard:

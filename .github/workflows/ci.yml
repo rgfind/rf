@@ -13,10 +13,21 @@ name: CI
 # contract-guard.yml checks the contract prose and fixture separately; this
 # checks the code. preflight re-runs both classes of gate at release time.
 
+# Docs-only and tracker-only changes skip this workflow to save runner time;
+# no gate here reads Markdown or .beads. A release commit must change code
+# or config (it bumps Cargo.toml), because `plumb preflight` needs a green
+# run of this workflow for the exact release commit. If HEAD is docs-only,
+# the release stops before the tag; push a code commit first.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - ".beads/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".beads/**"
 
 permissions:
   contents: read
