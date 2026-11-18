@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.1.2 — scrub log limit, two more output schemas
+## 0.1.2 — scrub log limit, two more output schemas, line-ending fixes
 
-Contract version stays `0.1`. All changes are additive. The classification
+Contract version stays `0.1`. All changes are additive or defect fixes. The
+classification
 is in `release-records/0.1.2.md`.
 
 - `find`: the scrub `git log` now has a time limit of 2000 ms and an output
@@ -17,6 +18,14 @@ is in `release-records/0.1.2.md`.
   failing row. Before, X-07 skipped it, so a missing schema passed without
   a check. The release profile has 264 pass (was 262); full-ci 280 (was
   278).
+- `--matches` on a CRLF file: occurrences now see the `\r` at the line end,
+  as the file-level search does. Before, `foo\r` listed the file with an
+  empty `matches` list, and `foo\s` lost the occurrence at the line end
+  (`content`, `find`, `why`). `text` still has no `\r`.
+- A pattern that can match only a newline (`foo\n`, `[\n]`) now gives
+  `BAD_PATTERN`, exit 1, as rg does. Before, it compiled, could never match
+  one line, and rf gave "no files", exit 0. `\s` and other classes no longer
+  match the `\n` of a line; they never matched a line before either.
 
 ## 0.1.1 — defect fixes after 0.1.0
 

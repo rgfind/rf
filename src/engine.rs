@@ -5,7 +5,7 @@
 
 use crate::query::QueryMode;
 use grep_matcher::Matcher;
-use grep_regex::RegexMatcherBuilder;
+use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::sinks::Bytes;
 use grep_searcher::{BinaryDetection, Encoding, SearcherBuilder};
 use ignore::{DirEntry, WalkBuilder};
@@ -127,18 +127,28 @@ fn walk(root: &str, use_ignore: bool, skip_hidden: bool) -> ignore::Walk {
 }
 
 /// Files under `root` containing `pattern` under one filter configuration.
+/// The one matcher every search path uses. The `\n` line terminator matches
+/// ripgrep's line mode: a pattern that can only match a literal newline is
+/// refused at build time (BAD_PATTERN), and classes such as `\s` never match
+/// `\n`. Without it such a pattern compiled, could never match one line, and
+/// rf reported "no files" with exit 0.
+fn build_matcher(pattern: &str, cfg: &SearchCfg) -> Result<RegexMatcher, String> {
+    RegexMatcherBuilder::new()
+        .fixed_strings(cfg.query.fixed_strings)
+        .word(cfg.query.word)
+        .case_insensitive(cfg.query.case_insensitive)
+        .line_terminator(Some(b'\n'))
+        .build(pattern)
+        .map_err(|e| e.to_string())
+}
+
 /// Paths keep the walked form (root prefix, `./` stripped); callers relativize.
 pub fn content_matches(
     root: &str,
     pattern: &str,
     cfg: &SearchCfg,
 ) -> Result<BTreeSet<String>, String> {
-    let matcher = RegexMatcherBuilder::new()
-        .fixed_strings(cfg.query.fixed_strings)
-        .word(cfg.query.word)
-        .case_insensitive(cfg.query.case_insensitive)
-        .build(pattern)
-        .map_err(|e| e.to_string())?;
+    let matcher = build_matcher(pattern, cfg)?;
 
     let mut sb = SearcherBuilder::new();
     sb.binary_detection(if cfg.binary_as_text {
@@ -197,12 +207,7 @@ pub fn content_matches_selected(
     cfg: &SearchCfg,
     files: &BTreeMap<String, PathBuf>,
 ) -> Result<BTreeSet<String>, String> {
-    let matcher = RegexMatcherBuilder::new()
-        .fixed_strings(cfg.query.fixed_strings)
-        .word(cfg.query.word)
-        .case_insensitive(cfg.query.case_insensitive)
-        .build(pattern)
-        .map_err(|e| e.to_string())?;
+    let matcher = build_matcher(pattern, cfg)?;
 
     let mut sb = SearcherBuilder::new();
     sb.binary_detection(if cfg.binary_as_text {
@@ -307,12 +312,7 @@ pub fn occurrences(
     cfg: &SearchCfg,
     cap: usize,
 ) -> Result<Vec<Occurrence>, String> {
-    let matcher = RegexMatcherBuilder::new()
-        .fixed_strings(cfg.query.fixed_strings)
-        .word(cfg.query.word)
-        .case_insensitive(cfg.query.case_insensitive)
-        .build(pattern)
-        .map_err(|e| e.to_string())?;
+    let matcher = build_matcher(pattern, cfg)?;
     let mut builder = SearcherBuilder::new();
     builder.binary_detection(if cfg.binary_as_text {
         BinaryDetection::none()
@@ -328,13 +328,18 @@ pub fn occurrences(
         .search_path(
             &matcher,
             file,
-            Bytes(|line_number, bytes| {
-                let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
-                let bytes = bytes.strip_suffix(b"\r").unwrap_or(bytes);
+            Bytes(|line_number, line| {
+                let line = line.strip_suffix(b"\n").unwrap_or(line);
+                let bytes = line.strip_suffix(b"\r").unwrap_or(line);
                 let lossy = std::str::from_utf8(bytes).is_err();
                 let decoded = String::from_utf8_lossy(bytes).into_owned();
                 let (text, text_truncated) = cap_text(decoded);
-                let _ = matcher.find_iter(bytes, |matched| {
+                // Match the line as the searcher did: without its `\n`, but
+                // with the `\r` of a CRLF line, so a pattern that uses it
+                // (`foo\r`, `foo\s`) finds the same occurrence here. Only
+                // `text` drops the `\r`. The Result is `Result<(), NoError>`:
+                // it cannot fail.
+                let _ = matcher.find_iter(line, |matched| {
                     found.push(Occurrence {
                         line: line_number,
                         column_byte: matched.start() + 1,

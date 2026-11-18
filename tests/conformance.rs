@@ -416,6 +416,87 @@ fn match_evidence_flags_are_uniform_and_preserve_default_rows() {
     }
 }
 
+/// Occurrences see each line as the searcher does: without the `\n`, with
+/// the `\r` of a CRLF line. Before the fix, `foo\r` listed the file with an
+/// empty `matches` list, and `foo\s` lost the occurrence that rg reports.
+#[test]
+fn match_evidence_keeps_the_carriage_return_of_a_crlf_line() {
+    let dir = unique_temp("crlf-evidence");
+    std::fs::write(dir.join("crlf.txt"), "alpha foo\r\nbeta\r\nfoo gamma\r\n").unwrap();
+    std::fs::write(dir.join("lf.txt"), "alpha foo\nbeta\nlast foo\n").unwrap();
+    let cwd = Some(dir.as_path());
+    type Rows = Vec<(String, Vec<(u64, u64, String)>)>;
+    let occurrences = |pattern: &str| -> Rows {
+        let (code, response, _) = rf(&["content", pattern, ".", "--matches", "--json"], cwd, &[]);
+        assert_eq!(code, 0, "{pattern}: {response}");
+        let mut rows: Vec<_> = response["data"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| {
+                let found = row["matches"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{pattern}: matches is not a list: {row}"))
+                    .iter()
+                    .map(|m| {
+                        (
+                            m["line"].as_u64().unwrap(),
+                            m["column_byte"].as_u64().unwrap(),
+                            m["text"].as_str().unwrap().to_string(),
+                        )
+                    })
+                    .collect();
+                (row["file"].as_str().unwrap().to_string(), found)
+            })
+            .collect();
+        rows.sort();
+        rows
+    };
+    let row = |file: &str, found: &[(u64, u64, &str)]| {
+        (
+            file.to_string(),
+            found
+                .iter()
+                .map(|(l, c, t)| (*l, *c, t.to_string()))
+                .collect::<Vec<_>>(),
+        )
+    };
+    assert_eq!(
+        occurrences(r"foo\r"),
+        vec![row("crlf.txt", &[(1, 7, "alpha foo")])]
+    );
+    assert_eq!(
+        occurrences(r"foo\s"),
+        vec![row("crlf.txt", &[(1, 7, "alpha foo"), (3, 1, "foo gamma")])]
+    );
+    assert_eq!(
+        occurrences("foo$"),
+        vec![row("lf.txt", &[(1, 7, "alpha foo"), (3, 6, "last foo")])]
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A pattern that can only match a newline can never match one line. Each
+/// search verb refuses it, as rg does, instead of "no files", exit 0.
+#[test]
+fn newline_pattern_is_refused_by_each_search_verb() {
+    let dir = unique_temp("newline-pattern");
+    std::fs::write(dir.join("a.txt"), "foo\nbar\n").unwrap();
+    let cwd = Some(dir.as_path());
+    for pattern in [r"foo\n", r"foo\nbar", r"[\n]"] {
+        for argv in [
+            vec!["content", pattern, ".", "--json"],
+            vec!["find", pattern, ".", "--name", "txt", "--json"],
+            vec!["why", pattern, "a.txt", "--json"],
+        ] {
+            let (code, e, _) = rf(&argv, cwd, &[]);
+            assert_eq!(code, 1, "{argv:?}: {e}");
+            assert_eq!(e["errors"][0]["code"], "BAD_PATTERN", "{argv:?}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn match_evidence_is_text_and_response_bounded_with_a_resume_cursor() {
     let root = unique_temp("evidence-bounds");
