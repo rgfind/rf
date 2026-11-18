@@ -488,7 +488,15 @@ fn rf_with_input(args: &[&str], cwd: Option<&Path>, input: &[u8]) -> (i32, Value
         .stdout(Stdio::piped())
         .spawn()
         .expect("spawn rf");
-    child.stdin.as_mut().unwrap().write_all(input).unwrap();
+    // rf may reject its arguments and exit before it reads stdin; the write
+    // then races the exit and can fail with BrokenPipe. That is not an error.
+    let mut stdin = child.stdin.take().unwrap();
+    match stdin.write_all(input) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::BrokenPipe => {}
+        Err(error) => panic!("write rf stdin: {error}"),
+    }
+    drop(stdin);
     let out = child.wait_with_output().expect("wait rf");
     let stdout = String::from_utf8_lossy(&out.stdout).to_string();
     let json = serde_json::from_str(&stdout).expect("machine output parses");
