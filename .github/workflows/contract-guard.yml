@@ -25,17 +25,35 @@ on:
       - "CONTRACT.md"
       - "bench/**"
 
+env:
+  PLUMBLINE_VERSION: 0.0.4
+
 jobs:
   contract-guard:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+      - name: Restore the guard tool (plumbline) from cache
+        id: plumb-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/plumb
+          key: plumbline-${{ env.PLUMBLINE_VERSION }}-${{ runner.os }}-${{ runner.arch }}
       - name: Install the guard tool (plumbline)
         # Pinned to an exact crates.io version, in lockstep with plumbline.json's
         # config_version. Bump this and the config together in one deliberate
         # migration; never float to a newer schema by surprise.
-        run: cargo install plumbline@0.0.4 --locked
+        # The binary is cached by version; a restored binary must report that
+        # exact version, else it is rebuilt. Bump PLUMBLINE_VERSION with
+        # plumbline.json's config_version.
+        run: |
+          if [ "${{ steps.plumb-cache.outputs.cache-hit }}" = "true" ] \
+            && [ "$(plumb --version 2>/dev/null)" = "plumb ${PLUMBLINE_VERSION}" ]; then
+            echo "plumbline ${PLUMBLINE_VERSION} restored from cache"
+          else
+            cargo install "plumbline@${PLUMBLINE_VERSION}" --locked --force
+          fi
       - name: Registered claims match the committed fixture
         run: plumb check
       - name: Committed fixture is not stale (re-capture from the built binary)
