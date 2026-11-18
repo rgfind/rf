@@ -34,6 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+      - name: Restore the Cargo registry and dependency builds
+        # Caches ~/.cargo/registry, ~/.cargo/git and target/ dependencies,
+        # keyed by rustc version, Cargo.lock and job. rf itself still compiles
+        # each run. cache-bin is off: the plumbline step owns ~/.cargo/bin.
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: "false"
       - name: Restore the guard tool (plumbline) from cache
         id: plumb-cache
         uses: actions/cache@v4

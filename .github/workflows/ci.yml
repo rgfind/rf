@@ -48,6 +48,13 @@ jobs:
         # `why` verb emits and asserts they reproduce the finding, so `rg` must
         # be on PATH. ubuntu-latest does not ship ripgrep.
         run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Restore the Cargo registry and dependency builds
+        # Caches ~/.cargo/registry, ~/.cargo/git and target/ dependencies,
+        # keyed by rustc version, Cargo.lock and job. rf itself still compiles
+        # each run. cache-bin is off: the plumbline step owns ~/.cargo/bin.
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: "false"
       - name: Restore the guard tool (plumbline) from cache
         id: plumb-cache
         uses: actions/cache@v4
