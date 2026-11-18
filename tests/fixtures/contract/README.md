@@ -42,8 +42,9 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
   tree for unreleased changes: `limits.scrub_log` added, the
   `GIT_SCRUB_UNAVAILABLE` summary now also names the time limit, and
   `verbs.capabilities` and `verbs.help` have an `output_schema`. Fixture
-  sha256 after these changes:
-  `df81d188aee63442ce21b6edb8d54922ad897e94478259528c50014f1652f747`.
+  sha256 after these changes and the 0.1.2 version bump (release
+  candidate, not yet released):
+  `3e19315a68f095bc7d5c82e3a9fd1b705eb0a61613445cfc65c664fb92b16ea2`.
   The release hashes above are for the 0.1.1 release capture.
 
 ## Validity

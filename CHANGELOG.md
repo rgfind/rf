@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 — scrub log limit, two more output schemas
+
+Contract version stays `0.1`. All changes are additive. The classification
+is in `release-records/0.1.2.md`.
 
 - `find`: the scrub `git log` now has a time limit of 2000 ms and an output
   cap of 1 MiB. Past either one, rf gives `GIT_SCRUB_UNAVAILABLE`, as for a
