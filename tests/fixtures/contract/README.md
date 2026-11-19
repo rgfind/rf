@@ -21,34 +21,24 @@ content, not byte for byte (see `RELEASING.md`, gate 2).
 
 ## Current capture
 
-- Package version: `rf 0.1.1` (contract version `0.1`).
-- Captured at source commit `4279ad4` (the release commit) with plumbline
+- Package version: `rf 0.1.2` (contract version `0.1`).
+- Captured at source commit `3859d29` (the release commit) with plumbline
   0.0.4.
 - Fixture file (sha256):
-  `19e00e91fd1cdb973ac6584f7db6b1171834c0a851002c0e15e36abe2d4cd67e`.
-- `fixture-fresh` passed in the release run for the release commit:
-  <https://github.com/rgfind/rf/actions/runs/44035300025>.
-- Conformance of the release binary in that run: profile
-  `release-self-check`, 262 pass, 28 not applicable, 0 fail.
-- Published archive checksum (crates.io index):
-  `74cc4680594cc304cce06930dbd271a554fad9407d2cd82e188d5ca23d4be5ec`.
-- Difference from the 0.1.0 capture: the `PARTIAL_RESULT` entry (`why`
-  added, new summary), the new warning `GIT_SCRUB_UNAVAILABLE`,
-  `tool_version`, `release_record`, `release_classification`, and the
-  per-run fields. The 0.1.0 capture fixture sha256 was
-  `e5549de41ca3b7d5031787613a2521204a4ee498564642b1d1375b1433d67156`.
-
-- After the 0.1.1 release, the fixture was captured again from the source
-  tree for unreleased changes: `limits.scrub_log` added, the
-  `GIT_SCRUB_UNAVAILABLE` summary now also names the time limit, and
-  `verbs.capabilities` and `verbs.help` have an `output_schema`. Fixture
-  sha256 after these changes and the 0.1.2 version bump (release
-  candidate, not yet released):
-  `3e19315a68f095bc7d5c82e3a9fd1b705eb0a61613445cfc65c664fb92b16ea2`.
-  Then the row schemas of `content`, `find` and `why` got the key
-  `file_bytes_hex` (string or null). Fixture sha256 after that change:
   `89e94e4b040dd1301e85a7cd6777d7a9bcc4b1914fdfdc994b47a76cef9776eb`.
-  The release hashes above are for the 0.1.1 release capture.
+- `fixture-fresh` passed in the release run for the release commit:
+  <https://github.com/rgfind/rf/actions/runs/44543745163>.
+- Conformance of the release binary in that run: profile
+  `release-self-check`, 264 pass, 28 not applicable, 0 fail.
+- Published archive checksum (crates.io index):
+  `30c7561083d1a8fe53f4581c1215d451103e970bb7c2263acbab5c09667c5be1`.
+- Difference from the 0.1.1 capture: `limits.scrub_log` added, the
+  `GIT_SCRUB_UNAVAILABLE` summary now also names the time limit,
+  `verbs.capabilities` and `verbs.help` have an `output_schema`, the row
+  schemas of `content`, `find` and `why` have the key `file_bytes_hex`
+  (string or null), `tool_version`, `release_record`, and the per-run
+  fields. The 0.1.1 capture fixture sha256 was
+  `19e00e91fd1cdb973ac6584f7db6b1171834c0a851002c0e15e36abe2d4cd67e`.
 
 ## Validity
 
